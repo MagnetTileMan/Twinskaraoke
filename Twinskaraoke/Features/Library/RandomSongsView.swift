@@ -82,25 +82,33 @@ struct RandomSongsView: View {
   @ViewBuilder
   private var artworkMosaic: some View {
     let arts = Array(viewModel.songs.prefix(4).compactMap { $0.imageURL })
-    if arts.count >= 4 {
-      LazyVGrid(columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)], spacing: 0) {
-        ForEach(0..<4, id: \.self) { i in
-          LoadingImage(url: arts[i], cornerRadius: 0)
-            .aspectRatio(1, contentMode: .fill)
+    ZStack {
+      if arts.count >= 4 {
+        LazyVGrid(
+          columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)], spacing: 0
+        ) {
+          ForEach(0..<4, id: \.self) { i in
+            LoadingImage(url: arts[i], cornerRadius: 0, showsLoading: false)
+              .aspectRatio(1, contentMode: .fill)
+          }
         }
+      } else if let url = arts.first {
+        LoadingImage(url: url, cornerRadius: 0, showsLoading: false)
+      } else {
+        LinearGradient(
+          colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
+          startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .overlay(
+          Image(systemName: "shuffle")
+            .font(.system(size: 64, weight: .medium))
+            .foregroundColor(.white.opacity(0.85))
+        )
       }
-    } else if let url = arts.first {
-      LoadingImage(url: url, cornerRadius: 0)
-    } else {
-      LinearGradient(
-        colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-      )
-      .overlay(
-        Image(systemName: "shuffle")
-          .font(.system(size: 64, weight: .medium))
-          .foregroundColor(.white.opacity(0.85))
-      )
+      if viewModel.isLoading && viewModel.songs.isEmpty {
+        Color.black.opacity(0.15)
+        LoadingIndicator(size: 56)
+      }
     }
   }
   private func actionLabel(symbol: String, text: String) -> some View {

@@ -79,15 +79,54 @@ struct PlaylistDetailView: View {
     let size = max(140, baseSize + stretch * 0.6 - shrink)
     let blur = min(8, max(0, -scrollOffset / 30))
     let yOffset = scrollOffset > 0 ? -scrollOffset / 2 : 0
-    LoadingImage(url: playlist.imageURL, cornerRadius: 14)
-      .frame(width: size, height: size)
-      .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-      .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
-      .blur(radius: blur)
-      .opacity(1 - min(0.7, max(0, -scrollOffset / 250)))
-      .frame(width: width)
-      .offset(y: yOffset)
-      .padding(.top, 12)
+    Group {
+      if playlist.isFavorites {
+        favoritesMosaic
+      } else {
+        LoadingImage(url: playlist.imageURL, cornerRadius: 14)
+      }
+    }
+    .frame(width: size, height: size)
+    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
+    .blur(radius: blur)
+    .opacity(1 - min(0.7, max(0, -scrollOffset / 250)))
+    .frame(width: width)
+    .offset(y: yOffset)
+    .padding(.top, 12)
+  }
+  @ViewBuilder
+  private var favoritesMosaic: some View {
+    let songs: [Song] = loader.songs ?? playlist.songListDTOs ?? []
+    let arts = Array(songs.prefix(4).compactMap { $0.imageURL })
+    ZStack {
+      if arts.count >= 4 {
+        LazyVGrid(
+          columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)], spacing: 0
+        ) {
+          ForEach(0..<4, id: \.self) { i in
+            LoadingImage(url: arts[i], cornerRadius: 0, showsLoading: false)
+              .aspectRatio(1, contentMode: .fill)
+          }
+        }
+      } else if let url = arts.first {
+        LoadingImage(url: url, cornerRadius: 0, showsLoading: false)
+      } else {
+        LinearGradient(
+          colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
+          startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .overlay(
+          Image(systemName: "star.fill")
+            .font(.system(size: 64, weight: .medium))
+            .foregroundColor(.white.opacity(0.85))
+        )
+      }
+      if loader.isLoading && songs.isEmpty {
+        Color.black.opacity(0.15)
+        LoadingIndicator(size: 56)
+      }
+    }
   }
   @ViewBuilder
   private func actionButtons(songs: [Song]) -> some View {
@@ -188,15 +227,21 @@ class PlaylistDetailViewModel: ObservableObject {
     let alreadyFullyLoaded = (loadedID == playlistID) && (songs?.isEmpty == false)
     if alreadyFullyLoaded { return }
     loadedID = playlistID
-    if (songs?.isEmpty ?? true), let fallback = fallback, !fallback.isEmpty {
+    if songs?.isEmpty ?? true, let fallback = fallback, !fallback.isEmpty {
       self.songs = fallback
     }
-    guard
-      let url = URL(string: "https://api.neurokaraoke.com/api/playlist/\(playlistID)")
-    else { return }
+    let isFavorites = playlistID == Playlist.favoritesID
+    let urlString =
+      isFavorites
+      ? "https://api.neurokaraoke.com/api/favorites/type?type=0"
+      : "https://api.neurokaraoke.com/api/playlist/\(playlistID)"
+    guard let url = URL(string: urlString) else { return }
     isLoading = true
     var r = URLRequest(url: url)
     r.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    if isFavorites, let token = UserDefaults.standard.string(forKey: "nk.token") {
+      r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
     URLSession.shared.dataTask(with: r) { [weak self] data, _, _ in
       guard let self = self else { return }
       let list = Self.decodeSongs(from: data)
@@ -219,6 +264,10 @@ class PlaylistDetailViewModel: ObservableObject {
     if let list = try? decoder.decode([Song].self, from: data), !list.isEmpty {
       return list
     }
+    if let wrapped = try? decoder.decode([FavoriteSongEnvelope].self, from: data) {
+      let unwrapped = wrapped.compactMap { $0.song }
+      if !unwrapped.isEmpty { return unwrapped }
+    }
     if let wrapped = try? decoder.decode(PlaylistSongsResponse.self, from: data),
       !wrapped.songs.isEmpty
     {
@@ -228,8 +277,27 @@ class PlaylistDetailViewModel: ObservableObject {
   }
 }
 
+private struct FavoriteSongEnvelope: Decodable {
+  let song: Song?
+
+  enum CodingKeys: String, CodingKey { case song, songData, songDTO }
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    if let decoded = try? container.decode(Song.self, forKey: .song) {
+      song = decoded
+    } else if let decoded = try? container.decode(Song.self, forKey: .songData) {
+      song = decoded
+    } else if let decoded = try? container.decode(Song.self, forKey: .songDTO) {
+      song = decoded
+    } else {
+      song = nil
+    }
+  }
+}
+
 private struct PlaylistSongsResponse: Codable {
   let songs: [Song]
+
   enum CodingKeys: String, CodingKey {
     case items, songListDTOs, songs
   }

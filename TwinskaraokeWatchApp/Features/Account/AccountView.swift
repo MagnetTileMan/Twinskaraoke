@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct WatchAccountView: View {
+struct AccountView: View {
   var body: some View {
     List {
       Section {

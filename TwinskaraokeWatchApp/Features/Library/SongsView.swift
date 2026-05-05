@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct WatchSongsView: View {
-  @StateObject var viewModel = WatchSongsViewModel()
-  @EnvironmentObject var audioManager: WatchAudioManager
+struct SongsView: View {
+  @StateObject var viewModel = SongsViewModel()
+  @EnvironmentObject var audioManager: AudioManager
   @State private var showPlayer = false
   var body: some View {
     List {
@@ -53,7 +53,7 @@ struct WatchSongsView: View {
     }
     .navigationTitle("Songs")
     .navigationDestination(isPresented: $showPlayer) {
-      WatchPlayerView()
+      PlayerView()
         .environmentObject(audioManager)
     }
     .onAppear {

@@ -40,7 +40,10 @@ struct SearchView: View {
           .transition(.opacity)
         }
       }
-      .animation(.easeInOut(duration: 0.3), value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)")
+      .animation(
+        .easeInOut(duration: 0.3),
+        value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)"
+      )
       .navigationTitle("Search")
       .searchable(
         text: $viewModel.searchText,
@@ -53,41 +56,122 @@ struct SearchView: View {
 
 private struct BrowseCategoriesView: View {
   private let topPicks: [(String, [Color])] = [
-    ("Twinskaraoke Top 100", [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]),
-    ("Charts", [Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55)]),
-    ("Hits", [Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05)]),
-    ("New Releases", [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]),
+    (
+      "Twinskaraoke Top 100",
+      [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]
+    ),
+    (
+      "Charts",
+      [Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55)]
+    ),
+    (
+      "Hits",
+      [Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05)]
+    ),
+    (
+      "New Releases",
+      [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]
+    ),
   ]
   private let activitiesAndMoods: [(String, [Color])] = [
-    ("Workout", [Color(red: 0.95, green: 0.20, blue: 0.20), Color(red: 0.40, green: 0.05, blue: 0.05)]),
-    ("Chill", [Color(red: 0.20, green: 0.55, blue: 0.65), Color(red: 0.05, green: 0.20, blue: 0.30)]),
-    ("Focus", [Color(red: 0.30, green: 0.30, blue: 0.55), Color(red: 0.05, green: 0.05, blue: 0.20)]),
-    ("Sleep", [Color(red: 0.20, green: 0.20, blue: 0.45), Color(red: 0.05, green: 0.05, blue: 0.20)]),
-    ("Party", [Color(red: 0.90, green: 0.30, blue: 0.75), Color(red: 0.40, green: 0.05, blue: 0.40)]),
-    ("Romance", [Color(red: 0.95, green: 0.40, blue: 0.55), Color(red: 0.45, green: 0.10, blue: 0.20)]),
+    (
+      "Workout",
+      [Color(red: 0.95, green: 0.20, blue: 0.20), Color(red: 0.40, green: 0.05, blue: 0.05)]
+    ),
+    (
+      "Chill",
+      [Color(red: 0.20, green: 0.55, blue: 0.65), Color(red: 0.05, green: 0.20, blue: 0.30)]
+    ),
+    (
+      "Focus",
+      [Color(red: 0.30, green: 0.30, blue: 0.55), Color(red: 0.05, green: 0.05, blue: 0.20)]
+    ),
+    (
+      "Sleep",
+      [Color(red: 0.20, green: 0.20, blue: 0.45), Color(red: 0.05, green: 0.05, blue: 0.20)]
+    ),
+    (
+      "Party",
+      [Color(red: 0.90, green: 0.30, blue: 0.75), Color(red: 0.40, green: 0.05, blue: 0.40)]
+    ),
+    (
+      "Romance",
+      [Color(red: 0.95, green: 0.40, blue: 0.55), Color(red: 0.45, green: 0.10, blue: 0.20)]
+    ),
   ]
   private let decades: [(String, [Color])] = [
-    ("2020s", [Color(red: 0.10, green: 0.55, blue: 0.95), Color(red: 0.05, green: 0.20, blue: 0.55)]),
-    ("2010s", [Color(red: 0.55, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]),
-    ("2000s", [Color(red: 0.95, green: 0.55, blue: 0.20), Color(red: 0.45, green: 0.20, blue: 0.05)]),
-    ("90s", [Color(red: 0.95, green: 0.30, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.05)]),
-    ("80s", [Color(red: 0.95, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]),
-    ("70s", [Color(red: 0.85, green: 0.55, blue: 0.10), Color(red: 0.40, green: 0.20, blue: 0.05)]),
-    ("60s", [Color(red: 0.60, green: 0.45, blue: 0.20), Color(red: 0.25, green: 0.15, blue: 0.05)]),
+    (
+      "2020s",
+      [Color(red: 0.10, green: 0.55, blue: 0.95), Color(red: 0.05, green: 0.20, blue: 0.55)]
+    ),
+    (
+      "2010s",
+      [Color(red: 0.55, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]
+    ),
+    (
+      "2000s",
+      [Color(red: 0.95, green: 0.55, blue: 0.20), Color(red: 0.45, green: 0.20, blue: 0.05)]
+    ),
+    (
+      "90s", [Color(red: 0.95, green: 0.30, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.05)]
+    ),
+    (
+      "80s", [Color(red: 0.95, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]
+    ),
+    (
+      "70s", [Color(red: 0.85, green: 0.55, blue: 0.10), Color(red: 0.40, green: 0.20, blue: 0.05)]
+    ),
+    (
+      "60s", [Color(red: 0.60, green: 0.45, blue: 0.20), Color(red: 0.25, green: 0.15, blue: 0.05)]
+    ),
   ]
   private let genres: [(String, [Color])] = [
-    ("Pop", [Color(red: 0.90, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]),
-    ("Hip-Hop", [Color(red: 0.60, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]),
-    ("R&B", [Color(red: 0.95, green: 0.55, blue: 0.20), Color(red: 0.45, green: 0.20, blue: 0.05)]),
-    ("Rock", [Color(red: 0.85, green: 0.20, blue: 0.20), Color(red: 0.30, green: 0.05, blue: 0.05)]),
-    ("Country", [Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.25, blue: 0.05)]),
-    ("Electronic", [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]),
-    ("Latin", [Color(red: 0.95, green: 0.35, blue: 0.20), Color(red: 0.45, green: 0.10, blue: 0.05)]),
-    ("K-Pop", [Color(red: 0.95, green: 0.45, blue: 0.75), Color(red: 0.40, green: 0.10, blue: 0.40)]),
-    ("Jazz", [Color(red: 0.60, green: 0.45, blue: 0.20), Color(red: 0.25, green: 0.15, blue: 0.05)]),
-    ("Classical", [Color(red: 0.40, green: 0.55, blue: 0.40), Color(red: 0.10, green: 0.25, blue: 0.15)]),
-    ("Reggae", [Color(red: 0.30, green: 0.65, blue: 0.30), Color(red: 0.10, green: 0.30, blue: 0.10)]),
-    ("Soundtracks", [Color(red: 0.45, green: 0.45, blue: 0.55), Color(red: 0.15, green: 0.15, blue: 0.25)]),
+    (
+      "Pop", [Color(red: 0.90, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]
+    ),
+    (
+      "Hip-Hop",
+      [Color(red: 0.60, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]
+    ),
+    (
+      "R&B", [Color(red: 0.95, green: 0.55, blue: 0.20), Color(red: 0.45, green: 0.20, blue: 0.05)]
+    ),
+    (
+      "Rock",
+      [Color(red: 0.85, green: 0.20, blue: 0.20), Color(red: 0.30, green: 0.05, blue: 0.05)]
+    ),
+    (
+      "Country",
+      [Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.25, blue: 0.05)]
+    ),
+    (
+      "Electronic",
+      [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]
+    ),
+    (
+      "Latin",
+      [Color(red: 0.95, green: 0.35, blue: 0.20), Color(red: 0.45, green: 0.10, blue: 0.05)]
+    ),
+    (
+      "K-Pop",
+      [Color(red: 0.95, green: 0.45, blue: 0.75), Color(red: 0.40, green: 0.10, blue: 0.40)]
+    ),
+    (
+      "Jazz",
+      [Color(red: 0.60, green: 0.45, blue: 0.20), Color(red: 0.25, green: 0.15, blue: 0.05)]
+    ),
+    (
+      "Classical",
+      [Color(red: 0.40, green: 0.55, blue: 0.40), Color(red: 0.10, green: 0.25, blue: 0.15)]
+    ),
+    (
+      "Reggae",
+      [Color(red: 0.30, green: 0.65, blue: 0.30), Color(red: 0.10, green: 0.30, blue: 0.10)]
+    ),
+    (
+      "Soundtracks",
+      [Color(red: 0.45, green: 0.45, blue: 0.55), Color(red: 0.15, green: 0.15, blue: 0.25)]
+    ),
   ]
   let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
   var body: some View {

@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
-  @StateObject var audioManager = WatchAudioManager.shared
+  @StateObject var audioManager = AudioManager.shared
   var body: some View {
-    WatchHomeView()
+    HomeView()
       .environmentObject(audioManager)
   }
 }

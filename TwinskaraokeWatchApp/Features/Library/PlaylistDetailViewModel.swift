@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-class WatchPlaylistDetailViewModel: ObservableObject {
+class PlaylistDetailViewModel: ObservableObject {
   @Published var songs: [Song] = []
   @Published var isLoading = false
   let playlistID: String

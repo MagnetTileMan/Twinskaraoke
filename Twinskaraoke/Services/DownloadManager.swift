@@ -76,7 +76,8 @@ final class DownloadManager: ObservableObject {
   }
   private func refreshExistingDownloads() {
     let fm = FileManager.default
-    guard let files = try? fm.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil) else { return }
+    guard let files = try? fm.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil)
+    else { return }
     let ids = files.map { $0.deletingPathExtension().lastPathComponent }
     downloadedIDs = Set(ids)
   }

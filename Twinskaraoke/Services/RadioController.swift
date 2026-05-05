@@ -5,7 +5,8 @@ import Foundation
 
 final class RadioController: ObservableObject {
   static let shared = RadioController()
-  static let metadataURL = URL(string: "https://radio.twinskaraoke.com/api/nowplaying_static/neuro_21.json")!
+  static let metadataURL = URL(
+    string: "https://radio.twinskaraoke.com/api/nowplaying_static/neuro_21.json")!
   static let stationID = "neuro_21"
   @Published var nowPlaying: RadioNowPlaying?
   private var pollTimer: Timer?
@@ -32,11 +33,13 @@ final class RadioController: ObservableObject {
     }
     guard let streamURL = URL(string: np.station.listenUrl) else { return }
     let info = np.nowPlaying?.song
-    let song = (info ?? RadioNowPlaying.SongInfo(
-      id: Self.stationID, art: nil, text: np.station.name,
-      artist: np.station.description, title: np.station.name,
-      customFields: nil
-    )).toSong(stationID: Self.stationID)
+    let song =
+      (info
+      ?? RadioNowPlaying.SongInfo(
+        id: Self.stationID, art: nil, text: np.station.name,
+        artist: np.station.description, title: np.station.name,
+        customFields: nil
+      )).toSong(stationID: Self.stationID)
     let artURL = info?.art.flatMap { URL(string: $0) }
     AudioPlayerManager.shared.playRadio(streamURL: streamURL, song: song, artworkURL: artURL)
   }

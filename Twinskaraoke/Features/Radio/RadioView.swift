@@ -196,9 +196,21 @@ private struct RadioStationTile: Identifiable {
   let tagline: String
   let gradient: [Color]
   static let hosted: [RadioStationTile] = [
-    .init(name: "Twinskaraoke 1", tagline: "Worldwide", gradient: [Color(red: 0.95, green: 0.20, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.10)]),
-    .init(name: "Twinskaraoke Hits", tagline: "Decades of hits", gradient: [Color(red: 0.20, green: 0.45, blue: 0.95), Color(red: 0.05, green: 0.15, blue: 0.45)]),
-    .init(name: "Twinskaraoke Country", tagline: "Today's country", gradient: [Color(red: 0.85, green: 0.55, blue: 0.20), Color(red: 0.40, green: 0.20, blue: 0.05)]),
+    .init(
+      name: "Twinskaraoke 1", tagline: "Worldwide",
+      gradient: [
+        Color(red: 0.95, green: 0.20, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.10),
+      ]),
+    .init(
+      name: "Twinskaraoke Hits", tagline: "Decades of hits",
+      gradient: [
+        Color(red: 0.20, green: 0.45, blue: 0.95), Color(red: 0.05, green: 0.15, blue: 0.45),
+      ]),
+    .init(
+      name: "Twinskaraoke Country", tagline: "Today's country",
+      gradient: [
+        Color(red: 0.85, green: 0.55, blue: 0.20), Color(red: 0.40, green: 0.20, blue: 0.05),
+      ]),
   ]
 }
 
@@ -240,10 +252,26 @@ private struct RadioShowTile: Identifiable {
   let host: String
   let gradient: [Color]
   static let featured: [RadioShowTile] = [
-    .init(title: "The Zane Lowe Show", host: "Zane Lowe", gradient: [Color(red: 0.55, green: 0.10, blue: 0.55), Color(red: 0.20, green: 0.05, blue: 0.30)]),
-    .init(title: "Ebro Darden", host: "Hip-Hop", gradient: [Color(red: 0.10, green: 0.55, blue: 0.55), Color(red: 0.05, green: 0.25, blue: 0.30)]),
-    .init(title: "Travis Mills", host: "The Pop Show", gradient: [Color(red: 0.95, green: 0.40, blue: 0.65), Color(red: 0.45, green: 0.10, blue: 0.30)]),
-    .init(title: "Kelleigh Bannen", host: "Today's Country", gradient: [Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.30, blue: 0.05)]),
+    .init(
+      title: "The Zane Lowe Show", host: "Zane Lowe",
+      gradient: [
+        Color(red: 0.55, green: 0.10, blue: 0.55), Color(red: 0.20, green: 0.05, blue: 0.30),
+      ]),
+    .init(
+      title: "Ebro Darden", host: "Hip-Hop",
+      gradient: [
+        Color(red: 0.10, green: 0.55, blue: 0.55), Color(red: 0.05, green: 0.25, blue: 0.30),
+      ]),
+    .init(
+      title: "Travis Mills", host: "The Pop Show",
+      gradient: [
+        Color(red: 0.95, green: 0.40, blue: 0.65), Color(red: 0.45, green: 0.10, blue: 0.30),
+      ]),
+    .init(
+      title: "Kelleigh Bannen", host: "Today's Country",
+      gradient: [
+        Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.30, blue: 0.05),
+      ]),
   ]
 }
 

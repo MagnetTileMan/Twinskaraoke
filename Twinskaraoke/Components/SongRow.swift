@@ -79,7 +79,9 @@ struct SongRow: View {
         trailing
       } else {
         Menu {
-          Button { audioManager.play(song: song) } label: {
+          Button {
+            audioManager.play(song: song)
+          } label: {
             Label("Play Next", systemImage: "text.insert")
           }
           if downloads.isDownloaded(song.id) {

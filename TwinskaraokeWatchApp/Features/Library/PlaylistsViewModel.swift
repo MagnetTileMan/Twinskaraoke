@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-class WatchPlaylistsViewModel: ObservableObject {
+class PlaylistsViewModel: ObservableObject {
   @Published var playlists: [Playlist] = []
   @Published var isLoading = false
   func fetchMusic() {

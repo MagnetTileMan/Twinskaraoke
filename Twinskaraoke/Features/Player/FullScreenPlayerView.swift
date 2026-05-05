@@ -52,8 +52,10 @@ struct FullScreenPlayerView: View {
       }
       .onChange(of: audioManager.currentSong?.id) { newId in
         if showLyrics, !audioManager.isRadioMode, let id = newId {
-          if let prefetched = upcomingLyricsViewModel.lyrics.isEmpty ? nil : upcomingLyricsViewModel.lyrics,
-             upcomingLyricsViewModel.loadedSongID == id {
+          if let prefetched = upcomingLyricsViewModel.lyrics.isEmpty
+            ? nil : upcomingLyricsViewModel.lyrics,
+            upcomingLyricsViewModel.loadedSongID == id
+          {
             lyricsViewModel.adopt(songID: id, lyrics: prefetched)
           } else {
             lyricsViewModel.fetch(songID: id)
@@ -219,10 +221,12 @@ struct FullScreenPlayerView: View {
   @ViewBuilder
   private func lyricsHeader(song: Song) -> some View {
     HStack(spacing: 12) {
-      LoadingImage(url: audioManager.displayImageURL(for: song), cornerRadius: 8, contentMode: .fill)
-        .frame(width: 52, height: 52)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .id(song.id)
+      LoadingImage(
+        url: audioManager.displayImageURL(for: song), cornerRadius: 8, contentMode: .fill
+      )
+      .frame(width: 52, height: 52)
+      .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+      .id(song.id)
       VStack(alignment: .leading, spacing: 2) {
         Text(song.title)
           .font(.system(size: 16, weight: .bold))
@@ -241,17 +245,19 @@ struct FullScreenPlayerView: View {
   }
   private func artwork(song: Song, size: CGFloat) -> some View {
     ZStack {
-      LoadingImage(url: audioManager.displayImageURL(for: song), cornerRadius: 12, contentMode: .fill)
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .id(song.id)
-        .shadow(
-          color: .black.opacity(audioManager.isPlaying ? 0.45 : 0.22),
-          radius: audioManager.isPlaying ? 28 : 16,
-          y: audioManager.isPlaying ? 18 : 10
-        )
-        .scaleEffect(audioManager.isPlaying ? 1.0 : 0.86)
-        .animation(.spring(response: 0.5, dampingFraction: 0.78), value: audioManager.isPlaying)
+      LoadingImage(
+        url: audioManager.displayImageURL(for: song), cornerRadius: 12, contentMode: .fill
+      )
+      .frame(width: size, height: size)
+      .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+      .id(song.id)
+      .shadow(
+        color: .black.opacity(audioManager.isPlaying ? 0.45 : 0.22),
+        radius: audioManager.isPlaying ? 28 : 16,
+        y: audioManager.isPlaying ? 18 : 10
+      )
+      .scaleEffect(audioManager.isPlaying ? 1.0 : 0.86)
+      .animation(.spring(response: 0.5, dampingFraction: 0.78), value: audioManager.isPlaying)
       if audioManager.isBuffering {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
           .fill(Color.black.opacity(0.4))
@@ -386,14 +392,14 @@ struct FullScreenPlayerView: View {
         .buttonStyle(PressableButtonStyle(scale: 0.85, dim: 0.55))
       }
       #if canImport(UIKit)
-      ZStack {
-        Image(systemName: routeSymbolName(audioManager.routeIcon))
-          .font(.system(size: 22))
-          .foregroundColor(.primary)
-        AirPlayRoutePickerView()
-          .frame(width: 44, height: 44)
-      }
-      .frame(maxWidth: audioManager.isRadioMode ? nil : .infinity)
+        ZStack {
+          Image(systemName: routeSymbolName(audioManager.routeIcon))
+            .font(.system(size: 22))
+            .foregroundColor(.primary)
+          AirPlayRoutePickerView()
+            .frame(width: 44, height: 44)
+        }
+        .frame(maxWidth: audioManager.isRadioMode ? nil : .infinity)
       #endif
       Button {
         showingQueue = true

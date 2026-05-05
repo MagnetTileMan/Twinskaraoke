@@ -37,8 +37,10 @@ private struct PopupModifier: ViewModifier {
   @EnvironmentObject var audioManager: AudioPlayerManager
   func body(content: Content) -> some View {
     content
-      .popup(isBarPresented: .constant(audioManager.currentSong != nil),
-             isPopupOpen: $audioManager.showFullScreen) {
+      .popup(
+        isBarPresented: .constant(audioManager.currentSong != nil),
+        isPopupOpen: $audioManager.showFullScreen
+      ) {
         PopupContent()
           .environmentObject(audioManager)
       }

@@ -72,9 +72,15 @@ struct PlaylistCarousel: View {
           ForEach(playlists) { playlist in
             NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
               VStack(alignment: .leading, spacing: 6) {
-                LoadingImage(url: playlist.imageURL, cornerRadius: 10)
-                  .frame(width: 170, height: 170)
-                  .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Group {
+                  if playlist.isFavorites {
+                    FavoritesArtworkTile()
+                  } else {
+                    LoadingImage(url: playlist.imageURL, cornerRadius: 10)
+                  }
+                }
+                .frame(width: 170, height: 170)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 Text(playlist.name)
                   .font(.system(size: 15, weight: .semibold))
                   .foregroundColor(.primary)
@@ -181,18 +187,43 @@ struct HomePlaceholderTile: Identifiable {
   let subtitle: String
   let gradient: [Color]
   static let newReleases: [HomePlaceholderTile] = [
-    .init(title: "Latest Singles", subtitle: "Updated daily", gradient: [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]),
-    .init(title: "New Albums", subtitle: "This week", gradient: [Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55)]),
-    .init(title: "Coming Soon", subtitle: "Pre-add now", gradient: [Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05)]),
+    .init(
+      title: "Latest Singles", subtitle: "Updated daily",
+      gradient: [
+        Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30),
+      ]),
+    .init(
+      title: "New Albums", subtitle: "This week",
+      gradient: [
+        Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55),
+      ]),
+    .init(
+      title: "Coming Soon", subtitle: "Pre-add now",
+      gradient: [
+        Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05),
+      ]),
   ]
   static let stations: [HomePlaceholderTile] = [
-    .init(title: "Pop Station", subtitle: "Today's biggest hits", gradient: [Color(red: 0.90, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]),
-    .init(title: "Hip-Hop Station", subtitle: "Curated for you", gradient: [Color(red: 0.60, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]),
-    .init(title: "Chill Station", subtitle: "Easy listening", gradient: [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]),
+    .init(
+      title: "Pop Station", subtitle: "Today's biggest hits",
+      gradient: [
+        Color(red: 0.90, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30),
+      ]),
+    .init(
+      title: "Hip-Hop Station", subtitle: "Curated for you",
+      gradient: [
+        Color(red: 0.60, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45),
+      ]),
+    .init(
+      title: "Chill Station", subtitle: "Easy listening",
+      gradient: [
+        Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45),
+      ]),
   ]
 }
 
 struct HomePlaceholderSection: View {
+
   enum Style { case card, station }
   let title: String
   let tiles: [HomePlaceholderTile]

@@ -72,7 +72,9 @@ struct RadioQueueView: View {
     .padding(.bottom, 12)
   }
   @ViewBuilder
-  private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+  private func section<Content: View>(title: String, @ViewBuilder content: () -> Content)
+    -> some View
+  {
     VStack(alignment: .leading, spacing: 8) {
       Text(title)
         .font(.system(size: 13, weight: .semibold))

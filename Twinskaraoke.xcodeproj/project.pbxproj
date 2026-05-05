@@ -77,7 +77,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		D0171BE02FA99B7700EA45D2 /* Twinskaraoke-Watch-App-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Twinskaraoke-Watch-App-Info.plist"; sourceTree = "<group>"; };
 		D0F981B52F94C10900FD69AB /* Twinskaraoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Twinskaraoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0F981C22F94C10A00FD69AB /* TwinskaraokeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TwinskaraokeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0F981CC2F94C10A00FD69AB /* TwinskaraokeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TwinskaraokeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -110,6 +109,13 @@
 			);
 			target = D0F981B42F94C10900FD69AB /* Twinskaraoke */;
 		};
+		D01D91D02FB1000100E30001 /* Exceptions for "TwinskaraokeWatchApp" folder in "Twinskaraoke Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D0F981D72F94C10A00FD69AB /* Twinskaraoke Watch App */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -132,6 +138,9 @@
 		};
 		D0F981DC2F94C10A00FD69AB /* TwinskaraokeWatchApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D01D91D02FB1000100E30001 /* Exceptions for "TwinskaraokeWatchApp" folder in "Twinskaraoke Watch App" target */,
+			);
 			path = TwinskaraokeWatchApp;
 			sourceTree = "<group>";
 		};
@@ -205,7 +214,6 @@
 		D0F981AC2F94C10900FD69AB = {
 			isa = PBXGroup;
 			children = (
-				D0171BE02FA99B7700EA45D2 /* Twinskaraoke-Watch-App-Info.plist */,
 				D0F981B72F94C10900FD69AB /* Twinskaraoke */,
 				D0F981C52F94C10A00FD69AB /* TwinskaraokeTests */,
 				D0F981DC2F94C10A00FD69AB /* TwinskaraokeWatchApp */,
@@ -677,7 +685,7 @@
 				DEVELOPMENT_TEAM = GQCU59RKTN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Twinskaraoke-Watch-App-Info.plist";
+				INFOPLIST_FILE = TwinskaraokeWatchApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Twinskaraoke;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -712,7 +720,7 @@
 				DEVELOPMENT_TEAM = GQCU59RKTN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Twinskaraoke-Watch-App-Info.plist";
+				INFOPLIST_FILE = TwinskaraokeWatchApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Twinskaraoke;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";

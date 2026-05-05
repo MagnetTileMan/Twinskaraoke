@@ -94,13 +94,17 @@ class AudioPlayerManager: ObservableObject {
   @Published var karaokeStrength: Float = 0.85 {
     didSet { if karaokeMode { KaraokeAudioProcessor.vocalAttenuation = karaokeStrength } }
   }
-  @Published var autoMixEnabled: Bool = (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true) {
+  @Published var autoMixEnabled: Bool =
+    (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true)
+  {
     didSet {
       UserDefaults.standard.set(autoMixEnabled, forKey: "nk.autoMixEnabled")
       scheduleAutoMixIfNeeded()
     }
   }
-  @Published var crossfadeEnabled: Bool = (UserDefaults.standard.object(forKey: "nk.crossfadeEnabled") as? Bool ?? false) {
+  @Published var crossfadeEnabled: Bool =
+    (UserDefaults.standard.object(forKey: "nk.crossfadeEnabled") as? Bool ?? false)
+  {
     didSet {
       UserDefaults.standard.set(crossfadeEnabled, forKey: "nk.crossfadeEnabled")
       scheduleAutoMixIfNeeded()
@@ -119,8 +123,9 @@ class AudioPlayerManager: ObservableObject {
   }
   @Published var upcomingSong: Song?
   #if canImport(UIKit)
-  @Published var nowPlayingArtwork: UIImage?
+    @Published var nowPlayingArtwork: UIImage?
   #endif
+
   private var crossfadePlayer: AVPlayer?
   private var crossfadeTimer: Timer?
   private var crossfadeRampTimer: Timer?
@@ -134,7 +139,7 @@ class AudioPlayerManager: ObservableObject {
   }
   private var activeCrossfadeDuration: Double {
     if crossfadeEnabled { return min(15, max(1, crossfadeSeconds)) }
-    if autoMixEnabled { return 2.5 } // Auto Mix default blend.
+    if autoMixEnabled { return 2.5 }  // Auto Mix default blend.
     return 0
   }
   private var originalQueue: [Song] = []
@@ -145,7 +150,7 @@ class AudioPlayerManager: ObservableObject {
   private var artworkURL: URL?
   private var downloadSession: AudioDownloadSession?
   #if canImport(UIKit)
-  private var bgTaskID: UIBackgroundTaskIdentifier = .invalid
+    private var bgTaskID: UIBackgroundTaskIdentifier = .invalid
   #endif
   static let audioCacheDir: URL = {
     let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -153,11 +158,12 @@ class AudioPlayerManager: ObservableObject {
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     return dir
   }()
+
   init() {
     configureAudioSessionCategory()
     activateAudioSession()
     #if os(iOS)
-    UIApplication.shared.beginReceivingRemoteControlEvents()
+      UIApplication.shared.beginReceivingRemoteControlEvents()
     #endif
     setupRemoteCommands()
     NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)
@@ -183,11 +189,12 @@ class AudioPlayerManager: ObservableObject {
       }
       .store(in: &cancellables)
     #if canImport(UIKit)
-    NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-      .sink { [weak self] _ in self?.handleBackgroundTransition() }
-      .store(in: &cancellables)
+      NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+        .sink { [weak self] _ in self?.handleBackgroundTransition() }
+        .store(in: &cancellables)
     #endif
   }
+
   func play(song: Song, context: [Song] = []) {
     if isRadioMode {
       RadioController.shared.stop()
@@ -250,6 +257,7 @@ class AudioPlayerManager: ObservableObject {
       player?.volume = 1.0
     }
     KaraokeAudioProcessor.attachVocalCancel(to: playerItem)
+    NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
     player?.play()
     isPlaying = true
     playerItem.publisher(for: \.isPlaybackBufferEmpty)
@@ -267,6 +275,7 @@ class AudioPlayerManager: ObservableObject {
     updateNowPlayingInfo(reloadArtwork: true)
     scheduleAutoMixIfNeeded()
   }
+
   private func cancelAutoMix() {
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
@@ -301,10 +310,12 @@ class AudioPlayerManager: ObservableObject {
     guard let nextURL = preferredURL(for: next) else { return }
     upcomingSong = next
     preloadNext(song: next, url: nextURL)
-    crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
-      guard let self else { timer.invalidate(); return }
-      // Use the actual player time, since the audio file's duration may differ
-      // from `song.duration` reported by the API.
+    crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) {
+      [weak self] timer in
+      guard let self else {
+        timer.invalidate()
+        return
+      }
       guard let item = self.player?.currentItem else { return }
       let elapsed = item.currentTime().seconds
       var actualTotal = item.duration.seconds
@@ -333,7 +344,10 @@ class AudioPlayerManager: ObservableObject {
     statusObserver = item.publisher(for: \.status)
       .receive(on: DispatchQueue.main)
       .sink { [weak self] status in
-        guard let self else { statusObserver?.cancel(); return }
+        guard let self else {
+          statusObserver?.cancel()
+          return
+        }
         guard self.crossfadePlayer === standby else {
           statusObserver?.cancel()
           return
@@ -373,7 +387,6 @@ class AudioPlayerManager: ObservableObject {
       self.isCrossfading = true
       let duration = self.activeCrossfadeDuration
       if duration < 0.05 {
-        // Gapless: instant handoff with no fade.
         self.player?.pause()
         self.player?.volume = 1.0
         nextPlayer.volume = 1.0
@@ -391,7 +404,8 @@ class AudioPlayerManager: ObservableObject {
       let interval = duration / Double(steps)
       var step = 0
       self.crossfadeRampTimer?.invalidate()
-      let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
+      let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
+        [weak self] timer in
         guard let self, self.crossfadePlayer === nextPlayer else {
           timer.invalidate()
           return
@@ -503,23 +517,25 @@ class AudioPlayerManager: ObservableObject {
     scheduleAutoMixIfNeeded()
   }
   #if canImport(UIKit)
-  private func handleBackgroundTransition() {
-    if bgTaskID != .invalid {
-      UIApplication.shared.endBackgroundTask(bgTaskID)
-    }
-    bgTaskID = UIApplication.shared.beginBackgroundTask(withName: "AudioCache") { [weak self] in
-      guard let self = self else { return }
-      if self.bgTaskID != .invalid {
-        UIApplication.shared.endBackgroundTask(self.bgTaskID)
-        self.bgTaskID = .invalid
+    private func handleBackgroundTransition() {
+      if bgTaskID != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskID)
+      }
+      bgTaskID = UIApplication.shared.beginBackgroundTask(withName: "AudioCache") { [weak self] in
+        guard let self = self else { return }
+        if self.bgTaskID != .invalid {
+          UIApplication.shared.endBackgroundTask(self.bgTaskID)
+          self.bgTaskID = .invalid
+        }
       }
     }
-  }
   #endif
+
   func togglePlayPause() {
     if isPlaying {
       player?.pause()
     } else {
+      NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
       player?.play()
     }
     isPlaying.toggle()
@@ -564,6 +580,7 @@ class AudioPlayerManager: ObservableObject {
     }
     return song.imageURL
   }
+
   func playNextOrRandom() {
     if isRadioMode { return }
     if repeatMode == .one, let current = currentSong {
@@ -613,6 +630,7 @@ class AudioPlayerManager: ObservableObject {
   func toggleAutoplay() {
     autoplayEnabled.toggle()
   }
+
   func moveInUpNext(from source: IndexSet, to destination: Int) {
     guard let current = currentSong,
       let baseIdx = queue.firstIndex(of: current)
@@ -633,6 +651,7 @@ class AudioPlayerManager: ObservableObject {
     upNext.remove(atOffsets: offsets)
     queue = Array(queue[..<upNextStart]) + upNext
   }
+
   func seek(to fraction: Double) {
     guard fraction.isFinite, (0.0...1.0).contains(fraction) else { return }
     guard let duration = player?.currentItem?.duration.seconds,
@@ -661,6 +680,7 @@ class AudioPlayerManager: ObservableObject {
     }
     timeObserver = (player, token)
   }
+
   private func configureAudioSessionCategory() {
     do {
       if #available(iOS 13.0, *) {
@@ -691,6 +711,7 @@ class AudioPlayerManager: ObservableObject {
       let opts = AVAudioSession.InterruptionOptions(rawValue: optsValue)
       if opts.contains(.shouldResume) {
         activateAudioSession()
+        NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
         player?.play()
         isPlaying = true
         updateNowPlayingInfo(reloadArtwork: false)
@@ -710,6 +731,7 @@ class AudioPlayerManager: ObservableObject {
       updateNowPlayingInfo(reloadArtwork: false)
     }
   }
+
   func updateRouteIcon() {
     let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
     guard let primary = outputs.first else {
@@ -752,6 +774,7 @@ class AudioPlayerManager: ObservableObject {
       routeIcon = "airplayaudio"
     }
   }
+
   private func setupRemoteCommands() {
     let cc = MPRemoteCommandCenter.shared()
     cc.playCommand.addTarget { [weak self] _ in
@@ -786,6 +809,7 @@ class AudioPlayerManager: ObservableObject {
       return .success
     }
   }
+
   private func updateNowPlayingInfo(reloadArtwork: Bool) {
     guard let song = currentSong else {
       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -809,7 +833,7 @@ class AudioPlayerManager: ObservableObject {
       info[MPMediaItemPropertyArtwork] = nil
       artworkURL = targetArt
       #if canImport(UIKit)
-      if reloadArtwork { nowPlayingArtwork = nil }
+        if reloadArtwork { nowPlayingArtwork = nil }
       #endif
       if let targetArt {
         loadArtworkAsync(from: targetArt)
@@ -842,6 +866,7 @@ class AudioPlayerManager: ObservableObject {
       #endif
     }.resume()
   }
+
   private func fetchRandomTrending() {
     guard let url = URL(string: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=50")
     else { return }
@@ -856,18 +881,19 @@ class AudioPlayerManager: ObservableObject {
     }.resume()
   }
 }
+
 #if canImport(UIKit)
 
-extension UIImage {
-  func croppedToSquare() -> UIImage {
-    let originalWidth = size.width
-    let originalHeight = size.height
-    let sideLength = min(originalWidth, originalHeight)
-    let xOffset = (originalWidth - sideLength) / 2.0
-    let yOffset = (originalHeight - sideLength) / 2.0
-    let cropRect = CGRect(x: xOffset, y: yOffset, width: sideLength, height: sideLength)
-    guard let cgImage = cgImage?.cropping(to: cropRect) else { return self }
-    return UIImage(cgImage: cgImage, scale: scale, orientation: imageOrientation)
+  extension UIImage {
+    func croppedToSquare() -> UIImage {
+      let originalWidth = size.width
+      let originalHeight = size.height
+      let sideLength = min(originalWidth, originalHeight)
+      let xOffset = (originalWidth - sideLength) / 2.0
+      let yOffset = (originalHeight - sideLength) / 2.0
+      let cropRect = CGRect(x: xOffset, y: yOffset, width: sideLength, height: sideLength)
+      guard let cgImage = cgImage?.cropping(to: cropRect) else { return self }
+      return UIImage(cgImage: cgImage, scale: scale, orientation: imageOrientation)
+    }
   }
-}
 #endif

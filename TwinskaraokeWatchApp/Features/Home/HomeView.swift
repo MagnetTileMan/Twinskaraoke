@@ -1,15 +1,15 @@
 import SwiftUI
 
-struct WatchHomeView: View {
-  @StateObject var audioManager = WatchAudioManager.shared
-  @StateObject var homeViewModel = WatchHomeViewModel()
+struct HomeView: View {
+  @StateObject var audioManager = AudioManager.shared
+  @StateObject var homeViewModel = HomeViewModel()
   @State private var navigateToPlayer = false
   var body: some View {
     NavigationStack {
       List {
         if audioManager.currentSong != nil {
           Section("Now Playing") {
-            NavigationLink(destination: WatchPlayerView().environmentObject(audioManager)) {
+            NavigationLink(destination: PlayerView().environmentObject(audioManager)) {
               HStack(spacing: 10) {
                 if let url = audioManager.currentSong?.imageURL {
                   AsyncImage(url: url) { image in
@@ -78,23 +78,23 @@ struct WatchHomeView: View {
           }
         }
         Section("Browse") {
-          NavigationLink(destination: WatchPlaylistsGridView()) {
+          NavigationLink(destination: PlaylistsGridView()) {
             Label("Playlists", systemImage: "music.note.list")
           }
-          NavigationLink(destination: WatchSongsView().environmentObject(audioManager)) {
+          NavigationLink(destination: SongsView().environmentObject(audioManager)) {
             Label("Songs", systemImage: "music.note")
           }
-          NavigationLink(destination: WatchSearchView().environmentObject(audioManager)) {
+          NavigationLink(destination: SearchView().environmentObject(audioManager)) {
             Label("Search", systemImage: "magnifyingglass")
           }
-          NavigationLink(destination: WatchAccountView()) {
+          NavigationLink(destination: AccountView()) {
             Label("Account", systemImage: "person.crop.circle")
           }
         }
       }
       .navigationTitle("Twins Karaoke")
       .navigationDestination(isPresented: $navigateToPlayer) {
-        WatchPlayerView()
+        PlayerView()
           .environmentObject(audioManager)
       }
       .onAppear {

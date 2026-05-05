@@ -1,13 +1,13 @@
 import SwiftUI
 
-struct WatchPlaylistDetailView: View {
-  @StateObject var viewModel: WatchPlaylistDetailViewModel
-  @EnvironmentObject var audioManager: WatchAudioManager
+struct PlaylistDetailView: View {
+  @StateObject var viewModel: PlaylistDetailViewModel
+  @EnvironmentObject var audioManager: AudioManager
   @State private var showPlayer = false
   let playlistName: String
   init(playlistID: String, playlistName: String) {
     self.playlistName = playlistName
-    _viewModel = StateObject(wrappedValue: WatchPlaylistDetailViewModel(playlistID: playlistID))
+    _viewModel = StateObject(wrappedValue: PlaylistDetailViewModel(playlistID: playlistID))
   }
   var body: some View {
     List {
@@ -55,7 +55,7 @@ struct WatchPlaylistDetailView: View {
     }
     .navigationTitle(playlistName)
     .navigationDestination(isPresented: $showPlayer) {
-      WatchPlayerView()
+      PlayerView()
         .environmentObject(audioManager)
     }
     .onAppear {

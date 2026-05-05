@@ -1,6 +1,7 @@
 import SwiftUI
+
 #if canImport(UIKit)
-import SDWebImageSwiftUI
+  import SDWebImageSwiftUI
 #endif
 
 /// Apple Music–style ambient background: four album-art-tinted blobs that
@@ -63,17 +64,17 @@ struct PlayerAmbientBackground: View {
       return
     }
     #if canImport(UIKit)
-    SDWebImageManager.shared.loadImage(
-      with: url,
-      options: [.retryFailed],
-      progress: nil
-    ) { image, _, _, _, _, _ in
-      guard let image else { return }
-      let extracted = ArtworkPalette(image: image)
-      DispatchQueue.main.async {
-        palette = extracted
+      SDWebImageManager.shared.loadImage(
+        with: url,
+        options: [.retryFailed],
+        progress: nil
+      ) { image, _, _, _, _, _ in
+        guard let image else { return }
+        let extracted = ArtworkPalette(image: image)
+        DispatchQueue.main.async {
+          palette = extracted
+        }
       }
-    }
     #endif
   }
 }

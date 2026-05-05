@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-class WatchSearchViewModel: ObservableObject {
+class SearchViewModel: ObservableObject {
   @Published var results: [SearchSongItem] = []
   @Published var isLoading = false
   @Published var searchText = ""

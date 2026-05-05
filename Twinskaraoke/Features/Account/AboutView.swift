@@ -66,7 +66,9 @@ struct AboutView: View {
       }
       Section("Resources") {
         Link(destination: URL(string: "https://radio.twinskaraoke.com")!) {
-          AboutLinkRow(icon: "dot.radiowaves.left.and.right", color: .appAccent, title: "Neuro 21 Radio Station")
+          AboutLinkRow(
+            icon: "dot.radiowaves.left.and.right", color: .appAccent,
+            title: "Neuro 21 Radio Station")
         }
         Link(destination: URL(string: "https://api.neurokaraoke.com")!) {
           AboutLinkRow(icon: "server.rack", color: .blue, title: "API Service")
@@ -75,7 +77,9 @@ struct AboutView: View {
           AboutLinkRow(icon: "play.rectangle.fill", color: .red, title: "Video Gallery (YouTube)")
         }
         Link(destination: URL(string: "https://github.com/Evil-Project/Twinskaraoke")!) {
-          AboutLinkRow(icon: "chevron.left.forwardslash.chevron.right", color: .black, title: "iOS App Source (GitHub)")
+          AboutLinkRow(
+            icon: "chevron.left.forwardslash.chevron.right", color: .black,
+            title: "iOS App Source (GitHub)")
         }
       }
       Section("Legal") {
@@ -145,10 +149,11 @@ struct AboutView: View {
   private static func loadAppIcon() -> UIImage? {
     if let ui = UIImage(named: "AppIcon") { return ui }
     if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
-       let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
-       let files = primary["CFBundleIconFiles"] as? [String],
-       let last = files.last,
-       let ui = UIImage(named: last) {
+      let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+      let files = primary["CFBundleIconFiles"] as? [String],
+      let last = files.last,
+      let ui = UIImage(named: last)
+    {
       return ui
     }
     return nil
@@ -338,8 +343,6 @@ private struct AboutLinkRow: View {
   }
 }
 
-// MARK: - Credits
-
 private struct CreditsView: View {
   var body: some View {
     List {
@@ -359,7 +362,8 @@ private struct CreditsView: View {
         )
       }
       Section("Additional Contributions") {
-        creditRow(name: "Promote", detail: "Twitch poll vote retrieval; manages Neuro & Evil Quotes")
+        creditRow(
+          name: "Promote", detail: "Twitch poll vote retrieval; manages Neuro & Evil Quotes")
         creditRow(name: "FlashFire8", detail: "Video gallery editing and uploads")
         creditRow(name: "Rachinova & CJ", detail: "Soundbite creation and editing")
         creditRow(name: "Aferil", detail: "Creator and maintainer of the Karaoke App")
@@ -368,24 +372,28 @@ private struct CreditsView: View {
       Section("Internal Testing & Metadata") {
         Text(
           "Big thanks for assisting with internal testing, bug reporting, and maintaining "
-          + "accurate song metadata across the site:\n\n"
-          + "flashfire8 • promote. • emuz • germaninfantry • magnettileman • waya13 • "
-          + "kyarashard • ttsuyuki • nyss_7 • isrlygood • rachinova • ninjakai03 • "
-          + "czadymny • gbritannia • sir_recker • dodo8071795"
+            + "accurate song metadata across the site:\n\n"
+            + "flashfire8 • promote. • emuz • germaninfantry • magnettileman • waya13 • "
+            + "kyarashard • ttsuyuki • nyss_7 • isrlygood • rachinova • ninjakai03 • "
+            + "czadymny • gbritannia • sir_recker • dodo8071795"
         )
         .font(.system(size: 13))
         .foregroundStyle(.secondary)
         .padding(.vertical, 4)
       }
       Section("Special Thanks") {
-        creditRow(name: "Waya", detail: "Helped obtain artist permissions from B2", url: "https://x.com/waya13")
-        creditRow(name: "Dodo", detail: "Helped upload a large number of artworks", url: "https://x.com/dodo8071795")
+        creditRow(
+          name: "Waya", detail: "Helped obtain artist permissions from B2",
+          url: "https://x.com/waya13")
+        creditRow(
+          name: "Dodo", detail: "Helped upload a large number of artworks",
+          url: "https://x.com/dodo8071795")
       }
       Section("Historical Archive Source") {
         Text(
           "All cover files dated November 26, 2025 and earlier are retrieved from the "
-          + "Unofficial Neuro Karaoke Archive (V3).\n\n"
-          + "Currently managed by: @ninjakai03 (mm2wood), @turuumgl, @nyss_7, @inforno_fire"
+            + "Unofficial Neuro Karaoke Archive (V3).\n\n"
+            + "Currently managed by: @ninjakai03 (mm2wood), @turuumgl, @nyss_7, @inforno_fire"
         )
         .font(.system(size: 13))
         .foregroundStyle(.secondary)
@@ -394,8 +402,8 @@ private struct CreditsView: View {
       Section("Community Artwork") {
         Text(
           "All artwork displayed on this site is used with explicit permission from the "
-          + "respective artists. The following artists have granted permission for their "
-          + "artwork to be used on this website:"
+            + "respective artists. The following artists have granted permission for their "
+            + "artwork to be used on this website:"
         )
         .font(.system(size: 13))
         .foregroundStyle(.secondary)
@@ -662,6 +670,7 @@ private struct ArtistCreditRow: View {
 }
 
 private struct AcknowledgementsView: View {
+
   private struct Credit: Identifiable {
     let id = UUID()
     let name: String
@@ -714,9 +723,11 @@ private struct iOSAppDevelopmentView: View {
         VStack(alignment: .leading, spacing: 8) {
           Text("Twinskaraoke iOS")
             .font(.system(size: 17, weight: .semibold))
-          Text("A native SwiftUI client for the Neuro & Evil Karaoke Web Player. Built around the public Neurokaraoke API, with offline downloads, karaoke vocal removal, beat-aware crossfade, and Live Radio playback.")
-            .font(.system(size: 14))
-            .foregroundStyle(.secondary)
+          Text(
+            "A native SwiftUI client for the Neuro & Evil Karaoke Web Player. Built around the public Neurokaraoke API, with offline downloads, karaoke vocal removal, beat-aware crossfade, and Live Radio playback."
+          )
+          .font(.system(size: 14))
+          .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
       }
@@ -753,10 +764,12 @@ private struct iOSAppDevelopmentView: View {
         techRow("LNPopupUI", detail: "Mini-player popup bar")
       }
       Section("Contributing") {
-        Text("Issues and pull requests are welcome on GitHub. The repository contains build instructions and the project's coding conventions.")
-          .font(.system(size: 13))
-          .foregroundStyle(.secondary)
-          .padding(.vertical, 2)
+        Text(
+          "Issues and pull requests are welcome on GitHub. The repository contains build instructions and the project's coding conventions."
+        )
+        .font(.system(size: 13))
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 2)
       }
     }
     .navigationTitle("iOS App Development")
@@ -785,15 +798,22 @@ private struct LinkifiedText: View {
       case .text(let s):
         return acc + Text(s)
       case .url(let s, let url):
-        return acc + Text(AttributedString(s, attributes: AttributeContainer([
-          .link: url,
-          .foregroundColor: UIColor.systemBlue,
-          .underlineStyle: NSUnderlineStyle.single.rawValue,
-        ])))
+        return acc
+          + Text(
+            AttributedString(
+              s,
+              attributes: AttributeContainer([
+                .link: url,
+                .foregroundColor: UIColor.systemBlue,
+                .underlineStyle: NSUnderlineStyle.single.rawValue,
+              ])))
       }
     }
   }
-  private enum Part { case text(String), url(String, URL) }
+  private enum Part {
+    case text(String)
+    case url(String, URL)
+  }
   private static let detector: NSDataDetector? = {
     try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
   }()

@@ -9,6 +9,7 @@ struct Song: Codable, Identifiable, Equatable {
   let coverArt: Media?
   let originalArtists: [String]?
   let coverArtists: [String]?
+
   enum CodingKeys: String, CodingKey {
     case id, title, duration, absolutePath, coverArt, originalArtists, coverArtists
     case cloudflareID = "cloudflareId"
@@ -40,9 +41,9 @@ struct Song: Codable, Identifiable, Equatable {
     let cover = coverArtists?.filter { !$0.isEmpty }.joined(separator: ", ") ?? ""
     switch (original.isEmpty, cover.isEmpty) {
     case (false, false): return "\(original) · Cover by \(cover)"
-    case (false, true):  return original
-    case (true, false):  return "Cover by \(cover)"
-    case (true, true):   return "Unknown Artist"
+    case (false, true): return original
+    case (true, false): return "Cover by \(cover)"
+    case (true, true): return "Unknown Artist"
     }
   }
   /// `m:ss` formatted duration, blank for unknown lengths (e.g. live radio).
@@ -56,6 +57,7 @@ struct Song: Codable, Identifiable, Equatable {
 }
 
 struct Playlist: Codable, Identifiable {
+  static let favoritesID = "__favorites__"
   let id: String
   let name: String
   let songCount: Int
@@ -65,6 +67,7 @@ struct Playlist: Codable, Identifiable {
     guard let path = mosaicMedia?.first?.absolutePath else { return nil }
     return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
   }
+  var isFavorites: Bool { id == Self.favoritesID }
 }
 
 struct Media: Codable {

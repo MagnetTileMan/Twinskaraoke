@@ -16,8 +16,8 @@ enum PlaybackMode {
 }
 @MainActor
 
-class WatchAudioManager: ObservableObject {
-  static let shared = WatchAudioManager()
+class AudioManager: ObservableObject {
+  static let shared = AudioManager()
   @Published var currentSong: Song?
   @Published var isPlaying = false
   @Published var isLoading = false
@@ -73,7 +73,8 @@ class WatchAudioManager: ObservableObject {
     }
     guard let remoteURL = song.audioURL else { return }
     isLoading = true
-    downloadTask = URLSession.shared.downloadTask(with: remoteURL) { [weak self] tempURL, _, error in
+    downloadTask = URLSession.shared.downloadTask(with: remoteURL) {
+      [weak self] tempURL, _, error in
       DispatchQueue.main.async {
         guard let self = self else { return }
         self.isLoading = false
@@ -208,19 +209,26 @@ class WatchAudioManager: ObservableObject {
     player = nil
   }
   private func localCacheURL(for songID: String) -> URL {
-    WatchAudioManager.audioCacheDir.appendingPathComponent("\(songID).mp3")
+    AudioManager.audioCacheDir.appendingPathComponent("\(songID).mp3")
   }
   private func evictOldCacheFiles() {
     let fm = FileManager.default
-    let dir = WatchAudioManager.audioCacheDir
-    guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return }
-    guard files.count > WatchAudioManager.maxCachedFiles else { return }
+    let dir = AudioManager.audioCacheDir
+    guard
+      let files = try? fm.contentsOfDirectory(
+        at: dir, includingPropertiesForKeys: [.contentModificationDateKey])
+    else { return }
+    guard files.count > AudioManager.maxCachedFiles else { return }
     let sorted = files.sorted {
-      let d1 = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-      let d2 = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+      let d1 =
+        (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        ?? .distantPast
+      let d2 =
+        (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        ?? .distantPast
       return d1 < d2
     }
-    let toRemove = sorted.prefix(files.count - WatchAudioManager.maxCachedFiles)
+    let toRemove = sorted.prefix(files.count - AudioManager.maxCachedFiles)
     for file in toRemove {
       try? fm.removeItem(at: file)
     }

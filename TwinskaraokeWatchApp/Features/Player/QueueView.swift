@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct WatchQueueView: View {
-  @EnvironmentObject var audioManager: WatchAudioManager
+struct QueueView: View {
+  @EnvironmentObject var audioManager: AudioManager
   var body: some View {
     List {
       if let current = audioManager.currentSong {

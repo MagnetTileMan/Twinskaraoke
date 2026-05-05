@@ -5,6 +5,15 @@ class PlaylistsViewModel: ObservableObject {
   @Published var playlists: [Playlist] = []
   @Published var favoriteSongs: [Song] = []
   @Published var isLoading = false
+  var favoritesPlaylist: Playlist {
+    Playlist(
+      id: Playlist.favoritesID,
+      name: "Favorites",
+      songCount: favoriteSongs.count,
+      mosaicMedia: nil,
+      songListDTOs: favoriteSongs
+    )
+  }
   func fetchPlaylists() {
     guard
       let url = URL(
@@ -52,6 +61,7 @@ class PlaylistsViewModel: ObservableObject {
 
 private struct FavoriteSongEnvelope: Decodable {
   let song: Song?
+
   enum CodingKeys: String, CodingKey { case song, songData, songDTO }
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)

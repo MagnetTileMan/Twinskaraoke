@@ -5,7 +5,7 @@ import SwiftUI
 /// from the bottom up.
 
 struct VerticalKaraokeLevel: View {
-  @Binding var value: Double          // 0...1
+  @Binding var value: Double  // 0...1
   var enabled: Bool = true
   var onSet: (Double) -> Void = { _ in }
   var body: some View {

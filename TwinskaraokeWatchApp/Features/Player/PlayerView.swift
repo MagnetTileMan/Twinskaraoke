@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct WatchPlayerView: View {
-  @EnvironmentObject var audioManager: WatchAudioManager
+struct PlayerView: View {
+  @EnvironmentObject var audioManager: AudioManager
   var body: some View {
     if let song = audioManager.currentSong {
       GeometryReader { geo in
@@ -54,20 +54,26 @@ struct WatchPlayerView: View {
             }
             .padding(.horizontal, 4)
             HStack(spacing: 16) {
-              Button { audioManager.playPrevious() } label: {
+              Button {
+                audioManager.playPrevious()
+              } label: {
                 Image(systemName: "backward.fill")
                   .font(.system(size: 20))
                   .foregroundColor(.white)
               }
               .buttonStyle(.plain)
               .disabled(audioManager.isLoading)
-              Button { audioManager.togglePlayPause() } label: {
+              Button {
+                audioManager.togglePlayPause()
+              } label: {
                 Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
                   .font(.system(size: 30))
                   .foregroundColor(.white)
               }
               .buttonStyle(.plain)
-              Button { audioManager.playNext() } label: {
+              Button {
+                audioManager.playNext()
+              } label: {
                 Image(systemName: "forward.fill")
                   .font(.system(size: 20))
                   .foregroundColor(.white)
@@ -77,20 +83,24 @@ struct WatchPlayerView: View {
             }
             .padding(.top, 2)
             HStack(spacing: 20) {
-              Button { audioManager.toggleShuffle() } label: {
+              Button {
+                audioManager.toggleShuffle()
+              } label: {
                 Image(systemName: "shuffle")
                   .font(.system(size: 13))
                   .foregroundColor(audioManager.isShuffleOn ? .appAccent : .white.opacity(0.45))
               }
               .buttonStyle(.plain)
-              Button { audioManager.toggleMode() } label: {
+              Button {
+                audioManager.toggleMode()
+              } label: {
                 Image(systemName: audioManager.playbackMode.iconName)
                   .font(.system(size: 13))
                   .foregroundColor(
                     audioManager.playbackMode == .singleLoop ? .appAccent : .white.opacity(0.45))
               }
               .buttonStyle(.plain)
-              NavigationLink(destination: WatchQueueView().environmentObject(audioManager)) {
+              NavigationLink(destination: QueueView().environmentObject(audioManager)) {
                 Image(systemName: "list.bullet")
                   .font(.system(size: 13))
                   .foregroundColor(.white.opacity(0.7))

@@ -28,7 +28,7 @@ struct LibraryView: View {
             LibraryRow(icon: "music.note", color: .appAccent, title: "Songs")
           }
           NavigationLink {
-            FavoriteSongsView(viewModel: viewModel)
+            PlaylistDetailView(playlist: viewModel.favoritesPlaylist)
           } label: {
             LibraryRow(icon: "star.fill", color: .appAccent, title: "Favorites")
           }
@@ -38,9 +38,14 @@ struct LibraryView: View {
             LibraryRow(icon: "sparkles", color: .appAccent, title: "Made For You")
           }
           NavigationLink {
-            LibraryPlaceholderView(title: "Music Videos", systemImage: "play.rectangle")
+            VideoGalleryView()
           } label: {
-            LibraryRow(icon: "play.rectangle", color: .appAccent, title: "Music Videos")
+            LibraryRow(icon: "play.rectangle", color: .appAccent, title: "Video Gallery")
+          }
+          NavigationLink {
+            ArtGalleryView()
+          } label: {
+            LibraryRow(icon: "paintpalette", color: .appAccent, title: "Art Gallery")
           }
           NavigationLink {
             LibraryPlaceholderView(title: "Genres", systemImage: "guitars")
@@ -110,9 +115,15 @@ struct PlaylistListRow: View {
   let playlist: Playlist
   var body: some View {
     HStack(spacing: 12) {
-      LoadingImage(url: playlist.imageURL, cornerRadius: 6)
-        .frame(width: 48, height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+      Group {
+        if playlist.isFavorites {
+          FavoritesArtworkTile()
+        } else {
+          LoadingImage(url: playlist.imageURL, cornerRadius: 6)
+        }
+      }
+      .frame(width: 48, height: 48)
+      .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
       VStack(alignment: .leading, spacing: 2) {
         Text(playlist.name)
           .font(.system(size: 15, weight: .medium))
@@ -167,11 +178,17 @@ struct PlaylistGridCell: View {
   let playlist: Playlist
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      LoadingImage(url: playlist.imageURL, cornerRadius: 10)
-        .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+      Group {
+        if playlist.isFavorites {
+          FavoritesArtworkTile()
+        } else {
+          LoadingImage(url: playlist.imageURL, cornerRadius: 10)
+        }
+      }
+      .aspectRatio(1, contentMode: .fit)
+      .frame(maxWidth: .infinity)
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
       Text(playlist.name)
         .font(.system(size: 14, weight: .bold))
         .foregroundColor(.primary)

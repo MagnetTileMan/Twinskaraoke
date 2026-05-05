@@ -1,13 +1,13 @@
 import Combine
 import Foundation
 
-class WatchSongsViewModel: ObservableObject {
-  @Published var songs: [Song] = []
+class HomeViewModel: ObservableObject {
+  @Published var trending: [Song] = []
   @Published var isLoading = false
-  func fetchSongs() {
+  func fetchTrending() {
     guard
       let url = URL(
-        string: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=20")
+        string: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=10")
     else { return }
     isLoading = true
     var request = URLRequest(url: url)
@@ -15,7 +15,7 @@ class WatchSongsViewModel: ObservableObject {
     URLSession.shared.dataTask(with: request) { data, _, _ in
       if let data = data, let songs = try? JSONDecoder().decode([Song].self, from: data) {
         DispatchQueue.main.async {
-          self.songs = songs
+          self.trending = songs
           self.isLoading = false
         }
       } else {

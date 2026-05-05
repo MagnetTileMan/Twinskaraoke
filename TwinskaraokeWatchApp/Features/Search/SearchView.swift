@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct WatchSearchView: View {
-  @StateObject var viewModel = WatchSearchViewModel()
-  @EnvironmentObject var audioManager: WatchAudioManager
+struct SearchView: View {
+  @StateObject var viewModel = SearchViewModel()
+  @EnvironmentObject var audioManager: AudioManager
   @State private var showPlayer = false
   var body: some View {
     VStack(spacing: 0) {
@@ -65,7 +65,7 @@ struct WatchSearchView: View {
     }
     .navigationTitle("Search")
     .navigationDestination(isPresented: $showPlayer) {
-      WatchPlayerView()
+      PlayerView()
         .environmentObject(audioManager)
     }
   }

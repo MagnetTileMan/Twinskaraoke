@@ -20,10 +20,13 @@ struct SettingsView: View {
             )
           )
         }
-        Toggle("Autoplay Similar Songs", isOn: Binding(
-          get: { audioManager.autoplayEnabled },
-          set: { _ in audioManager.toggleAutoplay() }
-        ))
+        Toggle(
+          "Autoplay Similar Songs",
+          isOn: Binding(
+            get: { audioManager.autoplayEnabled },
+            set: { _ in audioManager.toggleAutoplay() }
+          )
+        )
         .tint(.appAccent)
         Picker("Audio Quality", selection: $streamingQuality) {
           Text("High Efficiency").tag("low")
@@ -33,7 +36,9 @@ struct SettingsView: View {
       } header: {
         Text("Playback")
       } footer: {
-        Text("Auto Mix hands the next track off seamlessly with no dead air. Crossfade overlaps and fades between tracks; choose a shorter duration to keep the rhythm tight, or a longer one for a gentler, DJ-style transition.")
+        Text(
+          "Auto Mix hands the next track off seamlessly with no dead air. Crossfade overlaps and fades between tracks; choose a shorter duration to keep the rhythm tight, or a longer one for a gentler, DJ-style transition."
+        )
       }
       Section {
         Toggle("Auto-Download Played Songs", isOn: $downloadOnPlay)

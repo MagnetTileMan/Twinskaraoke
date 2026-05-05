@@ -5,21 +5,40 @@ struct LoadingImage: View {
   let url: URL?
   var cornerRadius: CGFloat = 8
   var contentMode: ContentMode = .fill
+  var showsLoading: Bool = true
+  var lowResURL: URL? = nil
+  var transparentBackground: Bool = false
   var body: some View {
     GeometryReader { geo in
-      WebImage(url: url) { image in
-        image
-          .resizable()
-          .aspectRatio(contentMode: contentMode)
-          .frame(width: geo.size.width, height: geo.size.height)
-          .clipped()
-      } placeholder: {
-        ZStack {
+      ZStack {
+        if !transparentBackground {
           Color(.systemGray5)
-          LoadingIndicator(size: min(geo.size.width, geo.size.height) * 0.5)
         }
-        .frame(width: geo.size.width, height: geo.size.height)
+        if let lowResURL {
+          WebImage(url: lowResURL) { image in
+            image
+              .resizable()
+              .aspectRatio(contentMode: contentMode)
+              .frame(width: geo.size.width, height: geo.size.height)
+              .clipped()
+          } placeholder: { Color.clear }
+        }
+        WebImage(url: url) { image in
+          image
+            .resizable()
+            .aspectRatio(contentMode: contentMode)
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
+            .transition(.opacity)
+        } placeholder: {
+          if showsLoading && lowResURL == nil {
+            LoadingIndicator(size: min(geo.size.width, geo.size.height) * 0.5)
+          } else {
+            Color.clear
+          }
+        }
       }
+      .frame(width: geo.size.width, height: geo.size.height)
     }
     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
   }

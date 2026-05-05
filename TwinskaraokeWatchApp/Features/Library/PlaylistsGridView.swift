@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct WatchPlaylistsGridView: View {
-  @StateObject var viewModel = WatchPlaylistsViewModel()
+struct PlaylistsGridView: View {
+  @StateObject var viewModel = PlaylistsViewModel()
   let columns = [
     GridItem(.flexible(), spacing: 12),
     GridItem(.flexible(), spacing: 12),
@@ -15,7 +15,7 @@ struct WatchPlaylistsGridView: View {
         LazyVGrid(columns: columns, spacing: 12) {
           ForEach(viewModel.playlists) { playlist in
             NavigationLink(
-              destination: WatchPlaylistDetailView(
+              destination: PlaylistDetailView(
                 playlistID: playlist.id, playlistName: playlist.name)
             ) {
               VStack(spacing: 6) {
