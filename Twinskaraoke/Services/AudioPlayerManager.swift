@@ -86,7 +86,10 @@ class AudioPlayerManager: ObservableObject {
   @Published var isRadioMode: Bool = false
   @Published var radioArtworkURL: URL?
   @Published var karaokeMode: Bool = false {
-    didSet { KaraokeAudioProcessor.vocalAttenuation = karaokeMode ? karaokeStrength : 0 }
+    didSet {
+      KaraokeAudioProcessor.vocalAttenuation = karaokeMode ? karaokeStrength : 0
+      applyKaraokeToCurrentItem()
+    }
   }
   @Published var karaokeStrength: Float = 0.85 {
     didSet { if karaokeMode { KaraokeAudioProcessor.vocalAttenuation = karaokeStrength } }
@@ -96,6 +99,9 @@ class AudioPlayerManager: ObservableObject {
   {
     didSet {
       UserDefaults.standard.set(autoMixEnabled, forKey: "nk.autoMixEnabled")
+      if autoMixEnabled && crossfadeEnabled {
+        crossfadeEnabled = false
+      }
       scheduleAutoMixIfNeeded()
     }
   }
@@ -104,6 +110,9 @@ class AudioPlayerManager: ObservableObject {
   {
     didSet {
       UserDefaults.standard.set(crossfadeEnabled, forKey: "nk.crossfadeEnabled")
+      if crossfadeEnabled && autoMixEnabled {
+        autoMixEnabled = false
+      }
       scheduleAutoMixIfNeeded()
     }
   }
@@ -135,7 +144,7 @@ class AudioPlayerManager: ObservableObject {
   }
   private var activeCrossfadeDuration: Double {
     if crossfadeEnabled { return min(15, max(1, crossfadeSeconds)) }
-    if autoMixEnabled { return 2.5 }  // Auto Mix default blend.
+    if autoMixEnabled { return 2.5 }
     return 0
   }
   private var originalQueue: [Song] = []
@@ -275,7 +284,9 @@ class AudioPlayerManager: ObservableObject {
       player?.replaceCurrentItem(with: playerItem)
       player?.volume = 1.0
     }
-    KaraokeAudioProcessor.attachVocalCancel(to: playerItem)
+    if karaokeMode {
+      KaraokeAudioProcessor.attachVocalCancel(to: playerItem)
+    }
     NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
     player?.play()
     isPlaying = true
@@ -294,8 +305,23 @@ class AudioPlayerManager: ObservableObject {
     updateNowPlayingInfo(reloadArtwork: true)
     scheduleAutoMixIfNeeded()
   }
-  private func cancelAutoMix() {
-    crossfadeTimer?.invalidate()
+  /// Install or remove the karaoke audio tap on the live player item. Called
+  /// when the user toggles `karaokeMode` so we don't pay the tap-installation
+  /// cost (and the brief audio-mix-swap stutter) on every track change when
+  /// the feature is off.
+  private func applyKaraokeToCurrentItem() {
+    guard let item = player?.currentItem else { return }
+    if karaokeMode {
+      if item.audioMix == nil {
+        Task { @MainActor in
+          KaraokeAudioProcessor.attachVocalCancel(to: item)
+        }
+      }
+    } else {
+      item.audioMix = nil
+    }
+  }
+  private func cancelAutoMix() {    crossfadeTimer?.invalidate()
     crossfadeTimer = nil
     crossfadeRampTimer?.invalidate()
     crossfadeRampTimer = nil
@@ -349,7 +375,9 @@ class AudioPlayerManager: ObservableObject {
   }
   private func preloadNext(song: Song, url: URL) {
     let item = AVPlayerItem(url: url)
-    KaraokeAudioProcessor.attachVocalCancel(to: item)
+    if karaokeMode {
+      KaraokeAudioProcessor.attachVocalCancel(to: item)
+    }
     let standby = AVPlayer(playerItem: item)
     if #available(iOS 15.0, *) {
       standby.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
@@ -642,6 +670,22 @@ class AudioPlayerManager: ObservableObject {
       queue = originalQueue
       originalQueue = []
     }
+  }
+  /// Plays a song from a collection in order, disabling shuffle so the queue
+  /// follows the supplied order.
+  func playInOrder(song: Song, context: [Song]) {
+    isShuffled = false
+    originalQueue = []
+    play(song: song, context: context)
+  }
+  /// Shuffles a collection, plays a random pick, and turns shuffle mode on so
+  /// the queue indicator reflects what's happening.
+  func playShuffled(from songs: [Song]) {
+    guard let pick = songs.randomElement() else { return }
+    let shuffled = songs.shuffled()
+    isShuffled = true
+    originalQueue = songs
+    play(song: pick, context: shuffled)
   }
   func toggleAutoplay() {
     autoplayEnabled.toggle()

@@ -22,8 +22,8 @@ class PlaylistsViewModel: ObservableObject {
     let localOnly = saved.filter { !serverIDs.contains($0.id) }
     return [favoritesPlaylist] + playlists + localOnly
   }
-  /// Playlists sorted by most recently added date. Favorites is pinned first
-  /// only when it has at least one song.
+  /// Playlists sorted by most recently added date, with the synthesized
+  /// Favorites pseudo-playlist pinned first.
   @MainActor func recentlyAddedPlaylists(saved: [Playlist]) -> [Playlist] {
     let serverIDs = Set(playlists.map { $0.id })
     let localOnly = saved.filter { !serverIDs.contains($0.id) }
@@ -31,7 +31,7 @@ class PlaylistsViewModel: ObservableObject {
       RecentlyAddedTracker.shared.date(for: lhs.id)
         > RecentlyAddedTracker.shared.date(for: rhs.id)
     }
-    return favoriteSongs.isEmpty ? combined : [favoritesPlaylist] + combined
+    return [favoritesPlaylist] + combined
   }
   func fetchPlaylists() {
     guard

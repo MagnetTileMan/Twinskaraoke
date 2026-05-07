@@ -117,16 +117,14 @@ struct DownloadedSongsView: View {
     HStack(spacing: 12) {
       Button {
         if let first = localSongs.first {
-          audioManager.play(song: first, context: localSongs)
+          audioManager.playInOrder(song: first, context: localSongs)
         }
       } label: {
         actionLabel(symbol: "play.fill", text: "Play")
       }
       .buttonStyle(PressableButtonStyle())
       Button {
-        if let random = localSongs.randomElement() {
-          audioManager.play(song: random, context: localSongs.shuffled())
-        }
+        audioManager.playShuffled(from: localSongs)
       } label: {
         actionLabel(symbol: "shuffle", text: "Shuffle")
       }

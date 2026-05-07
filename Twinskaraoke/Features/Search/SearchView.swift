@@ -55,6 +55,8 @@ struct SearchView: View {
 }
 
 private struct BrowseCategoriesView: View {
+  @StateObject private var genresVM = GenresViewModel()
+  @StateObject private var topChartVM = TopChartViewModel()
   private let topPicks: [(String, [Color])] = [
     (
       "Twinskaraoke Top 100",
@@ -97,32 +99,6 @@ private struct BrowseCategoriesView: View {
     (
       "Romance",
       [Color(red: 0.95, green: 0.40, blue: 0.55), Color(red: 0.45, green: 0.10, blue: 0.20)]
-    ),
-  ]
-  private let decades: [(String, [Color])] = [
-    (
-      "2020s",
-      [Color(red: 0.10, green: 0.55, blue: 0.95), Color(red: 0.05, green: 0.20, blue: 0.55)]
-    ),
-    (
-      "2010s",
-      [Color(red: 0.55, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]
-    ),
-    (
-      "2000s",
-      [Color(red: 0.95, green: 0.55, blue: 0.20), Color(red: 0.45, green: 0.20, blue: 0.05)]
-    ),
-    (
-      "90s", [Color(red: 0.95, green: 0.30, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.05)]
-    ),
-    (
-      "80s", [Color(red: 0.95, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]
-    ),
-    (
-      "70s", [Color(red: 0.85, green: 0.55, blue: 0.10), Color(red: 0.40, green: 0.20, blue: 0.05)]
-    ),
-    (
-      "60s", [Color(red: 0.60, green: 0.45, blue: 0.20), Color(red: 0.25, green: 0.15, blue: 0.05)]
     ),
   ]
   private let genres: [(String, [Color])] = [
@@ -177,13 +153,47 @@ private struct BrowseCategoriesView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
-        section(title: "Browse Categories", items: topPicks)
+        topPicksSection
         section(title: "Activities & Moods", items: activitiesAndMoods)
-        section(title: "Decades", items: decades)
-        section(title: "Genres", items: genres)
+        genresSection
+        if !topChartVM.weeklyTrending.isEmpty {
+          moreToExploreSection
+        }
       }
       .padding(.top, AM.Spacing.s)
       .padding(.bottom, AM.Spacing.l)
+    }
+    .onAppear {
+      genresVM.loadIfNeeded()
+      topChartVM.loadIfNeeded()
+    }
+  }
+  private var topPicksSection: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.m) {
+      AMSectionHeader("Browse Categories")
+      LazyVGrid(columns: columns, spacing: AM.Spacing.m) {
+        ForEach(topPicks, id: \.0) { item in
+          if item.0 == "Twinskaraoke Top 100" {
+            NavigationLink(
+              destination: BrowseSongCollectionView(
+                title: "Twinskaraoke Top 100",
+                subtitle: "\(topChartVM.songs.count) songs",
+                songs: topChartVM.songs
+              )
+            ) {
+              CategoryTile(
+                title: item.0,
+                gradient: item.1,
+                artworkURL: topChartVM.songs.first?.imageURL
+              )
+            }
+            .buttonStyle(PressableButtonStyle())
+          } else {
+            CategoryTile(title: item.0, gradient: item.1)
+          }
+        }
+      }
+      .padding(.horizontal, AM.Spacing.screenMargin)
     }
   }
   private func section(title: String, items: [(String, [Color])]) -> some View {
@@ -197,26 +207,109 @@ private struct BrowseCategoriesView: View {
       .padding(.horizontal, AM.Spacing.screenMargin)
     }
   }
+  private var genresSection: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.m) {
+      AMSectionHeader("Genres")
+      LazyVGrid(columns: columns, spacing: AM.Spacing.m) {
+        ForEach(genresVM.genres) { genre in
+          let palette = paletteForGenre(genre.name)
+          NavigationLink(
+            destination: GenreDetailView(genre: genre, viewModel: genresVM, palette: palette)
+          ) {
+            CategoryTile(
+              title: genre.name,
+              gradient: palette,
+              artworkURL: genresVM.artworkURLs[genre.id]
+            )
+          }
+          .buttonStyle(PressableButtonStyle())
+          .onAppear { genresVM.loadMoreIfNeeded(current: genre) }
+        }
+      }
+      .padding(.horizontal, AM.Spacing.screenMargin)
+      if genresVM.isLoadingMore {
+        LoadingIndicator(size: 32)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, AM.Spacing.m)
+      }
+    }
+  }
+  private var moreToExploreSection: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.m) {
+      AMSectionHeader(
+        "More to Explore",
+        destination: BrowseSongCollectionView(
+          title: "More to Explore", songs: topChartVM.weeklyTrending))
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(alignment: .top, spacing: AM.Spacing.l) {
+          ForEach(topChartVM.weeklyTrending) { song in
+            HomeSongCard(song: song, context: topChartVM.weeklyTrending)
+          }
+        }
+        .padding(.horizontal, AM.Spacing.screenMargin)
+      }
+    }
+  }
+  private func paletteForGenre(_ name: String) -> [Color] {
+    if let match = genres.first(where: {
+      $0.0.localizedCaseInsensitiveCompare(name) == .orderedSame
+    }) {
+      return match.1
+    }
+    let stable = genres[abs(name.hashValue) % genres.count]
+    return stable.1
+  }
+}
+
+struct GenreDetailView: View {
+  let genre: GenreSummary
+  @ObservedObject var viewModel: GenresViewModel
+  let palette: [Color]
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    let songs = viewModel.allSongs[genre.id] ?? []
+    BrowseSongCollectionView(
+      title: genre.name,
+      subtitle: "\(genre.songCount) songs",
+      songs: songs
+    )
+  }
 }
 
 private struct CategoryTile: View {
   let title: String
   let gradient: [Color]
+  var artworkURL: URL? = nil
   var body: some View {
     ZStack(alignment: .topLeading) {
-      LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+      if let artworkURL {
+        LoadingImage(url: artworkURL, cornerRadius: 0, contentMode: .fill)
+          .allowsHitTesting(false)
+        LinearGradient(
+          colors: gradient.map { $0.opacity(0.55) },
+          startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .allowsHitTesting(false)
+      } else {
+        LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+          .allowsHitTesting(false)
+      }
       LinearGradient(
         colors: [Color.white.opacity(0.18), Color.white.opacity(0.0)],
         startPoint: .topLeading,
         endPoint: .center
       )
+      .allowsHitTesting(false)
       Text(title)
         .font(.system(size: 17, weight: .bold))
         .foregroundColor(.white)
+        .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
         .padding(AM.Spacing.m)
+        .allowsHitTesting(false)
     }
     .frame(height: 96)
     .clipShape(RoundedRectangle(cornerRadius: AM.Radius.tile, style: .continuous))
+    .contentShape(RoundedRectangle(cornerRadius: AM.Radius.tile, style: .continuous))
   }
 }
 

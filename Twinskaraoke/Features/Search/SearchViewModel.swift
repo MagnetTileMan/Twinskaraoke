@@ -1,6 +1,135 @@
 import Combine
 import Foundation
 
+struct GenreSummary: Decodable, Identifiable {
+  let id: String
+  let name: String
+  let songCount: Int
+  enum CodingKeys: String, CodingKey { case id, name, songCount, count }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    id = try c.decode(String.self, forKey: .id)
+    name = try c.decode(String.self, forKey: .name)
+    if let v = try c.decodeIfPresent(Int.self, forKey: .songCount) {
+      songCount = v
+    } else {
+      songCount = (try? c.decode(Int.self, forKey: .count)) ?? 0
+    }
+  }
+}
+
+private struct GenreDetail: Decodable {
+  let id: String
+  let name: String
+  let songs: [Song]?
+}
+
+@MainActor
+class TopChartViewModel: ObservableObject {
+  @Published var songs: [Song] = []
+  @Published var weeklyTrending: [Song] = []
+  private var hasLoaded = false
+  func loadIfNeeded() {
+    if hasLoaded { return }
+    hasLoaded = true
+    fetch(
+      url: "https://api.neurokaraoke.com/api/explore/trendings?days=all",
+      keyPath: \.songs)
+    fetch(
+      url: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=20",
+      keyPath: \.weeklyTrending)
+  }
+  private func fetch(url: String, keyPath: ReferenceWritableKeyPath<TopChartViewModel, [Song]>) {
+    guard let u = URL(string: url) else { return }
+    var request = URLRequest(url: u)
+    request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+      guard let data, let list = try? JSONDecoder().decode([Song].self, from: data) else {
+        return
+      }
+      Task { @MainActor in self?[keyPath: keyPath] = list }
+    }.resume()
+  }
+}
+
+@MainActor
+class GenresViewModel: ObservableObject {
+  @Published var genres: [GenreSummary] = []
+  @Published var artworkURLs: [String: URL] = [:]
+  @Published var firstSongs: [String: Song] = [:]
+  @Published var allSongs: [String: [Song]] = [:]
+  @Published var isLoadingMore = false
+  @Published var canLoadMore = true
+  private var hasLoaded = false
+  private var page = 0
+  private let pageSize = 50
+  func loadIfNeeded() {
+    if hasLoaded { return }
+    hasLoaded = true
+    fetchPage(0, replace: true)
+  }
+  func loadMoreIfNeeded(current: GenreSummary) {
+    guard let idx = genres.firstIndex(where: { $0.id == current.id }) else { return }
+    if idx >= genres.count - 6 && !isLoadingMore && canLoadMore {
+      fetchPage(page, replace: false)
+    }
+  }
+  private func fetchPage(_ page: Int, replace: Bool) {
+    guard
+      let url = URL(
+        string:
+          "https://api.neurokaraoke.com/api/filters/genres?page=\(page)&pageSize=\(pageSize)")
+    else { return }
+    isLoadingMore = !replace
+    var request = URLRequest(url: url)
+    request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+      let decoded = data.flatMap { try? JSONDecoder().decode([GenreSummary].self, from: $0) }
+      Task { @MainActor in
+        guard let self else { return }
+        defer { self.isLoadingMore = false }
+        guard let list = decoded else {
+          self.canLoadMore = false
+          return
+        }
+        let filtered = list.filter { $0.songCount > 0 }
+        if replace {
+          self.genres = filtered
+        } else {
+          let existing = Set(self.genres.map { $0.id })
+          self.genres += filtered.filter { !existing.contains($0.id) }
+        }
+        self.canLoadMore = list.count == self.pageSize
+        self.page = page + 1
+        for genre in filtered { self.fetchDetail(for: genre) }
+      }
+    }.resume()
+  }
+  private func fetchDetail(for genre: GenreSummary) {
+    if allSongs[genre.id] != nil { return }
+    guard let url = URL(string: "https://api.neurokaraoke.com/api/genres/\(genre.id)") else {
+      return
+    }
+    var request = URLRequest(url: url)
+    request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+      guard let data,
+        let detail = try? JSONDecoder().decode(GenreDetail.self, from: data)
+      else { return }
+      Task { @MainActor in
+        guard let self else { return }
+        if let songs = detail.songs {
+          self.allSongs[genre.id] = songs
+          if let first = songs.first {
+            self.firstSongs[genre.id] = first
+            if let url = first.imageURL { self.artworkURLs[genre.id] = url }
+          }
+        }
+      }
+    }.resume()
+  }
+}
+
 class SearchViewModel: ObservableObject {
   @Published var results: [Song] = []
   @Published var searchText = ""

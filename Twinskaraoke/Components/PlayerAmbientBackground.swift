@@ -12,7 +12,7 @@ struct PlayerAmbientBackground: View {
   @State private var palette: ArtworkPalette = .placeholder
   @State private var isVisible: Bool = false
   var body: some View {
-    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !(isVisible && isPlaying))) {
+    TimelineView(.animation(minimumInterval: 1.0 / 12, paused: !(isVisible && isPlaying))) {
       context in
       let t = context.date.timeIntervalSinceReferenceDate
       ZStack {

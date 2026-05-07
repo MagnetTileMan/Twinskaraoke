@@ -12,7 +12,7 @@ struct Artist: Codable, Identifiable, Equatable {
   var imageURL: URL? {
     guard let path = imagePath, !path.isEmpty else { return nil }
     let cleanPath = path.hasPrefix("/") ? path : "/" + path
-    return URL(string: "https://storage.neurokaraoke.com" + cleanPath)
+    return URL(string: StorageHost.base + cleanPath)
   }
   static func == (lhs: Artist, rhs: Artist) -> Bool { lhs.id == rhs.id }
 }
@@ -272,16 +272,14 @@ struct ArtistDetailView: View {
     HStack(spacing: 12) {
       Button {
         if let first = songs.first {
-          audioManager.play(song: first, context: songs)
+          audioManager.playInOrder(song: first, context: songs)
         }
       } label: {
         actionLabel(symbol: "play.fill", text: "Play")
       }
       .buttonStyle(PressableButtonStyle())
       Button {
-        if let random = songs.randomElement() {
-          audioManager.play(song: random, context: songs.shuffled())
-        }
+        audioManager.playShuffled(from: songs)
       } label: {
         actionLabel(symbol: "shuffle", text: "Shuffle")
       }

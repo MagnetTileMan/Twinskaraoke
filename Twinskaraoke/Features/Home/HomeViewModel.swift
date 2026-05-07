@@ -8,9 +8,12 @@ class HomeViewModel: ObservableObject {
   @Published var isLoading = false
   @Published var isLoadingMoreTopPicks = false
   @Published var canLoadMoreTopPicks = true
+  @Published var latestSingle: Song?
+  @Published var latestSingleContext: [Song] = []
   private var hasLoaded = false
   private var topPicksPage = 0
   private let topPicksPageSize = 12
+  private var loadedSinglePlaylistID: String?
   func fetchHomeData(force: Bool = false) {
     if hasLoaded && !force { return }
     hasLoaded = true
@@ -37,6 +40,7 @@ class HomeViewModel: ObservableObject {
           self?.recentPlaylists = response
           self?.topPicksPage = 1
           self?.canLoadMoreTopPicks = response.count == (self?.topPicksPageSize ?? 0)
+          if let first = response.first { self?.loadLatestSingle(from: first) }
         }
         group.leave()
       }
@@ -69,6 +73,28 @@ class HomeViewModel: ObservableObject {
   }
   private func topPicksURL(startIndex: Int) -> String {
     "https://api.neurokaraoke.com/api/playlists?startIndex=\(startIndex)&pageSize=\(topPicksPageSize)&search=&sortBy=&sortDescending=True&isSetlist=True&year=0"
+  }
+  private func loadLatestSingle(from playlist: Playlist) {
+    if loadedSinglePlaylistID == playlist.id, latestSingle != nil { return }
+    loadedSinglePlaylistID = playlist.id
+    if let inline = playlist.songListDTOs, let first = inline.first {
+      self.latestSingle = first
+      self.latestSingleContext = inline
+      return
+    }
+    guard let url = URL(string: "https://api.neurokaraoke.com/api/playlist/\(playlist.id)") else { return }
+    var request = URLRequest(url: url)
+    request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+      guard let data,
+        let decoded = try? JSONDecoder().decode(Playlist.self, from: data),
+        let songs = decoded.songListDTOs, let first = songs.first
+      else { return }
+      DispatchQueue.main.async {
+        self?.latestSingle = first
+        self?.latestSingleContext = songs
+      }
+    }.resume()
   }
   private func fetchData<T: Codable>(urlString: String, completion: @escaping (T?) -> Void) {
     guard let url = URL(string: urlString) else {

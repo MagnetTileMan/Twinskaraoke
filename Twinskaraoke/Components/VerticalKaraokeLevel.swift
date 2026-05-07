@@ -4,7 +4,7 @@ import SwiftUI
 /// drag anywhere on the track to set the value. Empty when value is 0, fills
 /// from the bottom up.
 struct VerticalKaraokeLevel: View {
-  @Binding var value: Double  // 0...1
+  @Binding var value: Double
   var enabled: Bool = true
   var onSet: (Double) -> Void = { _ in }
   var body: some View {

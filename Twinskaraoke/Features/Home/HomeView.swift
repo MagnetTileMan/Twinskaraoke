@@ -29,7 +29,26 @@ struct HomeView: View {
               }
               HomePlaceholderSection(
                 title: "New Releases",
-                tiles: HomePlaceholderTile.newReleases
+                tiles: HomePlaceholderTile.newReleases,
+                artworkOverride: { tile in
+                  switch tile.title {
+                  case "Latest Singles": return viewModel.latestSingle?.imageURL
+                  case "New Albums": return viewModel.recentPlaylists.first?.imageURL
+                  default: return nil
+                  }
+                },
+                playlistForTile: { tile in
+                  tile.title == "New Albums" ? viewModel.recentPlaylists.first : nil
+                },
+                onTapTile: { tile in
+                  switch tile.title {
+                  case "Latest Singles":
+                    if let song = viewModel.latestSingle {
+                      audioManager.play(song: song, context: [song])
+                    }
+                  default: break
+                  }
+                }
               )
               HomePlaceholderSection(
                 title: "Stations for You",
@@ -210,13 +229,32 @@ struct HomePlaceholderSection: View {
   let title: String
   let tiles: [HomePlaceholderTile]
   var style: Style = .card
+  var artworkOverride: ((HomePlaceholderTile) -> URL?)? = nil
+  var playlistForTile: ((HomePlaceholderTile) -> Playlist?)? = nil
+  var onTapTile: ((HomePlaceholderTile) -> Void)? = nil
   var body: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.m) {
       AMSectionHeader(title)
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(alignment: .top, spacing: AM.Spacing.l) {
           ForEach(tiles) { tile in
-            HomePlaceholderTileView(tile: tile, style: style)
+            let artURL = artworkOverride?(tile) ?? nil
+            let playlist = playlistForTile?(tile) ?? nil
+            Group {
+              if let playlist {
+                NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
+                  HomePlaceholderTileView(tile: tile, style: style, artworkURL: artURL)
+                }
+                .buttonStyle(PressableButtonStyle())
+              } else if let onTapTile {
+                Button { onTapTile(tile) } label: {
+                  HomePlaceholderTileView(tile: tile, style: style, artworkURL: artURL)
+                }
+                .buttonStyle(PressableButtonStyle())
+              } else {
+                HomePlaceholderTileView(tile: tile, style: style, artworkURL: artURL)
+              }
+            }
           }
         }
         .padding(.horizontal, AM.Spacing.screenMargin)
@@ -228,10 +266,15 @@ struct HomePlaceholderSection: View {
 private struct HomePlaceholderTileView: View {
   let tile: HomePlaceholderTile
   let style: HomePlaceholderSection.Style
+  var artworkURL: URL? = nil
   var body: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.s) {
       ZStack(alignment: .bottomLeading) {
-        LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        if let artworkURL {
+          LoadingImage(url: artworkURL, cornerRadius: 0, contentMode: .fill)
+        } else {
+          LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
         if style == .station {
           Image(systemName: "dot.radiowaves.left.and.right")
             .font(.system(size: 28, weight: .medium))
@@ -355,7 +398,7 @@ struct BrowseSongCollectionView: View {
     HStack(spacing: AM.Spacing.m) {
       Button {
         if let first = songs.first {
-          audioManager.play(song: first, context: songs)
+          audioManager.playInOrder(song: first, context: songs)
         }
       } label: {
         Label("Play", systemImage: "play.fill")
@@ -367,9 +410,7 @@ struct BrowseSongCollectionView: View {
           .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       }
       Button {
-        if let pick = songs.randomElement() {
-          audioManager.play(song: pick, context: songs.shuffled())
-        }
+        audioManager.playShuffled(from: songs)
       } label: {
         Label("Shuffle", systemImage: "shuffle")
           .font(.system(size: 17, weight: .semibold))

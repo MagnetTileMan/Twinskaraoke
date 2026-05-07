@@ -22,16 +22,14 @@ struct RandomSongsView: View {
           HStack(spacing: 12) {
             Button {
               if let first = viewModel.songs.first {
-                audioManager.play(song: first, context: viewModel.songs)
+                audioManager.playInOrder(song: first, context: viewModel.songs)
               }
             } label: {
               actionLabel(symbol: "play.fill", text: "Play")
             }
             .buttonStyle(PressableButtonStyle())
             Button {
-              if let random = viewModel.songs.randomElement() {
-                audioManager.play(song: random, context: viewModel.songs.shuffled())
-              }
+              audioManager.playShuffled(from: viewModel.songs)
             } label: {
               actionLabel(symbol: "shuffle", text: "Shuffle")
             }

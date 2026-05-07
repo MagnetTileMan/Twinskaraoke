@@ -9,11 +9,18 @@ enum ImageCacheConfig {
     let cfg = SDImageCache.shared.config
     cfg.maxMemoryCost = 64 * 1024 * 1024
     cfg.maxMemoryCount = 60
-    cfg.maxDiskSize = 256 * 1024 * 1024
+    cfg.maxDiskSize = 2 * 1024 * 1024 * 1024
     cfg.shouldCacheImagesInMemory = true
     cfg.shouldUseWeakMemoryCache = true
+    cfg.maxDiskAge = 186 * 24 * 60 * 60
     SDImageCache.shared.clearMemory()
-    SDWebImageDownloader.shared.config.maxConcurrentDownloads = 4
+    let dl = SDWebImageDownloader.shared
+    dl.config.maxConcurrentDownloads = 4
+    dl.requestModifier = SDWebImageDownloaderRequestModifier { request in
+      var r = request
+      r.cachePolicy = .returnCacheDataElseLoad
+      return r
+    }
     #if canImport(UIKit)
       NotificationCenter.default.addObserver(
         forName: UIApplication.didReceiveMemoryWarningNotification,
@@ -27,6 +34,10 @@ enum ImageCacheConfig {
   /// hold full-resolution bitmaps for every visible tile (the 2GB footprint in
   /// recent hang reports came from oversized decoded artwork).
   static let thumbnailPixelSize = CGSize(width: 600, height: 600)
+  /// Default options used by every `WebImage` in the app. `.queryMemoryData`
+  /// + `.fromCacheOnly` fall-through means we always try memory → disk first
+  /// and only hit the network when the URL hasn't been seen before.
+  static let defaultOptions: SDWebImageOptions = [.retryFailed, .scaleDownLargeImages]
 }
 
 struct LoadingImage: View {
@@ -36,6 +47,7 @@ struct LoadingImage: View {
   var showsLoading: Bool = true
   var lowResURL: URL? = nil
   var transparentBackground: Bool = false
+  @State private var fullLoaded: Bool = false
   var body: some View {
     GeometryReader { geo in
       let pixelSize = NSValue(cgSize: thumbnailPixelSize(for: geo.size))
@@ -43,8 +55,12 @@ struct LoadingImage: View {
         if !transparentBackground {
           Color(.systemGray5)
         }
-        if let lowResURL {
-          WebImage(url: lowResURL, context: [.imageThumbnailPixelSize: pixelSize]) { image in
+        if let lowResURL, !fullLoaded {
+          WebImage(
+            url: lowResURL,
+            options: ImageCacheConfig.defaultOptions,
+            context: [.imageThumbnailPixelSize: pixelSize]
+          ) { image in
             image
               .resizable()
               .aspectRatio(contentMode: contentMode)
@@ -52,7 +68,11 @@ struct LoadingImage: View {
               .clipped()
           } placeholder: { Color.clear }
         }
-        WebImage(url: url, context: [.imageThumbnailPixelSize: pixelSize]) { image in
+        WebImage(
+          url: url,
+          options: ImageCacheConfig.defaultOptions,
+          context: [.imageThumbnailPixelSize: pixelSize]
+        ) { image in
           image
             .resizable()
             .aspectRatio(contentMode: contentMode)
@@ -66,10 +86,14 @@ struct LoadingImage: View {
             Color.clear
           }
         }
+        .onSuccess { _, _, _ in
+          DispatchQueue.main.async { fullLoaded = true }
+        }
       }
       .frame(width: geo.size.width, height: geo.size.height)
     }
     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    .onChange(of: url) { _ in fullLoaded = false }
   }
   private func thumbnailPixelSize(for displaySize: CGSize) -> CGSize {
     #if canImport(UIKit)
@@ -84,20 +108,16 @@ struct LoadingImage: View {
   }
 }
 
-/// Animated loading indicator backed by the `LoadingImage` data asset.
-/// The asset data is loaded once and shared; SDWebImage's `AnimatedImage`
-/// otherwise decodes a fresh copy per instance, which is expensive when
-/// many placeholders mount at the same time (carousels, grids).
-private enum LoadingIndicatorAsset {
-  static let data: Data = NSDataAsset(name: "LoadingImage")?.data ?? Data()
-}
-
+/// Lightweight loading indicator. Previously this rendered an animated WebP via
+/// `AnimatedImage`, which decoded all frames into memory per instance and was a
+/// major contributor to the 2GB+ RAM footprint when many placeholders mounted
+/// at once (carousels, grids). A native `ProgressView` is essentially free.
 struct LoadingIndicator: View {
-  var size: CGFloat = 48
+  var size: CGFloat = 20
   var body: some View {
-    AnimatedImage(data: LoadingIndicatorAsset.data)
-      .resizable()
-      .scaledToFit()
+    ProgressView()
+      .progressViewStyle(.circular)
+      .tint(Color.appAccent)
       .frame(width: size, height: size)
   }
 }

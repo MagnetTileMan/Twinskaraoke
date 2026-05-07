@@ -24,7 +24,7 @@ struct Song: Codable, Identifiable, Equatable {
   var audioURL: URL? {
     guard let path = absolutePath else { return nil }
     let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-    return URL(string: "https://storage.neurokaraoke.com/\(cleanPath)")
+    return URL(string: "\(StorageHost.base)/\(cleanPath)")
   }
   var displayTitle: String {
     let artists = originalArtists?.joined(separator: ", ") ?? ""

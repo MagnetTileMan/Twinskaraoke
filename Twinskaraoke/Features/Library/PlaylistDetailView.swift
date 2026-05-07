@@ -96,16 +96,14 @@ struct PlaylistDetailView: View {
     HStack(spacing: 12) {
       Button {
         if let first = songs.first {
-          audioManager.play(song: first, context: songs)
+          audioManager.playInOrder(song: first, context: songs)
         }
       } label: {
         actionLabel(symbol: "play.fill", text: "Play")
       }
       .buttonStyle(PressableButtonStyle())
       Button {
-        if let random = songs.randomElement() {
-          audioManager.play(song: random, context: songs.shuffled())
-        }
+        audioManager.playShuffled(from: songs)
       } label: {
         actionLabel(symbol: "shuffle", text: "Shuffle")
       }
