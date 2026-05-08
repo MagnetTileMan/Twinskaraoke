@@ -2,9 +2,6 @@ import Combine
 import Foundation
 import SwiftUI
 
-/// Persists the set of playlists the user has explicitly saved to their Library.
-/// Apple Music-style "Add to Library" — these surface alongside server-fetched
-/// playlists in `PlaylistsViewModel.allPlaylists`.
 @MainActor
 final class SavedPlaylistsStore: ObservableObject {
   static let shared = SavedPlaylistsStore()

@@ -3,9 +3,6 @@ import SwiftUI
   import UIKit
 #endif
 
-/// Extracts dominant colors from an image so the player background can tint
-/// itself from the artwork. We sample the four corners + center for a quick,
-/// dependency-free palette that's good enough for ambient backgrounds.
 struct ArtworkPalette: Equatable {
   var primary: Color
   var secondary: Color
@@ -39,8 +36,6 @@ struct ArtworkPalette: Equatable {
     func allColors() -> [UIColor] {
       [primary, secondary, tertiary, quaternary].map { UIColor($0) }
     }
-    /// Sample a small grid of pixels and pick the most-saturated, brightness-balanced
-    /// distinct colors. Cheap and good enough for ambient backgrounds.
     private static func dominantColors(image: UIImage, count: Int) -> [UIColor] {
       let size = CGSize(width: 32, height: 32)
       UIGraphicsBeginImageContextWithOptions(size, false, 1)

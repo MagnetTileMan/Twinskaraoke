@@ -306,10 +306,6 @@ struct HomeSkeletonView: View {
   }
 }
 
-/// A read-only, "playlist-looking" detail screen for ad-hoc song collections
-/// like Home's "More to Explore". Mirrors PlaylistDetailView's hero + list
-/// layout but isn't backed by a Playlist — no save, no menu, no recently-played
-/// tracking.
 struct BrowseSongCollectionView: View {
   let title: String
   let subtitle: String?
@@ -386,13 +382,11 @@ struct BrowseSongCollectionView: View {
       .frame(height: baseSize)
       .padding(.top, 8)
   }
+  private static let neuroFallbackURL = URL(string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")!
   @ViewBuilder
   private var heroArtwork: some View {
-    if let first = songs.first {
-      LoadingImage(url: first.imageURL, cornerRadius: 0, contentMode: .fill)
-    } else {
-      Color.secondary.opacity(0.2)
-    }
+    let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
+    LoadingImage(url: artURL, cornerRadius: 0, contentMode: .fill)
   }
   private var actionButtons: some View {
     HStack(spacing: AM.Spacing.m) {

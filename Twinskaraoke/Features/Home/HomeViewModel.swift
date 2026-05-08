@@ -22,13 +22,13 @@ class HomeViewModel: ObservableObject {
     canLoadMoreTopPicks = true
     let group = DispatchGroup()
     group.enter()
-    fetchData(urlString: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=20") {
+    fetchData(urlString: "\(StorageHost.api)/api/explore/trendings?days=7&take=20") {
       [weak self] (response: [Song]?) in
       if let response { DispatchQueue.main.async { self?.trending = response } }
       group.leave()
     }
     group.enter()
-    fetchData(urlString: "https://api.neurokaraoke.com/api/user/suggestions?take=20") {
+    fetchData(urlString: "\(StorageHost.api)/api/user/suggestions?take=20") {
       [weak self] (response: [Song]?) in
       if let response { DispatchQueue.main.async { self?.suggestions = response } }
       group.leave()
@@ -72,7 +72,7 @@ class HomeViewModel: ObservableObject {
     }
   }
   private func topPicksURL(startIndex: Int) -> String {
-    "https://api.neurokaraoke.com/api/playlists?startIndex=\(startIndex)&pageSize=\(topPicksPageSize)&search=&sortBy=&sortDescending=True&isSetlist=True&year=0"
+    "\(StorageHost.api)/api/playlists?startIndex=\(startIndex)&pageSize=\(topPicksPageSize)&search=&sortBy=&sortDescending=True&isSetlist=True&year=0"
   }
   private func loadLatestSingle(from playlist: Playlist) {
     if loadedSinglePlaylistID == playlist.id, latestSingle != nil { return }
@@ -82,7 +82,7 @@ class HomeViewModel: ObservableObject {
       self.latestSingleContext = inline
       return
     }
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/playlist/\(playlist.id)") else { return }
+    guard let url = URL(string: "\(StorageHost.api)/api/playlist/\(playlist.id)") else { return }
     var request = URLRequest(url: url)
     request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in

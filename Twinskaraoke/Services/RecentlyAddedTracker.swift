@@ -1,9 +1,6 @@
 import Combine
 import Foundation
 
-/// Tracks the date each playlist was first added to the user's library
-/// (whether locally saved or returned by the server). Used to sort the
-/// "Recently Added" section by most recent.
 @MainActor
 final class RecentlyAddedTracker: ObservableObject {
   static let shared = RecentlyAddedTracker()
@@ -13,8 +10,6 @@ final class RecentlyAddedTracker: ObservableObject {
   func date(for id: String) -> Date {
     dates[id] ?? .distantPast
   }
-  /// Records `now` for any IDs we haven't seen before. Pass the current
-  /// known set on each refresh; only new entries are stamped.
   func registerIfNew(_ ids: [String]) {
     var changed = false
     let now = Date()
@@ -24,8 +19,6 @@ final class RecentlyAddedTracker: ObservableObject {
     }
     if changed { save() }
   }
-  /// Bumps the timestamp to now (used when the user explicitly adds a
-  /// playlist to their library, so it jumps to the front of the section).
   func bump(_ id: String) {
     dates[id] = Date()
     save()

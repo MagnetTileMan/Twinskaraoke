@@ -16,10 +16,20 @@ struct Song: Codable, Identifiable, Equatable {
   }
   var imageURL: URL? {
     if let identifier = cloudflareID {
-      return URL(string: "https://images.neurokaraoke.com/\(identifier)/public")
+      return URL(string: "\(StorageHost.images)/\(identifier)/public")
     }
-    guard let path = coverArt?.absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    guard let path = coverArt?.absolutePath else { return neuroFallbackImageURL }
+    return URL(string: StorageHost.images + path + "/quality=95")
+  }
+  var hasOwnArtwork: Bool {
+    cloudflareID != nil || coverArt?.absolutePath != nil
+  }
+  private static let neuroArtistNames: Set<String> = ["Neuro", "Neuro v1", "Neuro v2"]
+  private var neuroFallbackImageURL: URL? {
+    let artists = coverArtists ?? []
+    let isNeuro = artists.contains { Self.neuroArtistNames.contains($0) }
+    guard isNeuro else { return nil }
+    return URL(string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")
   }
   var audioURL: URL? {
     guard let path = absolutePath else { return nil }
@@ -33,9 +43,6 @@ struct Song: Codable, Identifiable, Equatable {
   var displayCoverArtist: String {
     coverArtists?.joined(separator: ", ") ?? ""
   }
-  /// Joined artist string with a stable fallback when no artist is available.
-  /// Every track in this catalog is a cover, so the cover artist is appended
-  /// when present (e.g. "Adele · Cover by Jane Doe").
   var displayArtist: String {
     let original = originalArtists?.filter { !$0.isEmpty }.joined(separator: ", ") ?? ""
     let cover = coverArtists?.filter { !$0.isEmpty }.joined(separator: ", ") ?? ""
@@ -46,7 +53,6 @@ struct Song: Codable, Identifiable, Equatable {
     case (true, true): return "Unknown Artist"
     }
   }
-  /// `m:ss` formatted duration, blank for unknown lengths (e.g. live radio).
   var durationText: String {
     guard duration > 0 else { return "" }
     let m = duration / 60
@@ -65,7 +71,7 @@ struct Playlist: Codable, Identifiable {
   let songListDTOs: [Song]?
   var imageURL: URL? {
     guard let path = mosaicMedia?.first?.absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
   var isFavorites: Bool { id == Self.favoritesID }
 }

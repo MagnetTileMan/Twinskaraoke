@@ -11,10 +11,10 @@ struct SearchSongItem: Codable, Identifiable {
   let cloudflareId: String?
   var imageURL: URL? {
     if let cfId = cloudflareId, !cfId.isEmpty {
-      return URL(string: "https://images.neurokaraoke.com/\(cfId)/public")
+      return URL(string: "\(StorageHost.images)/\(cfId)/public")
     }
     guard let path = coverArt?.absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
   var originalArtistDisplay: String {
     originalArtists?.joined(separator: ", ") ?? ""

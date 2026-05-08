@@ -6,7 +6,7 @@ class RandomSongsViewModel: ObservableObject {
   @Published var isLoading = false
   private var fetchToken: Int = 0
   func fetch() {
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/songs/random") else { return }
+    guard let url = URL(string: "\(StorageHost.api)/api/songs/random") else { return }
     fetchToken += 1
     let token = fetchToken
     isLoading = true

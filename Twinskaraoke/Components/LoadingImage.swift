@@ -30,13 +30,7 @@ enum ImageCacheConfig {
       }
     #endif
   }
-  /// Cap the in-memory decoded size for shelf/grid artwork so SDWebImage doesn't
-  /// hold full-resolution bitmaps for every visible tile (the 2GB footprint in
-  /// recent hang reports came from oversized decoded artwork).
   static let thumbnailPixelSize = CGSize(width: 600, height: 600)
-  /// Default options used by every `WebImage` in the app. `.queryMemoryData`
-  /// + `.fromCacheOnly` fall-through means we always try memory → disk first
-  /// and only hit the network when the URL hasn't been seen before.
   static let defaultOptions: SDWebImageOptions = [.retryFailed, .scaleDownLargeImages]
 }
 
@@ -108,10 +102,6 @@ struct LoadingImage: View {
   }
 }
 
-/// Lightweight loading indicator. Previously this rendered an animated WebP via
-/// `AnimatedImage`, which decoded all frames into memory per instance and was a
-/// major contributor to the 2GB+ RAM footprint when many placeholders mounted
-/// at once (carousels, grids). A native `ProgressView` is essentially free.
 struct LoadingIndicator: View {
   var size: CGFloat = 20
   var body: some View {

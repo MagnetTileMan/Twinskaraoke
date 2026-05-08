@@ -71,7 +71,7 @@ struct AboutView: View {
             icon: "dot.radiowaves.left.and.right", color: .appAccent,
             title: "Neuro 21 Radio Station")
         }
-        Link(destination: URL(string: "https://api.neurokaraoke.com")!) {
+        Link(destination: URL(string: "\(StorageHost.api)")!) {
           AboutLinkRow(icon: "server.rack", color: .blue, title: "API Service")
         }
         Link(destination: URL(string: "https://www.youtube.com/@neurokaraoke")!) {

@@ -55,7 +55,7 @@ struct SettingsView: View {
           HStack {
             Text("Strength")
             Spacer()
-            Text(strengthLabel)
+            Text(vocalStrengthLabel)
               .foregroundStyle(.secondary)
           }
           GeometryReader { geo in
@@ -74,6 +74,36 @@ struct SettingsView: View {
                 .onChanged { value in
                   let v = max(0, min(1, value.location.x / geo.size.width))
                   audioManager.karaokeStrength = Float(v)
+                }
+            )
+          }
+          .frame(height: 28)
+        }
+        Toggle("Bass Enhance", isOn: $audioManager.bassEnhanceMode)
+          .tint(.appAccent)
+        if audioManager.bassEnhanceMode {
+          HStack {
+            Text("Strength")
+            Spacer()
+            Text(bassStrengthLabel)
+              .foregroundStyle(.secondary)
+          }
+          GeometryReader { geo in
+            ZStack(alignment: .leading) {
+              Capsule()
+                .fill(Color.primary.opacity(0.15))
+              Capsule()
+                .fill(Color.appAccent)
+                .frame(width: max(8, geo.size.width * CGFloat(audioManager.bassEnhanceStrength)))
+            }
+            .frame(height: 6)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .contentShape(Rectangle())
+            .gesture(
+              DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                  let v = max(0, min(1, value.location.x / geo.size.width))
+                  audioManager.bassEnhanceStrength = Float(v)
                 }
             )
           }
@@ -102,8 +132,13 @@ struct SettingsView: View {
     .navigationTitle("Settings")
     .navigationBarTitleDisplayMode(.inline)
   }
-  private var strengthLabel: String {
-    let v = audioManager.karaokeStrength
+  private var vocalStrengthLabel: String {
+    audioManager.karaokeLevel.label
+  }
+  private var bassStrengthLabel: String {
+    strengthText(audioManager.bassEnhanceStrength)
+  }
+  private func strengthText(_ v: Float) -> String {
     if v < 0.15 { return "Almost off" }
     if v < 0.45 { return "Light" }
     if v < 0.75 { return "Medium" }

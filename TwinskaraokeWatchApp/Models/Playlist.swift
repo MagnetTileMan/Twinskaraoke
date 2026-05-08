@@ -7,7 +7,7 @@ struct Playlist: Codable, Identifiable {
   let mosaicMedia: [Media]?
   var imageURL: URL? {
     guard let path = mosaicMedia?.first?.absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
 }
 

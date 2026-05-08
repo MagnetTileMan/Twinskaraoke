@@ -87,12 +87,41 @@ class AudioPlayerManager: ObservableObject {
   @Published var radioArtworkURL: URL?
   @Published var karaokeMode: Bool = false {
     didSet {
-      KaraokeAudioProcessor.vocalAttenuation = karaokeMode ? karaokeStrength : 0
-      applyKaraokeToCurrentItem()
+      KaraokeAudioProcessor.vocalRemovalLevel = karaokeMode ? karaokeLevel : .off
+      if !bassEnhanceMode {
+        KaraokeAudioProcessor.vocalAttenuation = 0
+      }
+      updateAudioProcessorMode()
+      applyAudioEffectToCurrentItem()
+    }
+  }
+  @Published var karaokeLevel: VocalRemovalLevel = .strong {
+    didSet {
+      if karaokeMode {
+        KaraokeAudioProcessor.vocalRemovalLevel = karaokeLevel
+      }
     }
   }
   @Published var karaokeStrength: Float = 0.85 {
-    didSet { if karaokeMode { KaraokeAudioProcessor.vocalAttenuation = karaokeStrength } }
+    didSet {
+      let newLevel: VocalRemovalLevel
+      if karaokeStrength < 0.125 { newLevel = .off }
+      else if karaokeStrength < 0.375 { newLevel = .light }
+      else if karaokeStrength < 0.625 { newLevel = .medium }
+      else if karaokeStrength < 0.875 { newLevel = .strong }
+      else { newLevel = .maximum }
+      if newLevel != karaokeLevel { karaokeLevel = newLevel }
+    }
+  }
+  @Published var bassEnhanceMode: Bool = false {
+    didSet {
+      KaraokeAudioProcessor.vocalAttenuation = bassEnhanceMode ? bassEnhanceStrength : 0
+      updateAudioProcessorMode()
+      applyAudioEffectToCurrentItem()
+    }
+  }
+  @Published var bassEnhanceStrength: Float = 0.85 {
+    didSet { if bassEnhanceMode { KaraokeAudioProcessor.vocalAttenuation = bassEnhanceStrength } }
   }
   @Published var autoMixEnabled: Bool =
     (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true)
@@ -229,6 +258,7 @@ class AudioPlayerManager: ObservableObject {
     }
     isRadioMode = false
     radioArtworkURL = nil
+    reportPlayCount(for: song.id)
     if currentSong?.id != song.id {
       progress = 0
       withAnimation(.easeInOut(duration: 0.32)) {
@@ -284,8 +314,8 @@ class AudioPlayerManager: ObservableObject {
       player?.replaceCurrentItem(with: playerItem)
       player?.volume = 1.0
     }
-    if karaokeMode {
-      KaraokeAudioProcessor.attachVocalCancel(to: playerItem)
+    if karaokeMode || bassEnhanceMode {
+      KaraokeAudioProcessor.attachTap(to: playerItem)
     }
     NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
     player?.play()
@@ -305,17 +335,23 @@ class AudioPlayerManager: ObservableObject {
     updateNowPlayingInfo(reloadArtwork: true)
     scheduleAutoMixIfNeeded()
   }
-  /// Install or remove the karaoke audio tap on the live player item. Called
-  /// when the user toggles `karaokeMode` so we don't pay the tap-installation
-  /// cost (and the brief audio-mix-swap stutter) on every track change when
-  /// the feature is off.
-  private func applyKaraokeToCurrentItem() {
+  private func updateAudioProcessorMode() {
+    if karaokeMode && bassEnhanceMode {
+      KaraokeAudioProcessor.mode = .combined
+    } else if karaokeMode {
+      KaraokeAudioProcessor.mode = .vocalRemoval
+    } else if bassEnhanceMode {
+      KaraokeAudioProcessor.mode = .bassEnhance
+    } else {
+      KaraokeAudioProcessor.mode = .vocalRemoval
+    }
+  }
+  private func applyAudioEffectToCurrentItem() {
     guard let item = player?.currentItem else { return }
-    if karaokeMode {
-      if item.audioMix == nil {
-        Task { @MainActor in
-          KaraokeAudioProcessor.attachVocalCancel(to: item)
-        }
+    if karaokeMode || bassEnhanceMode {
+      item.audioMix = nil
+      Task { @MainActor in
+        KaraokeAudioProcessor.attachTap(to: item)
       }
     } else {
       item.audioMix = nil
@@ -375,8 +411,8 @@ class AudioPlayerManager: ObservableObject {
   }
   private func preloadNext(song: Song, url: URL) {
     let item = AVPlayerItem(url: url)
-    if karaokeMode {
-      KaraokeAudioProcessor.attachVocalCancel(to: item)
+    if karaokeMode || bassEnhanceMode {
+      KaraokeAudioProcessor.attachTap(to: item)
     }
     let standby = AVPlayer(playerItem: item)
     if #available(iOS 15.0, *) {
@@ -671,15 +707,11 @@ class AudioPlayerManager: ObservableObject {
       originalQueue = []
     }
   }
-  /// Plays a song from a collection in order, disabling shuffle so the queue
-  /// follows the supplied order.
   func playInOrder(song: Song, context: [Song]) {
     isShuffled = false
     originalQueue = []
     play(song: song, context: context)
   }
-  /// Shuffles a collection, plays a random pick, and turns shuffle mode on so
-  /// the queue indicator reflects what's happening.
   func playShuffled(from songs: [Song]) {
     guard let pick = songs.randomElement() else { return }
     let shuffled = songs.shuffled()
@@ -941,7 +973,7 @@ class AudioPlayerManager: ObservableObject {
     }
   #endif
   private func fetchRandomTrending() {
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=50")
+    guard let url = URL(string: "\(StorageHost.api)/api/explore/trendings?days=7&take=50")
     else { return }
     var request = URLRequest(url: url)
     request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
@@ -952,6 +984,17 @@ class AudioPlayerManager: ObservableObject {
         DispatchQueue.main.async { self.play(song: random, context: songs) }
       }
     }.resume()
+  }
+  private func reportPlayCount(for songID: String) {
+    guard let url = URL(string: "\(StorageHost.api)/api/songs/playCount/\(songID)") else { return }
+    var request = URLRequest(url: url)
+    request.httpMethod = "PUT"
+    if let token = UserDefaults.standard.string(forKey: "nk.token"), !token.isEmpty {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    } else {
+      request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    }
+    URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
   }
 }
 #if canImport(UIKit)

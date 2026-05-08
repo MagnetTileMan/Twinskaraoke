@@ -62,7 +62,6 @@ struct RadioNowPlaying: Decodable {
 }
 
 extension RadioNowPlaying.SongInfo {
-  /// The real Neuro song ID this stream is playing, when available.
   var resolvedSongID: String? { customFields?.songID }
   func toSong(stationID: String) -> Song {
     Song(

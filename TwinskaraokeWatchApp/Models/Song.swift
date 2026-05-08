@@ -11,15 +11,21 @@ struct Song: Codable, Identifiable, Equatable {
   let cloudflareId: String?
   var imageURL: URL? {
     if let cfId = cloudflareId, !cfId.isEmpty {
-      return URL(string: "https://images.neurokaraoke.com/\(cfId)/public")
+      return URL(string: "\(StorageHost.images)/\(cfId)/public")
     }
-    guard let path = coverArt?.absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    guard let path = coverArt?.absolutePath else { return neuroFallbackImageURL }
+    return URL(string: StorageHost.images + path + "/quality=95")
+  }
+  private static let neuroArtistNames: Set<String> = ["Neuro", "Neuro v1", "Neuro v2"]
+  private var neuroFallbackImageURL: URL? {
+    let artists = coverArtists ?? []
+    let isNeuro = artists.contains { Self.neuroArtistNames.contains($0) }
+    guard isNeuro else { return nil }
+    return URL(string: "https://images.neurokaraoke.com/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")
   }
   var audioURL: URL? {
-    let baseUrl = "https://storage.neurokaraoke.com/"
     let cleanPath = absolutePath.hasPrefix("/") ? String(absolutePath.dropFirst()) : absolutePath
-    return URL(string: baseUrl + cleanPath)
+    return URL(string: StorageHost.base + "/" + cleanPath)
   }
   var artistName: String {
     if let originals = originalArtists, !originals.isEmpty {

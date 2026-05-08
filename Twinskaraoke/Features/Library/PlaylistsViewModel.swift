@@ -14,16 +14,11 @@ class PlaylistsViewModel: ObservableObject {
       songListDTOs: favoriteSongs
     )
   }
-  /// Server playlists merged with locally saved ones, with the synthesized
-  /// Favorites pseudo-playlist pinned first. Server entries take precedence
-  /// when an ID exists in both lists.
   @MainActor func allPlaylists(saved: [Playlist]) -> [Playlist] {
     let serverIDs = Set(playlists.map { $0.id })
     let localOnly = saved.filter { !serverIDs.contains($0.id) }
     return [favoritesPlaylist] + playlists + localOnly
   }
-  /// Playlists sorted by most recently added date, with the synthesized
-  /// Favorites pseudo-playlist pinned first.
   @MainActor func recentlyAddedPlaylists(saved: [Playlist]) -> [Playlist] {
     let serverIDs = Set(playlists.map { $0.id })
     let localOnly = saved.filter { !serverIDs.contains($0.id) }
@@ -37,7 +32,7 @@ class PlaylistsViewModel: ObservableObject {
     guard
       let url = URL(
         string:
-          "https://api.neurokaraoke.com/api/playlists?startIndex=0&pageSize=25&search=&sortBy=&sortDescending=False&isSetlist=False&year=0"
+          "\(StorageHost.api)/api/playlists?startIndex=0&pageSize=25&search=&sortBy=&sortDescending=False&isSetlist=False&year=0"
       )
     else { return }
     isLoading = true
@@ -56,7 +51,7 @@ class PlaylistsViewModel: ObservableObject {
     }.resume()
   }
   func fetchFavoriteSongs() {
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/favorites/type?type=0") else {
+    guard let url = URL(string: "\(StorageHost.api)/api/favorites/type?type=0") else {
       return
     }
     var request = URLRequest(url: url)

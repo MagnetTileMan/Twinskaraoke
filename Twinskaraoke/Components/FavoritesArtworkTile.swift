@@ -1,13 +1,6 @@
 import SwiftUI
 
-/// Default star artwork tile, used as fallback cover art for any playlist
-/// without remote artwork (including the synthesized "Favorites" playlist).
-/// White background with an Apple Music-style pink-to-red gradient star
-/// that scales proportionally with the container size.
 struct FavoritesArtworkTile: View {
-  /// Star size as a fraction of the smaller container dimension. Matches
-  /// Apple Music's Favorites tile proportions so the icon looks identical
-  /// at any container size.
   var sizeFraction: CGFloat = 0.45
   var body: some View {
     GeometryReader { geo in
@@ -35,7 +28,6 @@ struct FavoritesArtworkTile: View {
   }
 }
 
-/// Renders a playlist's cover art, falling back to a star tile when none is available.
 struct PlaylistArtwork: View {
   let playlist: Playlist
   var cornerRadius: CGFloat = 10

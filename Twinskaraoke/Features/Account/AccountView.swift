@@ -113,7 +113,7 @@ struct AccountView: View {
   }
   private func loadData() async {
     guard let token = auth.authToken else { return }
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/badge/profile") else { return }
+    guard let url = URL(string: "\(StorageHost.api)/api/badge/profile") else { return }
     var req = URLRequest(url: url)
     req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     guard let (data, _) = try? await URLSession.shared.data(for: req) else { return }

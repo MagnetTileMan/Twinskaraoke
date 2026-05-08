@@ -33,10 +33,10 @@ class TopChartViewModel: ObservableObject {
     if hasLoaded { return }
     hasLoaded = true
     fetch(
-      url: "https://api.neurokaraoke.com/api/explore/trendings?days=all",
+      url: "\(StorageHost.api)/api/explore/trendings?days=all",
       keyPath: \.songs)
     fetch(
-      url: "https://api.neurokaraoke.com/api/explore/trendings?days=7&take=20",
+      url: "\(StorageHost.api)/api/explore/trendings?days=7&take=20",
       keyPath: \.weeklyTrending)
   }
   private func fetch(url: String, keyPath: ReferenceWritableKeyPath<TopChartViewModel, [Song]>) {
@@ -78,7 +78,7 @@ class GenresViewModel: ObservableObject {
     guard
       let url = URL(
         string:
-          "https://api.neurokaraoke.com/api/filters/genres?page=\(page)&pageSize=\(pageSize)")
+          "\(StorageHost.api)/api/filters/genres?page=\(page)&pageSize=\(pageSize)")
     else { return }
     isLoadingMore = !replace
     var request = URLRequest(url: url)
@@ -105,9 +105,10 @@ class GenresViewModel: ObservableObject {
       }
     }.resume()
   }
+  private static let neuroFallbackURL = URL(string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")!
   private func fetchDetail(for genre: GenreSummary) {
     if allSongs[genre.id] != nil { return }
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/genres/\(genre.id)") else {
+    guard let url = URL(string: "\(StorageHost.api)/api/genres/\(genre.id)") else {
       return
     }
     var request = URLRequest(url: url)
@@ -122,8 +123,9 @@ class GenresViewModel: ObservableObject {
           self.allSongs[genre.id] = songs
           if let first = songs.first {
             self.firstSongs[genre.id] = first
-            if let url = first.imageURL { self.artworkURLs[genre.id] = url }
           }
+          let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
+          self.artworkURLs[genre.id] = artURL
         }
       }
     }.resume()
@@ -146,7 +148,7 @@ class SearchViewModel: ObservableObject {
       .store(in: &cancellables)
   }
   func search(_ query: String) {
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/songs") else { return }
+    guard let url = URL(string: "\(StorageHost.api)/api/songs") else { return }
     queryToken += 1
     let token = queryToken
     isSearching = true

@@ -19,14 +19,14 @@ struct GalleryArt: Codable, Identifiable, Equatable {
   let upvotes: Int?
   var imageURL: URL? {
     if let identifier = cloudflareId {
-      return URL(string: "https://images.neurokaraoke.com/\(identifier)/public")
+      return URL(string: "\(StorageHost.images)/\(identifier)/public")
     }
     guard let path = absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
   var blurPreviewURL: URL? {
     guard let path = absolutePath else { return nil }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/width=20,quality=30,blur=30")
+    return URL(string: StorageHost.images + path + "/width=20,quality=30,blur=30")
   }
 }
 
@@ -35,7 +35,7 @@ class ArtGalleryViewModel: ObservableObject {
   @Published var isLoading = false
   func fetch() {
     guard artists.isEmpty else { return }
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/media/artists?loadArts=true")
+    guard let url = URL(string: "\(StorageHost.api)/api/media/artists?loadArts=true")
     else { return }
     isLoading = true
     var request = URLRequest(url: url)
@@ -363,7 +363,7 @@ struct ArtDetailView: View {
   enum SaveStatus { case idle, saving, success, failed(String) }
   private var fullResURL: URL? {
     guard let path = art.absolutePath else { return art.imageURL }
-    return URL(string: "https://images.neurokaraoke.com" + path + "/quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
   var body: some View {
     ScrollView {

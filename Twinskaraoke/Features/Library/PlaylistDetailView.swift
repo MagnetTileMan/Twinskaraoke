@@ -209,8 +209,8 @@ class PlaylistDetailViewModel: ObservableObject {
     let isFavorites = playlistID == Playlist.favoritesID
     let urlString =
       isFavorites
-      ? "https://api.neurokaraoke.com/api/favorites/type?type=0"
-      : "https://api.neurokaraoke.com/api/playlist/\(playlistID)"
+      ? "\(StorageHost.api)/api/favorites/type?type=0"
+      : "\(StorageHost.api)/api/playlist/\(playlistID)"
     guard let url = URL(string: urlString) else { return }
     isLoading = true
     var r = URLRequest(url: url)

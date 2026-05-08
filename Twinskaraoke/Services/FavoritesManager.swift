@@ -8,7 +8,7 @@ final class FavoritesManager: ObservableObject {
   @Published private(set) var favoriteIDs: Set<String> = []
   private var inFlight: Set<String> = []
   private var loaded = false
-  private static let base = "https://api.neurokaraoke.com/api/user/favorites"
+  private static var base: String { "\(StorageHost.api)/api/user/favorites" }
   private var token: String? {
     UserDefaults.standard.string(forKey: "nk.token")
   }

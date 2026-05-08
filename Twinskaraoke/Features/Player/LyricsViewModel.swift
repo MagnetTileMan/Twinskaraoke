@@ -17,7 +17,7 @@ class LyricsViewModel: ObservableObject {
     isLoading = true
     guard
       let url = URL(
-        string: "https://api.neurokaraoke.com/api/songs/\(songID)/lyrics")
+        string: "\(StorageHost.api)/api/songs/\(songID)/lyrics")
     else {
       isLoading = false
       return

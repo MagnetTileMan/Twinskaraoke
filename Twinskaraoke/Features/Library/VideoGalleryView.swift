@@ -35,7 +35,6 @@ struct GalleryVideo: Codable, Identifiable, Equatable {
   let createdDate: String?
   var thumbnailURL: URL? { thumbnailUrl.flatMap(URL.init(string:)) }
   var embedURL: URL? { url.flatMap(URL.init(string:)) }
-  /// HLS playlist derived from the bunny CDN host that serves the thumbnail.
   var streamURL: URL? {
     guard let thumb = thumbnailUrl, let comps = URLComponents(string: thumb),
       let host = comps.host
@@ -77,7 +76,7 @@ class VideoGalleryViewModel: ObservableObject {
   }
   private func load(reset: Bool) {
     let urlString =
-      "https://api.neurokaraoke.com/api/videos?page=\(page)&pageSize=\(pageSize)&sortBy=UploadedAt&sortDescending=True"
+      "\(StorageHost.api)/api/videos?page=\(page)&pageSize=\(pageSize)&sortBy=UploadedAt&sortDescending=True"
     guard let url = URL(string: urlString) else { return }
     isLoading = true
     var request = URLRequest(url: url)
@@ -238,7 +237,7 @@ class SimilarVideosViewModel: ObservableObject {
   func fetch(excluding currentID: String) {
     guard videos.isEmpty else { return }
     let urlString =
-      "https://api.neurokaraoke.com/api/videos?startIndex=0&pageSize=20&sortBy=CreatedAt&sortDescending=true"
+      "\(StorageHost.api)/api/videos?startIndex=0&pageSize=20&sortBy=CreatedAt&sortDescending=true"
     guard let url = URL(string: urlString) else { return }
     isLoading = true
     var request = URLRequest(url: url)

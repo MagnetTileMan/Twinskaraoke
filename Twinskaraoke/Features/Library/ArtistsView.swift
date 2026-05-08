@@ -38,7 +38,7 @@ final class ArtistsViewModel: ObservableObject {
   private func load(reset: Bool) {
     let startIndex = page * pageSize
     let urlString =
-      "https://api.neurokaraoke.com/api/artists?startIndex=\(startIndex)&pageSize=\(pageSize)&search=&sortBy=Name&sortDescending=False"
+      "\(StorageHost.api)/api/artists?startIndex=\(startIndex)&pageSize=\(pageSize)&search=&sortBy=Name&sortDescending=False"
     guard let url = URL(string: urlString) else { return }
     isLoading = true
     var request = URLRequest(url: url)
@@ -70,7 +70,7 @@ final class ArtistDetailViewModel: ObservableObject {
     if loadedID == id, artist?.songListDTOs?.isEmpty == false { return }
     if artist == nil { artist = fallback }
     loadedID = id
-    guard let url = URL(string: "https://api.neurokaraoke.com/api/artist/\(id)") else { return }
+    guard let url = URL(string: "\(StorageHost.api)/api/artist/\(id)") else { return }
     isLoading = true
     var request = URLRequest(url: url)
     request.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")

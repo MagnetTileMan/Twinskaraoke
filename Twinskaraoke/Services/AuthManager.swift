@@ -24,11 +24,11 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
   }
 
   private enum Endpoint {
-    static let login = "https://api.neurokaraoke.com/api/auth/login"
+    static var login: String { "\(StorageHost.api)/api/auth/login" }
     static let discordAuth = "https://discord.com/oauth2/authorize"
     static let discordToken = "https://discord.com/api/oauth2/token"
     static let discordUser = "https://discord.com/api/users/@me"
-    static let nkTokenExchange = "https://idk.neurokaraoke.com/api/auth/discord-token"
+    static var nkTokenExchange: String { "\(StorageHost.idk)/api/auth/discord-token" }
     static let discordClientId = "1447802634621943850"
     static let redirectUri = "neurokaraoke://auth"
   }
