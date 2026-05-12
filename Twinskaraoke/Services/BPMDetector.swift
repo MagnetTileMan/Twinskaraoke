@@ -1,5 +1,5 @@
-import Accelerate
 import AVFoundation
+import Accelerate
 import Foundation
 
 enum BPMDetector {

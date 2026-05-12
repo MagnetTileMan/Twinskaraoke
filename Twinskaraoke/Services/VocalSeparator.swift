@@ -5,7 +5,13 @@ import Foundation
 import Spleeter
 
 enum DeviceCapability {
-  static var supportsKaraoke: Bool { VocalSeparator.shared.isAvailable }
+  static var supportsKaraoke: Bool {
+    if #available(iOS 18.0, *) {
+      return VocalSeparator.shared.isAvailable
+    } else {
+      return false
+    }
+  }
 }
 
 enum VocalSeparatorError: Error {
@@ -197,7 +203,9 @@ final class VocalSeparator: ObservableObject {
     }
   }
 
-  private static func trim(source: URL, from startSeconds: TimeInterval, to output: URL) async throws {
+  private static func trim(source: URL, from startSeconds: TimeInterval, to output: URL)
+    async throws
+  {
     try? FileManager.default.removeItem(at: output)
     let asset = AVURLAsset(url: source)
     guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A)

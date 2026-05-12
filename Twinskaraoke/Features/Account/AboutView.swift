@@ -75,7 +75,8 @@ struct AboutView: View {
           AboutLinkRow(icon: "server.rack", color: .blue, title: "API Service")
         }
         Link(destination: URL(string: "https://www.youtube.com/@neurokaraoke")!) {
-          AboutLinkRow(icon: "play.rectangle.fill", color: .appAccent, title: "Video Gallery (YouTube)")
+          AboutLinkRow(
+            icon: "play.rectangle.fill", color: .appAccent, title: "Video Gallery (YouTube)")
         }
         Link(destination: URL(string: "https://github.com/Evil-Project/Twinskaraoke")!) {
           AboutLinkRow(

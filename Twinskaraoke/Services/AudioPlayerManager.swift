@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import MediaPlayer
 import SwiftUI
+
 #if canImport(UIKit)
   import UIKit
 #endif
@@ -147,7 +148,9 @@ class AudioPlayerManager: ObservableObject {
       applyMLSeparationIfNeeded()
     }
   }
-  @Published var bassEnhanceStrength: Float = AudioPlayerManager.loadFloat("nk.bassEnhanceStrength", default: 0.5) {
+  @Published var bassEnhanceStrength: Float = AudioPlayerManager.loadFloat(
+    "nk.bassEnhanceStrength", default: 0.5)
+  {
     didSet {
       UserDefaults.standard.set(bassEnhanceStrength, forKey: "nk.bassEnhanceStrength")
       applyAIMixVolumes()
@@ -163,7 +166,9 @@ class AudioPlayerManager: ObservableObject {
       applyMLSeparationIfNeeded()
     }
   }
-  @Published var vocalEnhanceStrength: Float = AudioPlayerManager.loadFloat("nk.vocalEnhanceStrength", default: 0.5) {
+  @Published var vocalEnhanceStrength: Float = AudioPlayerManager.loadFloat(
+    "nk.vocalEnhanceStrength", default: 0.5)
+  {
     didSet {
       UserDefaults.standard.set(vocalEnhanceStrength, forKey: "nk.vocalEnhanceStrength")
       applyAIMixVolumes()
@@ -179,7 +184,9 @@ class AudioPlayerManager: ObservableObject {
       applyMLSeparationIfNeeded()
     }
   }
-  @Published var backgroundEnhanceStrength: Float = AudioPlayerManager.loadFloat("nk.backgroundEnhanceStrength", default: 0.5) {
+  @Published var backgroundEnhanceStrength: Float = AudioPlayerManager.loadFloat(
+    "nk.backgroundEnhanceStrength", default: 0.5)
+  {
     didSet {
       UserDefaults.standard.set(backgroundEnhanceStrength, forKey: "nk.backgroundEnhanceStrength")
       applyAIMixVolumes()
@@ -196,7 +203,8 @@ class AudioPlayerManager: ObservableObject {
   @Published var eqPreset: EQPreset = {
     let raw = UserDefaults.standard.string(forKey: "nk.eqPreset") ?? ""
     return EQPreset(rawValue: raw) ?? .flat
-  }() {
+  }()
+  {
     didSet {
       UserDefaults.standard.set(eqPreset.rawValue, forKey: "nk.eqPreset")
       guard eqPreset != .custom else { return }
@@ -208,7 +216,8 @@ class AudioPlayerManager: ObservableObject {
   @Published var eqGainsDB: [Float] = {
     (UserDefaults.standard.array(forKey: "nk.eqGainsDB") as? [Float])
       ?? Array(repeating: 0, count: 10)
-  }() {
+  }()
+  {
     didSet {
       UserDefaults.standard.set(eqGainsDB, forKey: "nk.eqGainsDB")
       audioKit.setEQGains(eqGainsDB)
@@ -273,6 +282,8 @@ class AudioPlayerManager: ObservableObject {
   private var downloadSession: AudioDownloadSession?
   private var currentPlaybackURL: URL?
   private var instrumentalTask: Task<Void, Never>?
+  private var aiRemixTask: Task<Void, Never>?
+  private var stemLoadTask: Task<Void, Never>?
   private var playingInstrumentalForSongID: String?
 
   #if canImport(UIKit)
@@ -352,13 +363,25 @@ class AudioPlayerManager: ObservableObject {
         .sink { [weak self] _ in self?.handleBackgroundTransition() }
         .store(in: &cancellables)
       NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
-        .sink { _ in AudioPlayerManager.artworkCache.removeAllObjects() }
+        .sink { [weak self] _ in
+          AudioPlayerManager.artworkCache.removeAllObjects()
+          guard let self else { return }
+          if self.playingInstrumentalForSongID == nil {
+            self.stemLoadTask?.cancel()
+            self.stemLoadTask = nil
+            self.instrumentalTask?.cancel()
+            self.instrumentalTask = nil
+          }
+        }
         .store(in: &cancellables)
     #endif
   }
 
   deinit {
     pollTimer?.invalidate()
+    aiRemixTask?.cancel()
+    stemLoadTask?.cancel()
+    instrumentalTask?.cancel()
     if let existing = radioTimeObserver {
       existing.player.removeTimeObserver(existing.token)
     }
@@ -411,7 +434,8 @@ class AudioPlayerManager: ObservableObject {
 
   private func startPollTimer() {
     pollTimer?.invalidate()
-    pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+    pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+      @MainActor [weak self] _ in
       guard let self else { return }
       guard !self.isRadioMode else { return }
       guard !self.isEditingProgress else { return }
@@ -506,6 +530,10 @@ class AudioPlayerManager: ObservableObject {
   private func startPlayingFile(_ url: URL) {
     instrumentalTask?.cancel()
     instrumentalTask = nil
+    aiRemixTask?.cancel()
+    aiRemixTask = nil
+    stemLoadTask?.cancel()
+    stemLoadTask = nil
     currentPlaybackURL = url
     playingInstrumentalForSongID = nil
     aiEffectWhenSwapped = nil
@@ -677,6 +705,12 @@ class AudioPlayerManager: ObservableObject {
       return
     }
     audioKit.stop()
+    aiRemixTask?.cancel()
+    aiRemixTask = nil
+    stemLoadTask?.cancel()
+    stemLoadTask = nil
+    playingInstrumentalForSongID = nil
+    aiEffectWhenSwapped = nil
     downloadSession?.cancel()
     downloadSession = nil
     isRadioMode = true
@@ -734,6 +768,12 @@ class AudioPlayerManager: ObservableObject {
   func clearCache() {
     downloadSession?.cancel()
     downloadSession = nil
+    stemLoadTask?.cancel()
+    stemLoadTask = nil
+    instrumentalTask?.cancel()
+    instrumentalTask = nil
+    aiRemixTask?.cancel()
+    aiRemixTask = nil
     let fm = FileManager.default
     if let entries = try? fm.contentsOfDirectory(
       at: AudioPlayerManager.audioCacheDir, includingPropertiesForKeys: nil)
@@ -750,7 +790,8 @@ class AudioPlayerManager: ObservableObject {
 
   private static func cleanupOrphanPartialCacheFiles() {
     let fm = FileManager.default
-    guard let entries = try? fm.contentsOfDirectory(at: audioCacheDir, includingPropertiesForKeys: nil)
+    guard
+      let entries = try? fm.contentsOfDirectory(at: audioCacheDir, includingPropertiesForKeys: nil)
     else { return }
     for url in entries where url.pathExtension == "partial" {
       try? fm.removeItem(at: url)
@@ -761,6 +802,8 @@ class AudioPlayerManager: ObservableObject {
     instrumentalTask?.cancel()
     instrumentalTask = nil
     guard anyAIEffectActive, !isRadioMode, let song = currentSong else {
+      aiRemixTask?.cancel()
+      aiRemixTask = nil
       VocalSeparator.shared.cancel()
       revertFromInstrumentalIfActive()
       return
@@ -829,40 +872,61 @@ class AudioPlayerManager: ObservableObject {
   private func swapToAITrack(songID: String, stems: CachedStems) {
     let effect = currentActiveEffect
     let originalTimelineNow = audioKit.currentTime
+    aiRemixTask?.cancel()
+    aiRemixTask = nil
+    stemLoadTask?.cancel()
+    stemLoadTask = nil
     playingInstrumentalForSongID = songID
     aiEffectWhenSwapped = effect
     let startOffset = stems.startOffset
     let aiTrackResume = max(0, originalTimelineNow - startOffset)
-    Task.detached { [weak self] in
-      let vocalsBuf = AudioPlayerManager.readURLToBuffer(stems.vocals)
-      let drumsBuf = AudioPlayerManager.readURLToBuffer(stems.drums)
-      let bassBuf = AudioPlayerManager.readURLToBuffer(stems.bass)
-      let otherBuf = AudioPlayerManager.readURLToBuffer(stems.other)
+    stemLoadTask = Task.detached { [weak self] in
+      guard !Task.isCancelled else { return }
+      let result: (main: AVAudioPCMBuffer, aux: AVAudioPCMBuffer?)? = autoreleasepool {
+        var vocalsBuf = AudioPlayerManager.readURLToBuffer(stems.vocals)
+        var drumsBuf = AudioPlayerManager.readURLToBuffer(stems.drums)
+        var bassBuf = AudioPlayerManager.readURLToBuffer(stems.bass)
+        var otherBuf = AudioPlayerManager.readURLToBuffer(stems.other)
 
-      if vocalsBuf == nil || drumsBuf == nil || bassBuf == nil || otherBuf == nil {
-        print("[Karaoke] Failed to read one or more stem buffers: vocals=\(vocalsBuf != nil), drums=\(drumsBuf != nil), bass=\(bassBuf != nil), other=\(otherBuf != nil)")
+        if Task.isCancelled {
+          return nil as (main: AVAudioPCMBuffer, aux: AVAudioPCMBuffer?)?
+        }
+
+        if vocalsBuf == nil || drumsBuf == nil || bassBuf == nil || otherBuf == nil {
+          print(
+            "[Karaoke] Failed to read one or more stem buffers: vocals=\(vocalsBuf != nil), drums=\(drumsBuf != nil), bass=\(bassBuf != nil), other=\(otherBuf != nil)"
+          )
+        }
+
+        let mainBuf: AVAudioPCMBuffer?
+        let auxBuf: AVAudioPCMBuffer?
+
+        switch effect {
+        case .karaoke, .vocalEnhance, .backgroundEnhance:
+          mainBuf = AudioPlayerManager.mixBuffers([drumsBuf, bassBuf, otherBuf])
+          auxBuf = vocalsBuf
+        case .bassEnhance:
+          mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, otherBuf])
+          auxBuf = bassBuf
+        case nil:
+          mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, bassBuf, otherBuf])
+          auxBuf = nil
+        }
+
+        vocalsBuf = nil
+        drumsBuf = nil
+        bassBuf = nil
+        otherBuf = nil
+
+        if mainBuf == nil {
+          print("[Karaoke] mixBuffers returned nil for effect \(String(describing: effect))")
+        }
+        guard let mainBuf else { return nil }
+        return (main: mainBuf, aux: auxBuf)
       }
 
-      let mainBuf: AVAudioPCMBuffer?
-      let auxBuf: AVAudioPCMBuffer?
-
-      switch effect {
-      case .karaoke, .vocalEnhance, .backgroundEnhance:
-        mainBuf = AudioPlayerManager.mixBuffers([drumsBuf, bassBuf, otherBuf])
-        auxBuf = vocalsBuf
-      case .bassEnhance:
-        mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, otherBuf])
-        auxBuf = bassBuf
-      case nil:
-        mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, bassBuf, otherBuf])
-        auxBuf = nil
-      }
-
-      if mainBuf == nil {
-        print("[Karaoke] mixBuffers returned nil for effect \(String(describing: effect))")
-      }
-
-      guard let mainBuf else {
+      guard !Task.isCancelled else { return }
+      guard let result else {
         await MainActor.run { [weak self] in
           self?.playingInstrumentalForSongID = nil
           self?.aiEffectWhenSwapped = nil
@@ -871,8 +935,9 @@ class AudioPlayerManager: ObservableObject {
       }
       await MainActor.run { [weak self] in
         guard let self, self.playingInstrumentalForSongID == songID else { return }
+        self.stemLoadTask = nil
         self.audioKit.playAIBuffers(
-          instrumental: mainBuf, vocals: auxBuf,
+          instrumental: result.main, vocals: result.aux,
           startOffset: startOffset, startAt: aiTrackResume)
         self.isPlaying = true
         self.applyAIMixVolumes()
@@ -880,7 +945,7 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  private static func mixBuffers(_ buffers: [AVAudioPCMBuffer?]) -> AVAudioPCMBuffer? {
+  nonisolated private static func mixBuffers(_ buffers: [AVAudioPCMBuffer?]) -> AVAudioPCMBuffer? {
     let validBuffers = buffers.compactMap { $0 }
     guard !validBuffers.isEmpty else { return nil }
     let stereoBuffers: [AVAudioPCMBuffer] = validBuffers.map { buf in
@@ -890,9 +955,10 @@ class AudioPlayerManager: ObservableObject {
     let sampleRate = first.format.sampleRate
     let frameCount = stereoBuffers.map(\.frameLength).max() ?? 0
     guard frameCount > 0 else { return nil }
-    guard let stereoFormat = AVAudioFormat(
-      commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
-      channels: 2, interleaved: false)
+    guard
+      let stereoFormat = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
+        channels: 2, interleaved: false)
     else { return nil }
     guard let output = AVAudioPCMBuffer(pcmFormat: stereoFormat, frameCapacity: frameCount)
     else { return nil }
@@ -916,7 +982,7 @@ class AudioPlayerManager: ObservableObject {
     return output
   }
 
-  private static func readURLToBuffer(_ url: URL) -> AVAudioPCMBuffer? {
+  nonisolated private static func readURLToBuffer(_ url: URL) -> AVAudioPCMBuffer? {
     guard FileManager.default.fileExists(atPath: url.path) else { return nil }
     if AudioKitPlayback.hasValidAudioHeader(at: url) {
       if let file = try? AVAudioFile(forReading: url) {
@@ -938,6 +1004,10 @@ class AudioPlayerManager: ObservableObject {
     guard let songID = playingInstrumentalForSongID,
       let song = currentSong, song.id == songID
     else {
+      aiRemixTask?.cancel()
+      aiRemixTask = nil
+      stemLoadTask?.cancel()
+      stemLoadTask = nil
       playingInstrumentalForSongID = nil
       aiEffectWhenSwapped = nil
       return
@@ -953,6 +1023,10 @@ class AudioPlayerManager: ObservableObject {
       originalURL = nil
     }
     let resumeAt = audioKit.currentTime
+    aiRemixTask?.cancel()
+    aiRemixTask = nil
+    stemLoadTask?.cancel()
+    stemLoadTask = nil
     playingInstrumentalForSongID = nil
     aiEffectWhenSwapped = nil
     audioKit.resetBassEQ()
@@ -1147,8 +1221,9 @@ class AudioPlayerManager: ObservableObject {
         guard let image = UIImage(data: data) else { return }
         let squareImage = image.croppedToSquare().downscaled(
           maxPixel: AudioPlayerManager.artworkMaxPixel)
-        let cost = Int(squareImage.size.width * squareImage.size.height * squareImage.scale
-          * squareImage.scale * 4)
+        let cost = Int(
+          squareImage.size.width * squareImage.size.height * squareImage.scale
+            * squareImage.scale * 4)
         AudioPlayerManager.artworkCache.setObject(squareImage, forKey: url as NSURL, cost: cost)
         self.applyArtwork(squareImage, for: songID)
       #endif
@@ -1298,8 +1373,12 @@ class AudioPlayerManager: ObservableObject {
     let steps = Int(fadeDuration * 60)
     let interval: TimeInterval = 1.0 / 60.0
     var step = 0
-    Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
-      guard let self else { timer.invalidate(); return }
+    Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
+      @MainActor [weak self] timer in
+      guard let self else {
+        timer.invalidate()
+        return
+      }
       step += 1
       let t = Float(step) / Float(max(1, steps))
       self.audioKit.setMasterVolume(1.0 - t)

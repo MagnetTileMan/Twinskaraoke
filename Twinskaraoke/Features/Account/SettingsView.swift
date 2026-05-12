@@ -99,7 +99,9 @@ struct SettingsView: View {
         } header: {
           Text("Karaoke")
         } footer: {
-          Text("Powered by on-device AI. Audio is separated into vocals and instrumentals in real time — the first use on a song may take a moment to process.")
+          Text(
+            "Powered by on-device AI. Audio is separated into vocals and instrumentals in real time — the first use on a song may take a moment to process."
+          )
         }
       }
       Section {
@@ -107,7 +109,8 @@ struct SettingsView: View {
           .tint(.appAccent)
         if audioManager.eqEnabled {
           Picker("Preset", selection: $audioManager.eqPreset) {
-            ForEach(EQPreset.allCases.filter { $0 != .custom || audioManager.eqPreset == .custom }) { preset in
+            ForEach(EQPreset.allCases.filter { $0 != .custom || audioManager.eqPreset == .custom })
+            { preset in
               Text(preset.rawValue).tag(preset)
             }
           }

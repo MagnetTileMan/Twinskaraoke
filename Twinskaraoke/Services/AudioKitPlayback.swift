@@ -3,14 +3,17 @@ import AudioKit
 import Combine
 import Foundation
 
+enum AudioKitPlaybackMode { case single, aiMix }
+
+enum AudioKitPlaybackRampStyle {
+  case equalPower  // cos/sin curve — constant perceived loudness
+  case linear  // straight line — faster cuts
+}
+
 @MainActor
 final class AudioKitPlayback {
-  enum Mode { case single, aiMix }
-
-  enum RampStyle {
-    case equalPower  // cos/sin curve — constant perceived loudness
-    case linear      // straight line — faster cuts
-  }
+  typealias Mode = AudioKitPlaybackMode
+  typealias RampStyle = AudioKitPlaybackRampStyle
 
   let engine = AudioEngine()
   let mainPlayer = AudioPlayer()
@@ -25,6 +28,7 @@ final class AudioKitPlayback {
   private(set) var auxURL: URL?
   private(set) var aiVocalsStrength: Float = 1.0
   private(set) var aiStartOffset: TimeInterval = 0
+  private(set) var aiHasAuxTrack = false
 
   private var suppressionToken: UInt64 = 0
 
@@ -95,7 +99,7 @@ final class AudioKitPlayback {
     }
   }
 
-  static func hasValidAudioHeader(at url: URL) -> Bool {
+  nonisolated static func hasValidAudioHeader(at url: URL) -> Bool {
     guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
     defer { try? handle.close() }
     guard let header = try? handle.read(upToCount: 12), header.count >= 4 else { return false }
@@ -119,7 +123,7 @@ final class AudioKitPlayback {
   private func loadIntoPlayer(_ player: AudioPlayer, url: URL) throws {
     guard FileManager.default.fileExists(atPath: url.path) else {
       throw NSError(
-        domain: NSOSStatusErrorDomain, code: 1685348671,
+        domain: NSOSStatusErrorDomain, code: 1_685_348_671,
         userInfo: [NSLocalizedDescriptionKey: "Audio file not found: \(url.lastPathComponent)"])
     }
     let headerOK = AudioKitPlayback.hasValidAudioHeader(at: url)
@@ -155,7 +159,7 @@ final class AudioKitPlayback {
     try player.load(file: file)
   }
 
-  static func decodeFileToBuffer(url: URL) -> AVAudioPCMBuffer? {
+  nonisolated static func decodeFileToBuffer(url: URL) -> AVAudioPCMBuffer? {
     let asset = AVURLAsset(url: url)
     let tracks = asset.tracks(withMediaType: .audio)
     guard let track = tracks.first else { return nil }
@@ -215,7 +219,7 @@ final class AudioKitPlayback {
     return buffer.frameLength > 0 ? buffer : nil
   }
 
-  private static func convertToStereo(file: AVAudioFile) -> AVAudioPCMBuffer? {
+  nonisolated private static func convertToStereo(file: AVAudioFile) -> AVAudioPCMBuffer? {
     let srcFormat = file.processingFormat
     guard srcFormat.channelCount == 1 else { return nil }
     let frameCount = AVAudioFrameCount(file.length)
@@ -226,12 +230,12 @@ final class AudioKitPlayback {
     return monoToStereo(monoBuf)
   }
 
-  static func ensureStereo(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+  nonisolated static func ensureStereo(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
     guard buffer.format.channelCount == 1 else { return nil }
     return monoToStereo(buffer)
   }
 
-  private static func monoToStereo(_ mono: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+  nonisolated private static func monoToStereo(_ mono: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
     let frames = mono.frameLength
     guard frames > 0,
       let stereoFormat = AVAudioFormat(
@@ -259,15 +263,31 @@ final class AudioKitPlayback {
     return startAt
   }
 
+  private func resetCrossfadePlayback() {
+    crossfadeTimer?.invalidate()
+    crossfadeTimer = nil
+    pendingCrossfadeURL = nil
+    preloadedCrossfadeURL = nil
+    isCrossfading = false
+    crossfadeDuration = 0
+    crossfadeElapsed = 0
+    crossfadeStartMainVol = 1.0
+    crossfadeStartAuxVol = 0.0
+    crossfadePlayer.stop()
+    crossfadePlayer.volume = 0
+  }
+
   func play(url: URL, startAt: TimeInterval = 0) {
     do {
       suppressionToken &+= 1
+      resetCrossfadePlayback()
       mainPlayer.stop()
       try loadIntoPlayer(mainPlayer, url: url)
       currentURL = url
       mode = .single
       auxURL = nil
       aiStartOffset = 0
+      aiHasAuxTrack = false
       auxPlayer.stop()
       auxPlayer.volume = 0
       mainPlayer.volume = 1
@@ -286,6 +306,7 @@ final class AudioKitPlayback {
   ) {
     do {
       suppressionToken &+= 1
+      resetCrossfadePlayback()
       mainPlayer.stop()
       auxPlayer.stop()
       try loadIntoPlayer(mainPlayer, url: instrumental)
@@ -294,6 +315,7 @@ final class AudioKitPlayback {
       auxURL = vocals
       aiVocalsStrength = max(0, min(1, vocalsStrength))
       aiStartOffset = max(0, startOffset)
+      aiHasAuxTrack = true
       mode = .aiMix
       mainPlayer.volume = 1.0
       auxPlayer.volume = AUValue(max(0, min(1, 1 - aiVocalsStrength)))
@@ -309,9 +331,11 @@ final class AudioKitPlayback {
 
   func playAIBuffers(
     instrumental: AVAudioPCMBuffer, vocals: AVAudioPCMBuffer?,
-    startOffset: TimeInterval = 0, startAt: TimeInterval = 0
+    startOffset: TimeInterval = 0, startAt: TimeInterval = 0,
+    mainVolume: Float = 1.0, auxVolume: Float = 1.0
   ) {
     suppressionToken &+= 1
+    resetCrossfadePlayback()
     mainPlayer.stop()
     auxPlayer.stop()
     let stereoInstr = AudioKitPlayback.ensureStereo(instrumental) ?? instrumental
@@ -323,18 +347,22 @@ final class AudioKitPlayback {
     currentURL = nil
     auxURL = nil
     aiStartOffset = max(0, startOffset)
+    aiHasAuxTrack = (vocals != nil)
     mode = .aiMix
-    mainPlayer.volume = 1.0
-    auxPlayer.volume = 1.0
+    mainPlayer.volume = AUValue(max(0, min(2, mainVolume)))
+    auxPlayer.volume = vocals == nil ? 0 : AUValue(max(0, min(2, auxVolume)))
     startEngineIfNeeded()
-    let from = safeStart(startAt, durations: mainPlayer.duration, auxPlayer.duration)
+    let from =
+      aiHasAuxTrack
+      ? safeStart(startAt, durations: mainPlayer.duration, auxPlayer.duration)
+      : safeStart(startAt, durations: mainPlayer.duration)
     mainPlayer.play(from: from)
-    if vocals != nil { auxPlayer.play(from: from) }
+    if aiHasAuxTrack { auxPlayer.play(from: from) }
   }
 
   func setAIVocalStrength(_ s: Float) {
     aiVocalsStrength = max(0, min(1, s))
-    if mode == .aiMix {
+    if mode == .aiMix, aiHasAuxTrack {
       auxPlayer.volume = AUValue(max(0, min(1, 1 - aiVocalsStrength)))
     }
   }
@@ -357,22 +385,24 @@ final class AudioKitPlayback {
 
   func pause() {
     mainPlayer.pause()
-    if mode == .aiMix { auxPlayer.pause() }
+    if mode == .aiMix, aiHasAuxTrack { auxPlayer.pause() }
   }
 
   func resume() {
     startEngineIfNeeded()
     mainPlayer.play()
-    if mode == .aiMix { auxPlayer.play() }
+    if mode == .aiMix, aiHasAuxTrack { auxPlayer.play() }
   }
 
   func stop() {
     suppressionToken &+= 1
+    resetCrossfadePlayback()
     mainPlayer.stop()
     auxPlayer.stop()
     currentURL = nil
     auxURL = nil
     aiStartOffset = 0
+    aiHasAuxTrack = false
     mode = .single
     resetBassEQ()
   }
@@ -391,8 +421,10 @@ final class AudioKitPlayback {
       suppressionToken &+= 1
       let delta = target - mainPlayer.currentTime
       if abs(delta) > 0.01 { mainPlayer.seek(time: delta) }
-      let auxDelta = target - auxPlayer.currentTime
-      if abs(auxDelta) > 0.01 { auxPlayer.seek(time: auxDelta) }
+      if aiHasAuxTrack {
+        let auxDelta = target - auxPlayer.currentTime
+        if abs(auxDelta) > 0.01 { auxPlayer.seek(time: auxDelta) }
+      }
       return true
     }
     let dur = mainPlayer.duration
@@ -489,8 +521,11 @@ final class AudioKitPlayback {
 
     let interval: TimeInterval = 1.0 / 60.0
     crossfadeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
-      [weak self] timer in
-      guard let self else { timer.invalidate(); return }
+      @MainActor [weak self] timer in
+      guard let self else {
+        timer.invalidate()
+        return
+      }
       self.crossfadeElapsed += interval
       let t = Float(min(1.0, self.crossfadeElapsed / self.crossfadeDuration))
 

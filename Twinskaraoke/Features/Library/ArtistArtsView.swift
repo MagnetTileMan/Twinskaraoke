@@ -69,7 +69,8 @@ struct ArtThumbnail: View {
     Group {
       if let url = art.imageURL {
         LoadingImage(
-          url: url, cornerRadius: 8, showsLoading: false, lowResURL: art.blurPreviewURL, transparentBackground: true)
+          url: url, cornerRadius: 8, showsLoading: false, lowResURL: art.blurPreviewURL,
+          transparentBackground: true)
       } else {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
           .fill(Color(.tertiarySystemFill))

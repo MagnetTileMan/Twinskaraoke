@@ -149,7 +149,9 @@ private struct BrowseCategoriesView: View {
       [Color(red: 0.45, green: 0.45, blue: 0.55), Color(red: 0.15, green: 0.15, blue: 0.25)]
     ),
   ]
-  let columns = [GridItem(.flexible(), spacing: AM.Spacing.m), GridItem(.flexible(), spacing: AM.Spacing.m)]
+  let columns = [
+    GridItem(.flexible(), spacing: AM.Spacing.m), GridItem(.flexible(), spacing: AM.Spacing.m),
+  ]
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: AM.Spacing.xxl) {

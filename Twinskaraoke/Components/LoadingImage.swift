@@ -60,7 +60,9 @@ struct LoadingImage: View {
               .aspectRatio(contentMode: contentMode)
               .frame(width: geo.size.width, height: geo.size.height)
               .clipped()
-          } placeholder: { Color.clear }
+          } placeholder: {
+            Color.clear
+          }
         }
         WebImage(
           url: url,

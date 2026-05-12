@@ -1,6 +1,10 @@
 import Combine
 import Foundation
 
+#if canImport(UIKit)
+  import UIKit
+#endif
+
 struct GenreSummary: Decodable, Identifiable {
   let id: String
   let name: String
@@ -64,6 +68,21 @@ class GenresViewModel: ObservableObject {
   private var hasLoaded = false
   private var page = 0
   private let pageSize = 50
+  private var genreDetailOrder: [String] = []
+  private let maxCachedGenreDetails = 30
+
+  init() {
+    #if canImport(UIKit)
+      NotificationCenter.default.addObserver(
+        forName: UIApplication.didReceiveMemoryWarningNotification,
+        object: nil, queue: .main
+      ) { [weak self] _ in
+        self?.allSongs.removeAll()
+        self?.firstSongs.removeAll()
+        self?.genreDetailOrder.removeAll()
+      }
+    #endif
+  }
   func loadIfNeeded() {
     if hasLoaded { return }
     hasLoaded = true
@@ -106,7 +125,10 @@ class GenresViewModel: ObservableObject {
       }
     }.resume()
   }
-  private static let neuroFallbackURL = URL(string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")!
+  private static let neuroFallbackURL = URL(
+    string:
+      "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95"
+  )!
   private func fetchDetail(for genre: GenreSummary) {
     if allSongs[genre.id] != nil { return }
     guard let url = URL(string: "\(StorageHost.api)/api/genres/\(genre.id)") else {
@@ -127,6 +149,13 @@ class GenresViewModel: ObservableObject {
           }
           let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
           self.artworkURLs[genre.id] = artURL
+          self.genreDetailOrder.removeAll { $0 == genre.id }
+          self.genreDetailOrder.append(genre.id)
+          while self.genreDetailOrder.count > self.maxCachedGenreDetails {
+            let oldest = self.genreDetailOrder.removeFirst()
+            self.allSongs.removeValue(forKey: oldest)
+            self.firstSongs.removeValue(forKey: oldest)
+          }
         }
       }
     }.resume()

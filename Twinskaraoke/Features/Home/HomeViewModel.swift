@@ -56,7 +56,8 @@ class HomeViewModel: ObservableObject {
   private func loadMoreTopPicks() {
     isLoadingMoreTopPicks = true
     let startIndex = topPicksPage * topPicksPageSize
-    fetchData(urlString: topPicksURL(startIndex: startIndex)) { [weak self] (response: [Playlist]?) in
+    fetchData(urlString: topPicksURL(startIndex: startIndex)) {
+      [weak self] (response: [Playlist]?) in
       DispatchQueue.main.async {
         guard let self = self else { return }
         if let response, !response.isEmpty {

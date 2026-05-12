@@ -101,7 +101,9 @@ private struct ProfileAvatar: View {
       if let urlStr = avatarUrl, let url = URL(string: urlStr), !urlStr.isEmpty {
         WebImage(url: url, options: ImageCacheConfig.defaultOptions) { image in
           image.resizable().scaledToFill()
-        } placeholder: { fallback }
+        } placeholder: {
+          fallback
+        }
       } else {
         fallback
       }
@@ -313,7 +315,9 @@ private struct BadgeDetailIcon: View {
             .padding(16)
             .saturation(badge.unlocked ? 1 : 0)
             .opacity(badge.unlocked ? 1 : 0.4)
-        } placeholder: { placeholder }
+        } placeholder: {
+          placeholder
+        }
       } else {
         placeholder
       }

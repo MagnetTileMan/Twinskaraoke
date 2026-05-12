@@ -5,7 +5,10 @@ struct ArtDetailView: View {
   let artist: GalleryArtist
   @State private var showFullScreen = false
   @State private var saveStatus: SaveStatus = .idle
-  enum SaveStatus { case idle, saving, success, failed(String) }
+  enum SaveStatus {
+    case idle, saving, success
+    case failed(String)
+  }
   private var fullResURL: URL? {
     guard let path = art.absolutePath else { return art.imageURL }
     return URL(string: StorageHost.images + path + "/quality=95")
@@ -191,7 +194,9 @@ struct ZoomableImageViewer: View {
       }
       VStack {
         HStack {
-          Button { dismiss() } label: {
+          Button {
+            dismiss()
+          } label: {
             Image(systemName: "xmark")
               .font(.system(size: 16, weight: .semibold))
               .foregroundColor(.white)
@@ -200,7 +205,9 @@ struct ZoomableImageViewer: View {
               .clipShape(Circle())
           }
           Spacer()
-          Button { onSave() } label: {
+          Button {
+            onSave()
+          } label: {
             Image(systemName: "square.and.arrow.down")
               .font(.system(size: 16, weight: .semibold))
               .foregroundColor(.white)

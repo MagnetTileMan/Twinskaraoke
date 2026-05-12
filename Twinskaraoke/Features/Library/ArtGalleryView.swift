@@ -102,7 +102,8 @@ private struct FeaturedArtCard: View {
       Group {
         if let url = art.imageURL {
           LoadingImage(
-            url: url, cornerRadius: 16, showsLoading: false, lowResURL: art.blurPreviewURL, transparentBackground: true)
+            url: url, cornerRadius: 16, showsLoading: false, lowResURL: art.blurPreviewURL,
+            transparentBackground: true)
         } else {
           RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(Color(.tertiarySystemFill))
@@ -146,12 +147,15 @@ private struct ArtistCircleCard: View {
       ZStack {
         if let art = artist.arts?.first, let url = art.imageURL {
           LoadingImage(
-            url: url, cornerRadius: 100, showsLoading: false, lowResURL: art.blurPreviewURL, transparentBackground: true)
+            url: url, cornerRadius: 100, showsLoading: false, lowResURL: art.blurPreviewURL,
+            transparentBackground: true)
         } else {
           Circle()
-            .fill(LinearGradient(
-              colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
-              startPoint: .topLeading, endPoint: .bottomTrailing))
+            .fill(
+              LinearGradient(
+                colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
+                startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
             .overlay(
               Text(initials(artist.name))
                 .font(.system(size: 24, weight: .semibold))
@@ -184,12 +188,15 @@ private struct ArtistListRow: View {
       Group {
         if let art = artist.arts?.first, let url = art.imageURL {
           LoadingImage(
-            url: url, cornerRadius: 100, showsLoading: false, lowResURL: art.blurPreviewURL, transparentBackground: true)
+            url: url, cornerRadius: 100, showsLoading: false, lowResURL: art.blurPreviewURL,
+            transparentBackground: true)
         } else {
           Circle()
-            .fill(LinearGradient(
-              colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
-              startPoint: .topLeading, endPoint: .bottomTrailing))
+            .fill(
+              LinearGradient(
+                colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
+                startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
             .overlay(
               Text(String(artist.name.first ?? "?").uppercased())
                 .font(.system(size: 16, weight: .semibold))

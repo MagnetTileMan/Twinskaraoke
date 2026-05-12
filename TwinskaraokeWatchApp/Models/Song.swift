@@ -21,7 +21,10 @@ struct Song: Codable, Identifiable, Equatable {
     let artists = coverArtists ?? []
     let isNeuro = artists.contains { Self.neuroArtistNames.contains($0) }
     guard isNeuro else { return nil }
-    return URL(string: "https://images.neurokaraoke.com/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")
+    return URL(
+      string:
+        "https://images.neurokaraoke.com/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95"
+    )
   }
   var audioURL: URL? {
     let cleanPath = absolutePath.hasPrefix("/") ? String(absolutePath.dropFirst()) : absolutePath

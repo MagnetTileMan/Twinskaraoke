@@ -122,10 +122,12 @@ struct QRApproveView: View {
         Text("Sign in on web?")
           .font(.title2.weight(.bold))
           .foregroundStyle(.white)
-        Text("Approving will sign you in as \(auth.currentUsername ?? "yourself") on the device showing this QR code.")
-          .font(.subheadline)
-          .foregroundStyle(.white.opacity(0.75))
-          .multilineTextAlignment(.center)
+        Text(
+          "Approving will sign you in as \(auth.currentUsername ?? "yourself") on the device showing this QR code."
+        )
+        .font(.subheadline)
+        .foregroundStyle(.white.opacity(0.75))
+        .multilineTextAlignment(.center)
       }
       VStack(spacing: 10) {
         Button {

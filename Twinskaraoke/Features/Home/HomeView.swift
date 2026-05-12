@@ -88,7 +88,8 @@ struct PlaylistCarousel: View {
                 PlaylistArtwork(playlist: playlist, cornerRadius: AM.Radius.card)
                   .frame(width: AM.Spacing.shelfTile, height: AM.Spacing.shelfTile)
                   .clipShape(
-                    RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+                    RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
+                  )
                   .amShadow(AM.Shadow.card)
                 Text(playlist.name)
                   .font(AM.Font.tileTitle)
@@ -247,7 +248,9 @@ struct HomePlaceholderSection: View {
                 }
                 .buttonStyle(PressableButtonStyle())
               } else if let onTapTile {
-                Button { onTapTile(tile) } label: {
+                Button {
+                  onTapTile(tile)
+                } label: {
                   HomePlaceholderTileView(tile: tile, style: style, artworkURL: artURL)
                 }
                 .buttonStyle(PressableButtonStyle())
@@ -382,7 +385,10 @@ struct BrowseSongCollectionView: View {
       .frame(height: baseSize)
       .padding(.top, 8)
   }
-  private static let neuroFallbackURL = URL(string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95")!
+  private static let neuroFallbackURL = URL(
+    string:
+      "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95"
+  )!
   @ViewBuilder
   private var heroArtwork: some View {
     let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
