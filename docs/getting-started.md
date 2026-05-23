@@ -46,25 +46,25 @@ Free Apple accounts are limited to creating **10 App IDs every 7 days**. Because
 ## Features
 
 <p align="center">
-  <img src="/readmeimages/homescreen.png" width="32%" title="Home Screen">
-  <img src="/readmeimages/playingscreen.png" width="32%" title="Now Playing">
-  <img src="/readmeimages/lyrics.png" width="32%" title="Lyrics View">
+  <img src="../readmeimages/homescreen.png" width="32%" title="Home Screen">
+  <img src="../readmeimages/playingscreen.png" width="32%" title="Now Playing">
+  <img src="../readmeimages/lyrics.png" width="32%" title="Lyrics View">
 </p>
 
 <p align="center">
-  <img src="/readmeimages/accountpage.png" width="32%" title="Account & Settings">
-  <img src="/readmeimages/playingnext.png" width="32%" title="Up Next Queue">
-  <img src="/readmeimages/instrumentallyrics.png" width="32%" title="Instrumental Lyrics">
+  <img src="../readmeimages/accountpage.png" width="32%" title="Account & Settings">
+  <img src="../readmeimages/playingnext.png" width="32%" title="Up Next Queue">
+  <img src="../readmeimages/instrumentallyrics.png" width="32%" title="Instrumental Lyrics">
 </p>
 
 <p align="center">
-  <img src="/readmeimages/horizontal.png" width="70%" title="Horizontal Mode">
+  <img src="../readmeimages/horizontal.png" width="70%" title="Horizontal Mode">
   <br>
   <em>Full landscape support for iPad and iPhone</em>
 </p>
 
 <p align="center">
-  <img src="/readmeimages/backgroundplaydemo.webp" width="32%" title="Background Play Demo">
+  <img src="../readmeimages/backgroundplaydemo.webp" width="32%" title="Background Play Demo">
   <br>
   <em>Full background playback and system controls</em>
 </p>
