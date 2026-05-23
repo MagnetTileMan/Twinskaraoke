@@ -45,29 +45,29 @@ Free Apple accounts are limited to creating **10 App IDs every 7 days**. Because
 
 ## Features
 
-<p align="center">
-  <img src="../readmeimages/homescreen.png" width="32%" title="Home Screen">
-  <img src="../readmeimages/playingscreen.png" width="32%" title="Now Playing">
-  <img src="../readmeimages/lyrics.png" width="32%" title="Lyrics View">
-</p>
-
-<p align="center">
-  <img src="../readmeimages/accountpage.png" width="32%" title="Account & Settings">
-  <img src="../readmeimages/playingnext.png" width="32%" title="Up Next Queue">
-  <img src="../readmeimages/instrumentallyrics.png" width="32%" title="Instrumental Lyrics">
-</p>
-
-<p align="center">
-  <img src="../readmeimages/horizontal.png" width="70%" title="Horizontal Mode">
-  <br>
+<details>
+<summary>Screenshots</summary>
+<div style="display:flex;gap:2%;justify-content:center;margin-top:16px;">
+  <img src="../readmeimages/homescreen.png" style="width:48%" title="Home Screen">
+  <img src="../readmeimages/playingscreen.png" style="width:48%" title="Now Playing">
+</div>
+<div style="display:flex;gap:2%;justify-content:center;margin-top:8px;">
+  <img src="../readmeimages/lyrics.png" style="width:48%" title="Lyrics View">
+  <img src="../readmeimages/accountpage.png" style="width:48%" title="Account & Settings">
+</div>
+<div style="display:flex;gap:2%;justify-content:center;margin-top:8px;">
+  <img src="../readmeimages/playingnext.png" style="width:48%" title="Up Next Queue">
+  <img src="../readmeimages/instrumentallyrics.png" style="width:48%" title="Instrumental Lyrics">
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;">
+  <img src="../readmeimages/horizontal.png" style="width:80%" title="Horizontal Mode">
   <em>Full landscape support for iPad and iPhone</em>
-</p>
-
-<p align="center">
-  <img src="../readmeimages/backgroundplaydemo.webp" width="32%" title="Background Play Demo">
-  <br>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;margin-bottom:16px;">
+  <img src="../readmeimages/backgroundplaydemo.webp" style="width:48%" title="Background Play Demo">
   <em>Full background playback and system controls</em>
-</p>
+</div>
+</details>
 
 ## License
 
