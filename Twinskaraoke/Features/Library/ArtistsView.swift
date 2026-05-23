@@ -29,6 +29,12 @@ final class ArtistsViewModel: ObservableObject {
     canLoadMore = true
     load(reset: true)
   }
+
+  func refresh() {
+    page = 0
+    canLoadMore = true
+    load(reset: true)
+  }
   func loadMoreIfNeeded(current: Artist) {
     guard let idx = artists.firstIndex(of: current) else { return }
     if idx >= artists.count - 5 && !isLoading && canLoadMore {
@@ -137,6 +143,7 @@ struct ArtistsView: View {
     }
     .navigationTitle("Artists")
     .navigationBarTitleDisplayMode(.large)
+    .refreshable { viewModel.refresh() }
     .onAppear { viewModel.fetchInitial() }
   }
 }

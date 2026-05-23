@@ -331,8 +331,10 @@ struct SettingsView: View {
     #if canImport(UIKit)
       let logs = DebugLogger.exportLogs()
       let av = UIActivityViewController(activityItems: [logs], applicationActivities: nil)
-      if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-        let root = windowScene.windows.first?.rootViewController
+      if let windowScene = UIApplication.shared.connectedScenes
+        .compactMap({ $0 as? UIWindowScene })
+        .first(where: { $0.activationState == .foregroundActive }),
+        let root = windowScene.keyWindow?.rootViewController
       {
         root.present(av, animated: true)
       }

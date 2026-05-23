@@ -26,6 +26,7 @@ struct RadioView: View {
         .padding(.vertical, 12)
       }
       .navigationTitle("Radio")
+      .refreshable { await radio.refresh() }
       .onAppear { radio.start() }
     }
   }

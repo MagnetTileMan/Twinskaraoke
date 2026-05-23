@@ -21,6 +21,14 @@ nonisolated struct LyricLine: Identifiable, Codable {
   func withTranslation(_ translatedText: String?) -> LyricLine {
     LyricLine(time: time, text: text, translatedText: translatedText)
   }
+
+  var isInstrumental: Bool {
+    let n = text.lowercased()
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .replacingOccurrences(of: " ", with: "")
+    return n.isEmpty || n == "instrumental" || n == "..." || n == "…"
+      || n.contains("(instrumental)") || n.contains("[instrumental]") || n.contains("♪")
+  }
 }
 
 nonisolated struct RawLyricLine: Codable {

@@ -72,6 +72,12 @@ final class VideoGalleryViewModel: ObservableObject {
     load(reset: true)
   }
 
+  func refresh() {
+    page = 1
+    canLoadMore = true
+    load(reset: true)
+  }
+
   func loadMoreIfNeeded(current: GalleryVideo) {
     guard let idx = videos.firstIndex(of: current) else { return }
     if idx >= videos.count - 5 && !isLoading && canLoadMore {
@@ -161,6 +167,7 @@ struct VideoGalleryView: View {
     }
     .navigationTitle("Video Gallery")
     .navigationBarTitleDisplayMode(.large)
+    .refreshable { viewModel.refresh() }
     .onAppear { viewModel.fetchInitial() }
   }
 }

@@ -54,6 +54,7 @@ struct HomeView: View {
         .padding(.bottom, AM.Spacing.l)
       }
       .navigationTitle("Home")
+      .refreshable { viewModel.fetchHomeData(force: true) }
     }
   }
 }

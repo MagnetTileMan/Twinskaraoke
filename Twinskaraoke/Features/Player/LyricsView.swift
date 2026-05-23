@@ -11,11 +11,13 @@ struct LyricsView: View {
   var onRetry: (() -> Void)? = nil
   private var currentIndex: Int {
     guard !lyrics.isEmpty else { return -1 }
-    var idx = -1
-    for (i, line) in lyrics.enumerated() {
-      if currentTime >= line.time { idx = i } else { break }
+    var lo = 0, hi = lyrics.count - 1, result = -1
+    while lo <= hi {
+      let mid = (lo + hi) / 2
+      if lyrics[mid].time <= currentTime { result = mid; lo = mid + 1 }
+      else { hi = mid - 1 }
     }
-    return idx
+    return result
   }
   private var isIntro: Bool {
     guard let first = lyrics.first else { return false }
@@ -124,7 +126,7 @@ struct LyricsBouncingDots: View {
       }
       .animation(.easeOut(duration: 0.18), value: progress)
     } else {
-      TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isActive)) { context in
+      TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !isActive)) { context in
         let t = context.date.timeIntervalSince(loopPhase)
           .truncatingRemainder(dividingBy: loopCycle)
         HStack(spacing: dotSize * 0.55) {
@@ -187,24 +189,12 @@ private struct LyricLineRow: View {
     let total = nextLineTime - line.time
     return max(0, min(1, elapsed / total))
   }
-  private var isInstrumental: Bool {
-    let normalized = line.text.lowercased()
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .replacingOccurrences(of: " ", with: "")
-    return normalized.contains("(instrumental)")
-      || normalized.contains("[instrumental]")
-      || normalized.contains("♪")
-      || normalized == "instrumental"
-      || normalized == "..."
-      || normalized == "…"
-      || normalized.isEmpty
-  }
   var body: some View {
     Button {
       onSeek(line.time)
     } label: {
       Group {
-        if isInstrumental {
+        if line.isInstrumental {
           InstrumentalDots(
             isActive: isCurrent,
             isPast: isPast,
@@ -241,7 +231,7 @@ private struct LyricLineRow: View {
     }
     .buttonStyle(.plain)
     .scaleEffect(isCurrent ? 1.0 : 0.92, anchor: .leading)
-    .opacity(isInstrumental ? lineOpacity : lineOpacity)
+    .opacity(lineOpacity)
     .animation(.spring(response: 0.5, dampingFraction: 0.82), value: currentIndex)
   }
   private var lineColor: Color {

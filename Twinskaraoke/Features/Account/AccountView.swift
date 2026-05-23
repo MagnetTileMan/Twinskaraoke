@@ -19,6 +19,7 @@ struct AccountView: View {
       }
       .listStyle(.insetGrouped)
       .navigationTitle("Account")
+      .refreshable { if auth.isLoggedIn { await loadData() } }
       .sheet(isPresented: $showLoginSheet) {
         LoginSheet(auth: auth)
       }

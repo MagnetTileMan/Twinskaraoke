@@ -70,6 +70,7 @@ struct ArtGalleryView: View {
     }
     .navigationTitle("Art Gallery")
     .navigationBarTitleDisplayMode(.large)
+    .refreshable { viewModel.fetch() }
     .onAppear { viewModel.fetch() }
   }
   private var featuredArt: (art: GalleryArt, artist: GalleryArtist)? {

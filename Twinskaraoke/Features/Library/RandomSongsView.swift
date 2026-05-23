@@ -69,6 +69,7 @@ struct RandomSongsView: View {
         }
       }
     }
+    .refreshable { viewModel.fetch() }
     .onAppear {
       if viewModel.songs.isEmpty { viewModel.fetch() }
     }
