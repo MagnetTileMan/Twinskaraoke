@@ -876,7 +876,7 @@ class AudioPlayerManager: ObservableObject {
       audioKit.setAIMix(main: 0, vocals: max(0, 1.0 - aiVocalStrength), instrumental: 1)
     } else if bassEnhanceMode {
       audioKit.setAIMix(main: 0, vocals: 1, instrumental: 1)
-      audioKit.setInstrumentalEQGain(dB: 6.0 * bassEnhanceStrength)
+      audioKit.setInstrumentalEQGain(dB: 12.0 * bassEnhanceStrength)
     } else if vocalEnhanceMode {
       audioKit.setAIMix(main: 0, vocals: 1 + 0.5 * vocalEnhanceStrength, instrumental: 1)
     } else if instrumentalEnhanceMode {

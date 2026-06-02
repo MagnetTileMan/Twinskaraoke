@@ -183,11 +183,6 @@ struct SettingsView: View {
       )
         .tint(.appAccent)
         .disabled(audioManager.isBackgroundKaraokeLocked)
-      if audioManager.isBackgroundKaraokeLocked {
-        Text("Available after background processing finishes for the current song.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
       if audioManager.karaokeMode {
         HStack {
           Text("Removal Level")
@@ -199,6 +194,7 @@ struct SettingsView: View {
       }
       Toggle("Bass Enhance", isOn: $audioManager.bassEnhanceMode)
         .tint(.appAccent)
+        .disabled(audioManager.isBackgroundKaraokeLocked)
       if audioManager.bassEnhanceMode {
         HStack {
           Text("Strength")
@@ -210,6 +206,7 @@ struct SettingsView: View {
       }
       Toggle("Vocal Enhance", isOn: $audioManager.vocalEnhanceMode)
         .tint(.appAccent)
+        .disabled(audioManager.isBackgroundKaraokeLocked)
       if audioManager.vocalEnhanceMode {
         HStack {
           Text("Strength")
@@ -221,6 +218,7 @@ struct SettingsView: View {
       }
       Toggle("Instrumental Enhance", isOn: $audioManager.instrumentalEnhanceMode)
         .tint(.appAccent)
+        .disabled(audioManager.isBackgroundKaraokeLocked)
       if audioManager.instrumentalEnhanceMode {
         HStack {
           Text("Strength")
@@ -229,6 +227,11 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
         }
         StrengthSlider(value: $audioManager.instrumentalEnhanceStrength)
+      }
+      if audioManager.isBackgroundKaraokeLocked {
+        Text("Available after background processing finishes for the current song.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
     } header: {
       Text("Karaoke")

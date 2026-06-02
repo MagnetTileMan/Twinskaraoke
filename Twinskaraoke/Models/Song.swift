@@ -43,10 +43,10 @@ nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
   }
   var fullHDImageURL: URL? {
     if let identifier = cloudflareID {
-      return URL(string: "\(StorageHost.images)/\(identifier)/w=1920,q=95,fit=contain")
+      return URL(string: "\(StorageHost.images)/\(identifier)/quality=95")
     }
     guard let path = coverArt?.absolutePath else { return neuroFallbackImageURL }
-    return URL(string: StorageHost.images + path + "/w=1920,quality=95")
+    return URL(string: StorageHost.images + path + "/quality=95")
   }
   var hasOwnArtwork: Bool {
     cloudflareID != nil || coverArt?.absolutePath != nil

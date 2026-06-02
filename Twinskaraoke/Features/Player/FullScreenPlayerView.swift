@@ -206,25 +206,32 @@ struct FullScreenPlayerView: View {
   }
   @ViewBuilder
   private func lyricsHeader(song: Song) -> some View {
-    HStack(spacing: 12) {
-      LoadingImage(
-        url: audioManager.displayImageURL(for: song), cornerRadius: 8, contentMode: .fill
-      )
-      .frame(width: 52, height: 52)
-      .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-      .id(song.id)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(song.title)
-          .font(.system(size: 16, weight: .bold))
-          .foregroundColor(.primary)
-          .lineLimit(1)
-        Text(song.displayArtist)
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
-          .lineLimit(1)
+    Button {
+      withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+        showLyrics = false
       }
-      Spacer()
+    } label: {
+      HStack(spacing: 12) {
+        LoadingImage(
+          url: audioManager.displayImageURL(for: song), cornerRadius: 8, contentMode: .fill
+        )
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .id(song.id)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(song.title)
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(.primary)
+            .lineLimit(1)
+          Text(song.displayArtist)
+            .font(.system(size: 13))
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+        }
+        Spacer()
+      }
     }
+    .buttonStyle(PressableButtonStyle(scale: 0.97, dim: 0.7))
     .padding(.horizontal, 32)
     .padding(.top, 0)
     .padding(.bottom, 0)
