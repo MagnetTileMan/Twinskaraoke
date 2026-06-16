@@ -1068,6 +1068,7 @@ private struct CategoryTileSkeleton: View {
           .padding(8)
       }
       .redacted(reason: .placeholder)
+      .musicSkeletonShimmer(active: true)
       .accessibilityLabel("Loading category")
   }
 }

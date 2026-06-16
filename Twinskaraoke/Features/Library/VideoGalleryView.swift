@@ -345,6 +345,7 @@ private struct VideoGallerySkeleton: View {
       }
     }
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityLabel("Loading videos")
   }
 }
@@ -651,7 +652,7 @@ struct VideoPlayerScreen: View {
             } else {
               ZStack {
                 Color.black
-                ProgressView().tint(.white)
+                LoadingIndicator(size: 24, tint: .white)
               }
             }
           #else
@@ -660,7 +661,7 @@ struct VideoPlayerScreen: View {
             } else {
               ZStack {
                 Color.black
-                ProgressView()
+                LoadingIndicator(size: 24, tint: .white)
               }
             }
           #endif

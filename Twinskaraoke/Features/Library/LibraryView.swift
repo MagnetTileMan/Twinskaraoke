@@ -32,23 +32,22 @@ final class PlaylistSongCountStore: ObservableObject {
     guard !loadingIDs.contains(playlist.id) else { return }
     guard let url = URL(string: "\(StorageHost.api)/api/playlist/\(playlist.id)") else { return }
 
-    loadingIDs.insert(playlist.id)
-    var request = URLRequest(url: url)
-    if let token = UserDefaults.standard.string(forKey: "nk.token"), !token.isEmpty {
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    }
-    GuestIdentity.applyIfNeeded(to: &request)
-
-    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      let count = Self.resolveCount(from: data)
-      DispatchQueue.main.async {
-        guard let self else { return }
-        self.loadingIDs.remove(playlist.id)
-        if let count, count > 0 {
-          self.resolvedCounts[playlist.id] = count
-        }
+    Task {
+      loadingIDs.insert(playlist.id)
+      var request = URLRequest(url: url)
+      if let token = UserDefaults.standard.string(forKey: "nk.token"), !token.isEmpty {
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
       }
-    }.resume()
+      GuestIdentity.applyIfNeeded(to: &request)
+
+      let response = try? await URLSession.shared.data(for: request)
+      let count = Self.resolveCount(from: response?.0)
+
+      loadingIDs.remove(playlist.id)
+      if let count, count > 0 {
+        resolvedCounts[playlist.id] = count
+      }
+    }
   }
 
   nonisolated private static func resolveCount(from data: Data?) -> Int? {
@@ -317,7 +316,7 @@ private struct LibraryLinkSeparator: View {
     Rectangle()
       .fill(Color.appDivider.opacity(0.42))
       .frame(height: 0.5)
-      .padding(.leading, 66)
+      .padding(.leading, 52)
       .padding(.trailing, 12)
       .mask(
         LinearGradient(
@@ -1006,6 +1005,7 @@ struct LibraryCollectionListView: View {
       .listRowBackground(Color.clear)
       .listRowSeparator(.hidden)
       .redacted(reason: .placeholder)
+      .musicSkeletonShimmer(active: true)
     }
   }
 }
@@ -1651,6 +1651,7 @@ struct PlaylistsSkeletonView: View {
     .padding(.vertical, 12)
     .opacity(!reduceMotion && pulse ? 0.58 : 1.0)
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Loading playlists")
     .onAppear {

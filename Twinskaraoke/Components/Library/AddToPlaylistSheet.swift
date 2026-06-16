@@ -353,6 +353,7 @@ private struct AddToPlaylistLoadingRows: View {
       }
     }
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityLabel("Loading playlists")
   }
 }

@@ -28,7 +28,7 @@ struct PlaylistsGridView: View {
     ScrollView {
       if viewModel.isLoading && viewModel.playlists.isEmpty {
         VStack(spacing: 10) {
-          ProgressView()
+          WatchLoadingIndicator(size: 20)
           Text("Loading Playlists")
             .font(.system(size: 12, weight: .medium))
             .foregroundColor(.secondary)
@@ -113,8 +113,7 @@ private struct WatchPlaylistsHeader: View {
       Spacer(minLength: 4)
 
       if isLoading {
-        ProgressView()
-          .scaleEffect(0.55)
+        WatchLoadingIndicator(size: 16)
           .accessibilityHidden(true)
       }
     }

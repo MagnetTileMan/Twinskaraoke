@@ -9,6 +9,7 @@ struct PlaylistDetailView: View {
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @StateObject private var loader = PlaylistDetailViewModel()
   @ObservedObject private var favorites = FavoritesManager.shared
+  @ObservedObject private var fallbackArt = FallbackArtProvider.shared
   @State private var scrollOffset: CGFloat = 0
   private var usesWideOverview: Bool {
     horizontalSizeClass == .regular
@@ -90,7 +91,7 @@ struct PlaylistDetailView: View {
           PlaylistDetailContextPreview(
             playlist: playlist,
             songs: songs,
-            coverURL: playlistCoverURL
+            coverURLs: playlistCoverURLs
           )
         }
       playlistTitleBlock(alignment: .center)
@@ -108,7 +109,7 @@ struct PlaylistDetailView: View {
             PlaylistDetailContextPreview(
               playlist: playlist,
               songs: songs,
-              coverURL: playlistCoverURL
+              coverURLs: playlistCoverURLs
             )
           }
         playlistTitleBlock(alignment: .leading)
@@ -129,8 +130,15 @@ struct PlaylistDetailView: View {
     .accessibilityIdentifier("PlaylistDetail.WideOverview")
   }
 
-  private var playlistCoverURL: URL? {
-    playlist.imageURL ?? loader.songs?.first?.imageURL
+  private var playlistCoverURLs: [URL] {
+    if let url = playlist.explicitCoverURL {
+      return [url]
+    }
+    let songURLs = Playlist.uniqueURLs((loader.songs ?? playlist.songListDTOs ?? []).compactMap(\.imageURL), limit: 4)
+    if !songURLs.isEmpty {
+      return songURLs
+    }
+    return playlist.initialMosaicArtworkURLs
   }
 
   private func parallaxHero(width: CGFloat) -> some View {
@@ -154,8 +162,10 @@ struct PlaylistDetailView: View {
     Group {
       if playlist.isFavorites {
         FavoritesArtworkTile()
-      } else if let url = playlistCoverURL {
+      } else if let url = playlistCoverURLs.first, playlistCoverURLs.count == 1 {
         LoadingImage(url: url, cornerRadius: 14)
+      } else if playlistCoverURLs.count > 1 {
+        PlaylistMosaicArtwork(urls: playlistCoverURLs, cornerRadius: 14)
       } else {
         PlaylistPlaceholderArtwork(seed: playlist.id)
       }
@@ -335,15 +345,17 @@ private struct PlaylistEmptyStateView: View {
 private struct PlaylistDetailContextPreview: View {
   let playlist: Playlist
   let songs: [Song]
-  let coverURL: URL?
+  let coverURLs: [URL]
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Group {
         if playlist.isFavorites {
           FavoritesArtworkTile()
-        } else if let coverURL {
-          LoadingImage(url: coverURL, cornerRadius: 10)
+        } else if let url = coverURLs.first, coverURLs.count == 1 {
+          LoadingImage(url: url, cornerRadius: 10)
+        } else if coverURLs.count > 1 {
+          PlaylistMosaicArtwork(urls: coverURLs, cornerRadius: 10)
         } else {
           PlaylistPlaceholderArtwork(seed: playlist.id)
         }

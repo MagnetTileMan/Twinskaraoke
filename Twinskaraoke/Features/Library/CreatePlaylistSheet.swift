@@ -113,7 +113,7 @@ struct CreatePlaylistSheet: View {
         }
         ToolbarItem(placement: .confirmationAction) {
           if isSaving {
-            ProgressView()
+            LoadingIndicator(size: 18)
           } else {
             GlassCheckmarkButton(
               action: { save() },
@@ -297,8 +297,7 @@ private struct CreatePlaylistSaveLabel: View {
   var body: some View {
     HStack(spacing: 8) {
       if isSaving {
-        ProgressView()
-          .tint(.appControlActiveForeground)
+        LoadingIndicator(size: 18, tint: .appControlActiveForeground)
       } else {
         Image(systemName: "plus")
           .font(.system(size: 15, weight: .bold))

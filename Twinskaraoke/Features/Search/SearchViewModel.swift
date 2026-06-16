@@ -236,6 +236,8 @@ final class GenresViewModel: ObservableObject {
   private let pageSize = 50
   private var genreDetailOrder: [String] = []
   private let maxCachedGenreDetails = 30
+  private var genresNeedingFallback = Set<String>()
+  private var fallbackCancellable: AnyCancellable?
 
   init() {
     #if canImport(UIKit)
@@ -248,6 +250,17 @@ final class GenresViewModel: ObservableObject {
         }
       }
     #endif
+    fallbackCancellable = FallbackArtProvider.shared.objectWillChange
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] in
+        Task { @MainActor [weak self] in self?.assignPendingFallbackArtwork() }
+      }
+  }
+
+  private func assignPendingFallbackArtwork() {
+    for id in genresNeedingFallback where artworkURLs[id] == nil {
+      artworkURLs[id] = FallbackArtProvider.shared.randomURL
+    }
   }
 
   func loadIfNeeded() {
@@ -312,8 +325,6 @@ final class GenresViewModel: ObservableObject {
     }
   }
 
-  private static let neuroFallbackURL: URL? = FallbackArtProvider.shared.randomURL
-
   private func fetchDetail(for genre: GenreSummary) {
     if allSongs[genre.id] != nil { return }
     guard let url = URL(string: "\(StorageHost.api)/api/genres/\(genre.id)") else {
@@ -340,8 +351,13 @@ final class GenresViewModel: ObservableObject {
     if let first = songs.first {
       firstSongs[genre.id] = first
     }
-    let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
-    artworkURLs[genre.id] = artURL
+    if let ownArtURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL {
+      genresNeedingFallback.remove(genre.id)
+      artworkURLs[genre.id] = ownArtURL
+    } else {
+      genresNeedingFallback.insert(genre.id)
+      artworkURLs[genre.id] = FallbackArtProvider.shared.randomURL
+    }
     genreDetailOrder.removeAll { $0 == genre.id }
     genreDetailOrder.append(genre.id)
     while genreDetailOrder.count > maxCachedGenreDetails {

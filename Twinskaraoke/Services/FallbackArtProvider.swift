@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 nonisolated struct FallbackArt: Sendable {
@@ -6,7 +7,7 @@ nonisolated struct FallbackArt: Sendable {
   let artistLink: String?
 }
 
-nonisolated final class FallbackArtProvider: @unchecked Sendable {
+nonisolated final class FallbackArtProvider: ObservableObject, @unchecked Sendable {
   static let shared = FallbackArtProvider()
 
   private var items: [FallbackArtItem] = []
@@ -70,7 +71,16 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
   }
 
   var randomURL: URL? {
-    URL(string: "\(StorageHost.api)/public/art/yuri/random")
+    lock.lock()
+    defer { lock.unlock() }
+    if !items.isEmpty {
+      return items[Int.random(in: 0..<items.count)].url
+    }
+    // Cold start: the validated pool hasn't been fetched yet. Fall back to a
+    // real image URL previously assigned to a song (persisted across launches)
+    // so the hero/genre artwork can still load instead of trying to render the
+    // JSON random-art endpoint as an image.
+    return cache.values.map(\.url).randomElement()
   }
 
   private static func stableHash(_ string: String) -> Int {
@@ -194,6 +204,7 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
         continue
       }
       var request = URLRequest(url: url)
+      request.timeoutInterval = 10
       GuestIdentity.applyIfNeeded(to: &request)
       URLSession.shared.dataTask(with: request) { data, _, _ in
         defer { group.leave() }
@@ -233,6 +244,9 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
       self.items = uniqueItems
       self.repairDuplicateBindings()
       self.lock.unlock()
+      // Notify observers so views that resolved a nil fallback URL before the
+      // pool was ready (song.imageURL / randomURL) re-render and pick it up.
+      self.objectWillChange.send()
     }
   }
 

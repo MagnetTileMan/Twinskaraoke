@@ -64,9 +64,7 @@ struct PlayerView: View {
                 RoundedRectangle(cornerRadius: 10)
                   .fill(overlayColor)
                   .frame(width: metrics.artworkSize, height: metrics.artworkSize)
-                ProgressView()
-                  .progressViewStyle(CircularProgressViewStyle(tint: .appAccent))
-                  .scaleEffect(0.6)
+                WatchLoadingIndicator(size: 20, tint: .white)
               }
             }
             .frame(width: metrics.artworkSize, height: metrics.artworkSize)

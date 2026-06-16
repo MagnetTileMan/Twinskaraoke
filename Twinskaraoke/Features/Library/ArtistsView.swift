@@ -243,6 +243,7 @@ private struct ArtistsSkeletonView: View {
     }
     .opacity(!reduceMotion && pulse ? 0.58 : 1.0)
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Loading artists")
     .onAppear {
@@ -541,6 +542,7 @@ private struct ArtistSongsSkeleton: View {
       }
     }
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityLabel("Loading artist songs")
   }
 }

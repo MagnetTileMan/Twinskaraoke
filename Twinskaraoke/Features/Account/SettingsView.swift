@@ -78,7 +78,6 @@ struct SettingsView: View {
 
   private var settingsList: some View {
     List {
-      overviewSection
       librarySection
       audioSection
       downloadsSection
@@ -210,9 +209,6 @@ struct SettingsView: View {
 
   private var settingsBadges: [SettingsOverviewBadge] {
     var badges: [SettingsOverviewBadge] = []
-    if audioManager.autoMixEnabled {
-      badges.append(SettingsOverviewBadge(title: "Auto Mix", symbol: "waveform.path.ecg"))
-    }
     if audioManager.crossfadeEnabled {
       badges.append(SettingsOverviewBadge(title: "\(Int(audioManager.crossfadeSeconds.rounded()))s Crossfade", symbol: "arrow.left.arrow.right"))
     }

@@ -136,6 +136,7 @@ private enum ManagedAVPlayerKind {
   case radio, stream
 }
 
+@MainActor
 class AudioPlayerManager: ObservableObject {
   static let shared = AudioPlayerManager()
   @Published var currentSong: Song?
@@ -588,6 +589,10 @@ class AudioPlayerManager: ObservableObject {
       self?.upcomingSong = song
     }
 
+    FallbackArtProvider.shared.objectWillChange
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] in self?.objectWillChange.send() }
+      .store(in: &cancellables)
     NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
       .sink { [weak self] note in self?.handleInterruption(note) }
       .store(in: &cancellables)

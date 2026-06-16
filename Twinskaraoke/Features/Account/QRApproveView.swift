@@ -373,8 +373,7 @@ private struct QRPermissionLoadingView: View {
           .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
       }
-      ProgressView()
-        .tint(.appAccent)
+      LoadingIndicator(size: 24)
     }
     .padding(24)
     .frame(maxWidth: 360)

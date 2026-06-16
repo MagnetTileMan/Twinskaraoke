@@ -67,7 +67,7 @@ struct ArtDetailView: View {
         } label: {
           switch saveStatus {
           case .saving:
-            ProgressView()
+            LoadingIndicator(size: 18)
           case .success:
             Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
           case .failed:
@@ -370,8 +370,7 @@ private struct ArtworkSaveActionLabel: View {
         Label {
           Text("Saving")
         } icon: {
-          ProgressView()
-            .controlSize(.small)
+          LoadingIndicator(size: 16)
         }
       case .success:
         Label("Saved", systemImage: "checkmark.circle.fill")
@@ -680,9 +679,7 @@ struct ZoomableImageViewer: View {
     Group {
       switch saveStatus {
       case .saving:
-        ProgressView()
-          .progressViewStyle(.circular)
-          .tint(.white)
+        LoadingIndicator(size: 18, tint: .white)
       case .success:
         Image(systemName: "checkmark.circle.fill")
           .foregroundColor(.green)

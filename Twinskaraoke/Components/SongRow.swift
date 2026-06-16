@@ -171,6 +171,7 @@ struct SongRowSkeleton: View {
     }
     .padding(.vertical, size == .regular ? 5 : 3)
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityLabel("Loading song")
   }
 }

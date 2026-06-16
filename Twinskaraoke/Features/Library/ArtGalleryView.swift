@@ -204,6 +204,7 @@ private struct ArtGallerySkeletonView: View {
     }
     .opacity(!reduceMotion && pulse ? 0.58 : 1.0)
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Loading art gallery")
     .onAppear {

@@ -425,6 +425,7 @@ private struct LyricsLoadingSkeleton: View {
       .padding(.top, 28)
     }
     .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: true)
     .accessibilityLabel("Loading lyrics")
   }
 }

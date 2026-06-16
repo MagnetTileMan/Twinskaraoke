@@ -64,7 +64,7 @@ struct SearchView: View {
         } else if viewModel.isLoading && viewModel.results.isEmpty {
           HStack {
             Spacer()
-            ProgressView()
+            WatchLoadingIndicator(size: 20)
             Spacer()
           }
           .listRowBackground(Color.clear)
@@ -199,8 +199,7 @@ private struct WatchSearchResultsSummary: View {
       Spacer(minLength: 4)
 
       if isLoading {
-        ProgressView()
-          .scaleEffect(0.55)
+        WatchLoadingIndicator(size: 16)
           .accessibilityHidden(true)
       }
     }

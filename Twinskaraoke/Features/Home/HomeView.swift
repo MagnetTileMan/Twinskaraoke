@@ -769,26 +769,10 @@ struct NewSkeletonView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
-      // Title placeholder
-      RoundedRectangle(cornerRadius: 4, style: .continuous)
-        .fill(Color.appPlaceholderSecondary)
-        .frame(width: 80, height: 22)
-        .padding(.horizontal, AM.Spacing.screenMargin)
-        .padding(.top, 8)
-
-      // 2-column grid
-      LazyVGrid(
-        columns: [
-          GridItem(.flexible(), spacing: AM.Spacing.m),
-          GridItem(.flexible(), spacing: AM.Spacing.m)
-        ],
-        spacing: AM.Spacing.l
-      ) {
-        ForEach(0..<6, id: \.self) { index in
-          skeletonGridTile(index: index)
-        }
-      }
-      .padding(.horizontal, AM.Spacing.screenMargin)
+      featuredRailSkeleton
+      shelfSkeleton(titleWidth: 78, count: 4)
+      listPreviewSkeleton
+      shelfSkeleton(titleWidth: 122, count: 4)
     }
     .opacity(!reduceMotion && pulse ? 0.58 : 1.0)
     .accessibilityElement(children: .ignore)
@@ -815,33 +799,122 @@ struct NewSkeletonView: View {
     }
   }
 
-  private func skeletonGridTile(index: Int) -> some View {
+  private var featuredRailSkeleton: some View {
     GeometryReader { geo in
-      let tileWidth = geo.size.width
-      VStack(alignment: .leading, spacing: AM.Spacing.s) {
-        // Square artwork placeholder
-        RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
-          .frame(width: tileWidth, height: tileWidth)
-
-        // Text placeholders
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderSecondary)
-          .frame(width: tileWidth * 0.72, height: 12)
-
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderTertiary)
-          .frame(width: tileWidth * 0.54, height: 10)
+      let cardWidth = min(max(geo.size.width - AM.Spacing.screenMargin * 2, 300), 420)
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(alignment: .top, spacing: AM.Spacing.l) {
+          ForEach(0..<2, id: \.self) { index in
+            featuredCardSkeleton(width: cardWidth, index: index)
+          }
+        }
+        .padding(.horizontal, AM.Spacing.screenMargin)
       }
     }
-    .aspectRatio(1.0, contentMode: .fit)
+    .frame(height: 316)
+  }
+
+  private func featuredCardSkeleton(width: CGFloat, index: Int) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      VStack(alignment: .leading, spacing: 6) {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+          .fill(Color.appPlaceholderSecondary)
+          .frame(width: index == 0 ? 112 : 128, height: 11)
+
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+          .fill(Color.appPlaceholderTertiary)
+          .frame(width: width * (index == 0 ? 0.48 : 0.72), height: 22)
+
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+          .fill(Color.appPlaceholderSecondary)
+          .frame(width: width * (index == 0 ? 0.34 : 0.46), height: 14)
+      }
+
+      RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
+        .fill(Color.appPlaceholderPrimary)
+        .frame(width: width, height: width * 0.56)
+        .overlay(alignment: .bottomLeading) {
+          Circle()
+            .fill(Color.appPlaceholderSecondary)
+            .frame(width: 34, height: 34)
+            .padding(10)
+        }
+    }
+    .frame(width: width, alignment: .leading)
+  }
+
+  private func shelfSkeleton(titleWidth: CGFloat, count: Int) -> some View {
+    GeometryReader { proxy in
+      let tileWidth = AM.Layout.shelfTileWidth(for: proxy.size.width, compact: true)
+      VStack(alignment: .leading, spacing: AM.Spacing.m) {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+          .fill(Color.appPlaceholderTertiary)
+          .frame(width: titleWidth, height: 18)
+          .padding(.horizontal, AM.Spacing.screenMargin)
+
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(alignment: .top, spacing: AM.Spacing.m) {
+            ForEach(0..<count, id: \.self) { index in
+              VStack(alignment: .leading, spacing: AM.Spacing.s) {
+                RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
+                  .fill(Color.appPlaceholderPrimary)
+                  .frame(width: tileWidth, height: tileWidth)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                  .fill(Color.appPlaceholderSecondary)
+                  .frame(width: tileWidth * (index.isMultiple(of: 2) ? 0.72 : 0.58), height: 13)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                  .fill(Color.appPlaceholderPrimary)
+                  .frame(width: tileWidth * (index == 1 ? 0.48 : 0.38), height: 11)
+              }
+              .frame(width: tileWidth, alignment: .leading)
+            }
+          }
+          .padding(.horizontal, AM.Spacing.screenMargin)
+        }
+      }
+    }
+    .frame(height: AM.Layout.compactMediaShelfHeight)
+  }
+
+  private var listPreviewSkeleton: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.s) {
+      RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .fill(Color.appPlaceholderTertiary)
+        .frame(width: 132, height: 18)
+        .padding(.horizontal, AM.Spacing.screenMargin)
+
+      VStack(spacing: 0) {
+        ForEach(0..<4, id: \.self) { index in
+          HStack(spacing: AM.Spacing.m) {
+            RoundedRectangle(cornerRadius: AM.Radius.thumb, style: .continuous)
+              .fill(Color.appPlaceholderPrimary)
+              .frame(width: 46, height: 46)
+            VStack(alignment: .leading, spacing: 6) {
+              RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color.appPlaceholderSecondary)
+                .frame(width: index == 2 ? 178 : 136, height: 13)
+              RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color.appPlaceholderPrimary)
+                .frame(width: index == 1 ? 92 : 112, height: 11)
+            }
+            Spacer(minLength: 0)
+          }
+          .padding(.horizontal, AM.Spacing.screenMargin)
+          .padding(.vertical, 5)
+
+          if index != 3 {
+            Divider()
+              .padding(.leading, AM.Spacing.screenMargin + 58)
+          }
+        }
+      }
+    }
   }
 }
 
 struct HomeSkeletonView: View {
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
-  @State private var pulse = false
 
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
@@ -852,34 +925,68 @@ struct HomeSkeletonView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.shelfSpacing) {
-      skeletonShelf(titleWidth: 96, tileSize: AM.Spacing.shelfTile, count: 3)
+      featuredSkeleton
       skeletonShelf(titleWidth: 138, tileSize: AM.Spacing.shelfTile, count: 3)
-      skeletonShelf(titleWidth: 118, tileSize: AM.Spacing.shelfTile, count: 3)
       latestSingleSkeleton
+      skeletonShelf(titleWidth: 118, tileSize: AM.Spacing.shelfTile, count: 3)
       skeletonShelf(titleWidth: 126, tileSize: AM.Spacing.shelfTile, count: 3)
     }
-    .opacity(!reduceMotion && pulse ? 0.58 : 1.0)
-    .redacted(reason: .placeholder)
+    .musicSkeletonShimmer(active: !reduceMotion)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Loading Home")
-    .onAppear {
-      guard !reduceMotion else {
-        pulse = false
-        return
-      }
-      withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-        pulse = true
-      }
-    }
-    .onChange(of: reduceMotion) { _, reduceMotion in
-      if reduceMotion {
-        withAnimation(nil) {
-          pulse = false
+  }
+
+  private var featuredSkeleton: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.m) {
+      RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .fill(Color.appPlaceholderTertiary)
+        .frame(width: 104, height: 20)
+        .padding(.horizontal, AM.Spacing.screenMargin)
+
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(alignment: .top, spacing: AM.Spacing.l) {
+          ForEach(0..<2, id: \.self) { index in
+            VStack(alignment: .leading, spacing: AM.Spacing.s) {
+              RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
+                .fill(featuredArtworkFill(index: index))
+                .frame(width: 236, height: 148)
+                .overlay {
+                  RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
+                    .stroke(Color.primary.opacity(0.045), lineWidth: 0.7)
+                }
+                .overlay(alignment: .bottomLeading) {
+                  Circle()
+                    .fill(
+                      LinearGradient(
+                        colors: [
+                          Color.appAccent.opacity(0.20),
+                          Color.appAccent.opacity(0.08),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                      )
+                    )
+                    .frame(width: 36, height: 36)
+                    .overlay {
+                      Image(systemName: "play.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.appAccent.opacity(0.42))
+                    }
+                    .padding(12)
+                }
+                .shadow(color: .appShadow.opacity(0.12), radius: 12, y: 8)
+
+              RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.appPlaceholderSecondary)
+                .frame(width: index == 0 ? 168 : 194, height: 14)
+              RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color.appPlaceholderPrimary)
+                .frame(width: index == 0 ? 104 : 132, height: 11)
+            }
+            .frame(width: 236, alignment: .leading)
+          }
         }
-      } else {
-        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-          pulse = true
-        }
+        .padding(.horizontal, AM.Spacing.screenMargin)
       }
     }
   }
@@ -887,7 +994,7 @@ struct HomeSkeletonView: View {
   private func skeletonShelf(titleWidth: CGFloat, tileSize: CGFloat, count: Int) -> some View {
     VStack(alignment: .leading, spacing: AM.Spacing.m) {
       RoundedRectangle(cornerRadius: 4, style: .continuous)
-        .fill(Color.appPlaceholderSecondary)
+        .fill(Color.appPlaceholderTertiary)
         .frame(width: titleWidth, height: 18)
         .padding(.horizontal, AM.Spacing.screenMargin)
 
@@ -896,8 +1003,13 @@ struct HomeSkeletonView: View {
           ForEach(0..<count, id: \.self) { index in
             VStack(alignment: .leading, spacing: AM.Spacing.s) {
               RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-                .fill(Color.appPlaceholderPrimary)
+                .fill(artworkFill(index: index))
                 .frame(width: tileSize, height: tileSize)
+                .overlay {
+                  RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
+                    .stroke(Color.primary.opacity(0.04), lineWidth: 0.6)
+                }
+                .shadow(color: .appShadow.opacity(0.08), radius: 8, y: 4)
               RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(Color.appPlaceholderSecondary)
                 .frame(width: tileSize * (index == 1 ? 0.78 : 0.62), height: 13)
@@ -922,8 +1034,13 @@ struct HomeSkeletonView: View {
 
       HStack(spacing: AM.Spacing.m) {
         RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
+          .fill(artworkFill(index: 1))
           .frame(width: 92, height: 92)
+          .overlay {
+            RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
+              .stroke(Color.primary.opacity(0.04), lineWidth: 0.6)
+          }
+          .shadow(color: .appShadow.opacity(0.10), radius: 10, y: 5)
 
         VStack(alignment: .leading, spacing: 8) {
           RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -941,11 +1058,46 @@ struct HomeSkeletonView: View {
       }
       .padding(14)
       .background(
-        Color.appSecondaryBackground,
+        LinearGradient(
+          colors: [
+            Color.appSecondaryBackground,
+            Color.appAccent.opacity(0.045),
+          ],
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        ),
         in: RoundedRectangle(cornerRadius: AM.Radius.sheet, style: .continuous)
       )
+      .overlay {
+        RoundedRectangle(cornerRadius: AM.Radius.sheet, style: .continuous)
+          .stroke(Color.primary.opacity(0.035), lineWidth: 0.7)
+      }
       .padding(.horizontal, AM.Spacing.screenMargin)
     }
+  }
+
+  private func artworkFill(index: Int) -> LinearGradient {
+    LinearGradient(
+      colors: [
+        Color.appPlaceholderSecondary,
+        Color.appPlaceholderPrimary,
+        index.isMultiple(of: 2) ? Color.appAccent.opacity(0.09) : Color.appPlaceholderTertiary.opacity(0.72),
+      ],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
+  }
+
+  private func featuredArtworkFill(index: Int) -> LinearGradient {
+    LinearGradient(
+      colors: [
+        Color.appPlaceholderSecondary,
+        index.isMultiple(of: 2) ? Color.appAccent.opacity(0.12) : Color.appPlaceholderPrimary,
+        Color.appPlaceholderQuaternary.opacity(0.42),
+      ],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
   }
 }
 
@@ -1073,10 +1225,9 @@ struct BrowseSongCollectionView: View {
     .padding(.horizontal, alignment == .leading ? 0 : AM.Spacing.screenMargin)
   }
 
-  private static let neuroFallbackURL: URL? = FallbackArtProvider.shared.randomURL
   @ViewBuilder
   private var heroArtwork: some View {
-    let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
+    let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? FallbackArtProvider.shared.randomURL
     LoadingImage(url: artURL, cornerRadius: 0, contentMode: .fill)
   }
 
