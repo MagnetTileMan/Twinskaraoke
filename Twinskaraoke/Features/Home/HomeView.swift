@@ -9,7 +9,7 @@ struct HomeView: View {
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
 
   private var loadingAnimation: Animation? {
@@ -87,42 +87,71 @@ struct HomeView: View {
   }
 
   private var wideHomeOverview: some View {
-    HStack(alignment: .top, spacing: AM.Spacing.xxl) {
-      VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
-        topPicksShelf(horizontalPadding: 0)
+    VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+      WideHomeHero(
+        song: homeHeroSong,
+        context: homeHeroContext,
+        playlist: viewModel.recentPlaylists.first,
+        secondarySong: homeSecondarySong,
+        secondaryContext: viewModel.suggestions.isEmpty ? viewModel.trending : viewModel.suggestions
+      )
 
-        if !recentlyPlayed.playlists.isEmpty {
-          PlaylistCarousel(
-            title: "Recently Played",
-            playlists: recentlyPlayed.playlists,
-            horizontalPadding: 0
-          )
-        }
+      HStack(alignment: .top, spacing: AM.Spacing.xxl) {
+        VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+          topPicksShelf(horizontalPadding: 0)
 
-        if !viewModel.suggestions.isEmpty {
-          HomeSongSection(title: "Made for You", songs: viewModel.suggestions, horizontalPadding: 0)
+          if !recentlyPlayed.playlists.isEmpty {
+            PlaylistCarousel(
+              title: "Recently Played",
+              playlists: recentlyPlayed.playlists,
+              horizontalPadding: 0
+            )
+          }
+
+          if !viewModel.suggestions.isEmpty {
+            HomeSongSection(title: "Made for You", songs: viewModel.suggestions, horizontalPadding: 0)
+          }
         }
+        .frame(minWidth: 520, maxWidth: .infinity, alignment: .topLeading)
+        .layoutPriority(1)
+
+        VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+          latestSingleSection(horizontalPadding: 0)
+
+          if !viewModel.newReleases.isEmpty {
+            WideSongListPanel(title: "New Releases", songs: Array(viewModel.newReleases.prefix(6)))
+          }
+
+          if !viewModel.trending.isEmpty {
+            WideSongListPanel(title: "More to Explore", songs: Array(viewModel.trending.prefix(6)))
+          }
+        }
+        .frame(
+          width: AM.Layout.wideInspectorWidth,
+          alignment: .topLeading
+        )
       }
-      .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-
-      VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
-        latestSingleSection(horizontalPadding: 0)
-
-        if !viewModel.newReleases.isEmpty {
-          HomeSongSection(title: "New Releases", songs: viewModel.newReleases, horizontalPadding: 0)
-        }
-
-        if !viewModel.trending.isEmpty {
-          HomeSongSection(title: "More to Explore", songs: viewModel.trending, horizontalPadding: 0)
-        }
-      }
-      .frame(minWidth: 300, idealWidth: 360, maxWidth: 420, alignment: .topLeading)
     }
-    .frame(maxWidth: 1120, alignment: .topLeading)
+    .frame(maxWidth: AM.Layout.wideContentMaxWidth, alignment: .topLeading)
     .frame(maxWidth: .infinity, alignment: .top)
     .padding(.horizontal, AM.Spacing.screenMargin)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("Home.WideOverview")
+  }
+
+  private var homeHeroSong: Song? {
+    viewModel.latestSingle ?? viewModel.suggestions.first ?? viewModel.newReleases.first ?? viewModel.trending.first
+  }
+
+  private var homeSecondarySong: Song? {
+    viewModel.suggestions.dropFirst().first ?? viewModel.newReleases.dropFirst().first ?? viewModel.trending.first
+  }
+
+  private var homeHeroContext: [Song] {
+    if !viewModel.latestSingleContext.isEmpty { return viewModel.latestSingleContext }
+    if !viewModel.suggestions.isEmpty { return viewModel.suggestions }
+    if !viewModel.newReleases.isEmpty { return viewModel.newReleases }
+    return viewModel.trending
   }
 
   @ViewBuilder
@@ -161,7 +190,7 @@ struct NewView: View {
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
 
   private var reduceMotion: Bool {
@@ -254,6 +283,13 @@ struct NewView: View {
 
   private var wideNewOverview: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+      WideNewHero(
+        primary: viewModel.newReleases.first,
+        secondary: viewModel.trending.first,
+        context: viewModel.newReleases.isEmpty ? viewModel.trending : viewModel.newReleases,
+        playlist: viewModel.recentPlaylists.first
+      )
+
       if !viewModel.newReleases.isEmpty {
         NewFeaturedRail(
           primary: viewModel.newReleases.first,
@@ -284,7 +320,8 @@ struct NewView: View {
             NewSongRail(title: "Trending Songs", songs: viewModel.trending)
           }
         }
-        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+        .frame(minWidth: 520, maxWidth: .infinity, alignment: .topLeading)
+        .layoutPriority(1)
 
         VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
           if !viewModel.trending.isEmpty {
@@ -297,10 +334,10 @@ struct NewView: View {
 
           NewMoreToExplore(horizontalPadding: 0)
         }
-        .frame(minWidth: 300, idealWidth: 360, maxWidth: 420, alignment: .topLeading)
+        .frame(width: AM.Layout.wideInspectorWidth, alignment: .topLeading)
       }
     }
-    .frame(maxWidth: 1120, alignment: .topLeading)
+    .frame(maxWidth: AM.Layout.wideContentMaxWidth, alignment: .topLeading)
     .frame(maxWidth: .infinity, alignment: .top)
     .padding(.horizontal, AM.Spacing.screenMargin)
     .accessibilityElement(children: .contain)
@@ -377,7 +414,6 @@ struct PlaylistListView: View {
     ScrollView {
       if displayedPlaylists.isEmpty {
         MusicEmptyState(
-          systemImage: "music.note.list",
           title: searchText.isEmpty ? "No Playlists" : "No Results",
           message: searchText.isEmpty
             ? "Playlists will appear here."
@@ -435,10 +471,323 @@ struct PlaylistListView: View {
   }
 }
 
+private struct WideHomeHero: View {
+  let song: Song?
+  let context: [Song]
+  let playlist: Playlist?
+  let secondarySong: Song?
+  let secondaryContext: [Song]
+
+  var body: some View {
+    HStack(alignment: .top, spacing: AM.Spacing.xxl) {
+      WideSongHeroCard(
+        eyebrow: "Listen Now",
+        title: song?.title ?? playlist?.name ?? "Twinskaraoke",
+        subtitle: song?.displayArtist.isEmpty == false ? song?.displayArtist ?? "" : "Fresh karaoke picks for your next session",
+        song: song,
+        context: context,
+        playlist: playlist
+      )
+      .frame(minWidth: 0, maxWidth: .infinity)
+
+      VStack(alignment: .leading, spacing: AM.Spacing.m) {
+        WideHeroModuleTitle(title: "Start Here", subtitle: "Fast actions")
+        if let song {
+          WideHeroActionRow(
+            systemImage: "play.fill",
+            title: "Play Latest",
+            subtitle: song.title
+          ) {
+            AppHaptic.selection.play()
+            AudioPlayerManager.shared.play(song: song, context: context)
+          }
+        }
+        if let playlist {
+          NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
+            WideHeroActionRowContent(
+              systemImage: "music.note.list",
+              title: "Open Top Pick",
+              subtitle: playlist.name
+            )
+          }
+          .buttonStyle(PressableButtonStyle(scale: 0.98, dim: 0.78, haptic: .selection))
+        }
+        if let secondarySong {
+          WideHeroActionRow(
+            systemImage: "shuffle",
+            title: "Shuffle Mix",
+            subtitle: secondarySong.title
+          ) {
+            AppHaptic.selection.play()
+            AudioPlayerManager.shared.playShuffled(from: secondaryContext.isEmpty ? [secondarySong] : secondaryContext)
+          }
+        }
+      }
+      .frame(width: AM.Layout.wideInspectorWidth, alignment: .topLeading)
+    }
+    .frame(minHeight: 286)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("Home.WideHero")
+  }
+}
+
+private struct WideNewHero: View {
+  let primary: Song?
+  let secondary: Song?
+  let context: [Song]
+  let playlist: Playlist?
+
+  var body: some View {
+    HStack(alignment: .top, spacing: AM.Spacing.xxl) {
+      WideSongHeroCard(
+        eyebrow: "New Music",
+        title: primary?.title ?? "New",
+        subtitle: primary?.displayArtist.isEmpty == false ? primary?.displayArtist ?? "" : "The newest songs and karaoke-ready releases",
+        song: primary,
+        context: context,
+        playlist: playlist
+      )
+      .frame(minWidth: 0, maxWidth: .infinity)
+
+      VStack(alignment: .leading, spacing: AM.Spacing.m) {
+        WideHeroModuleTitle(title: "Fresh Picks", subtitle: "Updated for large screens")
+        if let primary {
+          WideHeroSongRow(song: primary, context: context, label: "Featured Release")
+        }
+        if let secondary {
+          WideHeroSongRow(song: secondary, context: context.isEmpty ? [secondary] : context, label: "Trending Now")
+        }
+        if let playlist {
+          NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
+            WideHeroActionRowContent(
+              systemImage: "square.grid.2x2.fill",
+              title: "New This Week",
+              subtitle: playlist.name
+            )
+          }
+          .buttonStyle(PressableButtonStyle(scale: 0.98, dim: 0.78, haptic: .selection))
+        }
+      }
+      .frame(width: AM.Layout.wideInspectorWidth, alignment: .topLeading)
+    }
+    .frame(minHeight: 286)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("New.WideHero")
+  }
+}
+
+private struct WideSongHeroCard: View {
+  let eyebrow: String
+  let title: String
+  let subtitle: String
+  let song: Song?
+  let context: [Song]
+  let playlist: Playlist?
+
+  var body: some View {
+    Button {
+      play()
+    } label: {
+      ZStack(alignment: .bottomLeading) {
+        heroArtwork
+        LinearGradient(
+          colors: [
+            Color.black.opacity(0.08),
+            Color.black.opacity(0.18),
+            Color.black.opacity(0.68)
+          ],
+          startPoint: .top,
+          endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+
+        HStack(alignment: .bottom, spacing: AM.Spacing.xl) {
+          VStack(alignment: .leading, spacing: 7) {
+            Text(eyebrow)
+              .font(.system(size: 12, weight: .bold))
+              .foregroundStyle(.white.opacity(0.72))
+              .textCase(.uppercase)
+            Text(title)
+              .font(.system(size: 34, weight: .bold))
+              .foregroundStyle(.white)
+              .lineLimit(2)
+              .minimumScaleFactor(0.72)
+            Text(subtitle)
+              .font(.system(size: 16, weight: .medium))
+              .foregroundStyle(.white.opacity(0.82))
+              .lineLimit(2)
+          }
+          Spacer(minLength: AM.Spacing.l)
+          Image(systemName: "play.fill")
+            .font(.system(size: 19, weight: .bold))
+            .foregroundStyle(.black)
+            .frame(width: 54, height: 54)
+            .background(.white, in: Circle())
+            .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
+            .accessibilityHidden(true)
+        }
+        .padding(AM.Spacing.xl)
+      }
+      .frame(minHeight: 286)
+      .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
+          .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
+      }
+      .amShadow(AM.Shadow.heroPlaying)
+    }
+    .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.88, haptic: .selection))
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(title)
+    .accessibilityValue(subtitle)
+    .accessibilityHint(song == nil ? "Featured artwork." : "Plays this song.")
+  }
+
+  @ViewBuilder
+  private var heroArtwork: some View {
+    if let song {
+      LoadingImage(url: song.fullHDImageURL ?? song.imageURL, cornerRadius: 0, contentMode: .fill)
+        .allowsHitTesting(false)
+    } else if let playlist {
+      PlaylistArtwork(playlist: playlist, cornerRadius: 0)
+        .allowsHitTesting(false)
+    } else {
+      MusicArtworkPlaceholder(cornerRadius: 0)
+        .allowsHitTesting(false)
+    }
+  }
+
+  private func play() {
+    if let song {
+      AppHaptic.selection.play()
+      AudioPlayerManager.shared.play(song: song, context: context.isEmpty ? [song] : context)
+    }
+  }
+}
+
+private struct WideHeroModuleTitle: View {
+  let title: String
+  let subtitle: String
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(title)
+        .font(.system(size: 22, weight: .bold))
+        .foregroundStyle(.primary)
+      Text(subtitle)
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(.secondary)
+    }
+    .padding(.bottom, 2)
+  }
+}
+
+private struct WideHeroSongRow: View {
+  let song: Song
+  let context: [Song]
+  let label: String
+
+  var body: some View {
+    WideHeroActionRow(systemImage: "play.fill", title: label, subtitle: song.title) {
+      AppHaptic.selection.play()
+      AudioPlayerManager.shared.play(song: song, context: context.isEmpty ? [song] : context)
+    }
+  }
+}
+
+private struct WideHeroActionRow: View {
+  let systemImage: String
+  let title: String
+  let subtitle: String
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      WideHeroActionRowContent(systemImage: systemImage, title: title, subtitle: subtitle)
+    }
+    .buttonStyle(PressableButtonStyle(scale: 0.98, dim: 0.78, haptic: .selection))
+  }
+}
+
+private struct WideHeroActionRowContent: View {
+  let systemImage: String
+  let title: String
+  let subtitle: String
+
+  var body: some View {
+    HStack(spacing: 12) {
+      ZStack {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .fill(Color.appControlInactiveFill)
+        Image(systemName: systemImage)
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundStyle(Color.appAccent)
+      }
+      .frame(width: 42, height: 42)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundStyle(.primary)
+          .lineLimit(1)
+        Text(subtitle)
+          .font(.system(size: 13))
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(.secondary.opacity(0.65))
+    }
+    .padding(10)
+    .background(Color.appSecondaryBackground, in: RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+    .contentShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+  }
+}
+
+private struct WideSongListPanel: View {
+  let title: String
+  let songs: [Song]
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: AM.Spacing.s) {
+      NavigationLink(destination: BrowseSongCollectionView(title: title, songs: songs)) {
+        HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.s) {
+          Text(title)
+            .font(AM.Font.sectionHeader)
+            .foregroundColor(.primary)
+          Image(systemName: "chevron.right")
+            .font(.system(size: 17, weight: .bold))
+            .foregroundColor(.secondary.opacity(0.7))
+          Spacer()
+        }
+      }
+      .buttonStyle(.plain)
+      LazyVStack(spacing: 0) {
+        ForEach(songs) { song in
+          Button {
+            AppHaptic.selection.play()
+            AudioPlayerManager.shared.play(song: song, context: songs)
+          } label: {
+            SongRow(song: song, size: .compact)
+          }
+          .buttonStyle(.plain)
+          if song.id != songs.last?.id {
+            Divider().padding(.leading, 56)
+          }
+        }
+      }
+    }
+    .accessibilityElement(children: .contain)
+  }
+}
+
 struct HomeSongSection: View {
   let title: String
   let songs: [Song]
   var horizontalPadding: CGFloat = AM.Spacing.screenMargin
+  @State private var availableWidth: CGFloat = 390
+
   var body: some View {
     GeometryReader { proxy in
       let tileWidth = AM.Layout.shelfTileWidth(for: proxy.size.width)
@@ -458,8 +807,19 @@ struct HomeSongSection: View {
           .padding(.horizontal, horizontalPadding)
         }
       }
+      .onAppear {
+        updateAvailableWidth(proxy.size.width)
+      }
+      .onChange(of: proxy.size.width) { _, width in
+        updateAvailableWidth(width)
+      }
     }
-    .frame(height: AM.Layout.mediaShelfHeight)
+    .frame(height: AM.Layout.mediaShelfHeight(tileWidth: AM.Layout.shelfTileWidth(for: availableWidth)))
+  }
+
+  private func updateAvailableWidth(_ width: CGFloat) {
+    guard width > 0, abs(width - availableWidth) > 0.5 else { return }
+    availableWidth = width
   }
 }
 
@@ -811,25 +1171,17 @@ struct NewSkeletonView: View {
   private func featuredCardSkeleton(width: CGFloat, index: Int) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       VStack(alignment: .leading, spacing: 2) {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderSecondary)
-          .frame(width: index == 0 ? 112 : 128, height: 11)
+        MusicSkeletonLine(width: index == 0 ? 112 : 128, height: 11, tone: .secondary)
 
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
-          .fill(Color.appPlaceholderTertiary)
-          .frame(width: width * (index == 0 ? 0.48 : 0.72), height: 22)
+        MusicSkeletonLine(width: width * (index == 0 ? 0.48 : 0.72), height: 22, tone: .tertiary)
 
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderSecondary)
-          .frame(width: width * (index == 0 ? 0.34 : 0.46), height: 14)
+        MusicSkeletonLine(width: width * (index == 0 ? 0.34 : 0.46), height: 14, tone: .secondary)
       }
 
-      RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-        .fill(Color.appPlaceholderPrimary)
+      MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
         .frame(width: width, height: width * 0.56)
         .overlay(alignment: .bottomLeading) {
-          Circle()
-            .fill(Color.appPlaceholderSecondary)
+          MusicSkeletonBlock(cornerRadius: 17, tone: .secondary, strokeOpacity: 0)
             .frame(width: 34, height: 34)
             .padding(10)
         }
@@ -841,24 +1193,25 @@ struct NewSkeletonView: View {
     GeometryReader { proxy in
       let tileWidth = AM.Layout.shelfTileWidth(for: proxy.size.width)
       VStack(alignment: .leading, spacing: AM.Spacing.m) {
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
-          .fill(Color.appPlaceholderTertiary)
-          .frame(width: titleWidth, height: 18)
+        MusicSkeletonLine(width: titleWidth, height: 18, tone: .tertiary)
           .padding(.horizontal, AM.Spacing.screenMargin)
 
         ScrollView(.horizontal, showsIndicators: false) {
           HStack(alignment: .top, spacing: AM.Spacing.l) {
             ForEach(0..<count, id: \.self) { index in
               VStack(alignment: .leading, spacing: AM.Spacing.s) {
-                RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-                  .fill(Color.appPlaceholderPrimary)
+                MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
                   .frame(width: tileWidth, height: tileWidth)
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                  .fill(Color.appPlaceholderSecondary)
-                  .frame(width: tileWidth * (index.isMultiple(of: 2) ? 0.72 : 0.58), height: 15)
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                  .fill(Color.appPlaceholderPrimary)
-                  .frame(width: tileWidth * (index == 1 ? 0.48 : 0.38), height: 13)
+                MusicSkeletonLine(
+                  width: tileWidth * (index.isMultiple(of: 2) ? 0.72 : 0.58),
+                  height: 15,
+                  tone: .secondary
+                )
+                MusicSkeletonLine(
+                  width: tileWidth * (index == 1 ? 0.48 : 0.38),
+                  height: 13,
+                  tone: .primary
+                )
               }
               .frame(width: tileWidth, alignment: .leading)
             }
@@ -872,9 +1225,7 @@ struct NewSkeletonView: View {
 
   private var listPreviewSkeleton: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.s) {
-      RoundedRectangle(cornerRadius: 4, style: .continuous)
-        .fill(Color.appPlaceholderTertiary)
-        .frame(width: 132, height: 18)
+      MusicSkeletonLine(width: 132, height: 18, tone: .tertiary)
         .padding(.horizontal, AM.Spacing.screenMargin)
 
       VStack(spacing: 0) {
@@ -927,8 +1278,7 @@ struct HomeSkeletonView: View {
           HStack(alignment: .top, spacing: AM.Spacing.l) {
             ForEach(0..<count, id: \.self) { index in
               VStack(alignment: .leading, spacing: AM.Spacing.s) {
-                RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-                  .fill(artworkFill(index: index))
+                MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
                   .frame(width: tileSize, height: tileSize)
                   .overlay {
                     RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
@@ -954,8 +1304,7 @@ struct HomeSkeletonView: View {
         .padding(.horizontal, AM.Spacing.screenMargin)
 
       HStack(spacing: AM.Spacing.m) {
-        RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-          .fill(artworkFill(index: 1))
+        MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
           .frame(width: 92, height: 92)
           .overlay {
             RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
@@ -965,9 +1314,7 @@ struct HomeSkeletonView: View {
         VStack(alignment: .leading, spacing: 8) {
           headerPill(width: 190, height: 18)
           textPill(width: 132, height: 13, tone: .primary)
-          Capsule(style: .continuous)
-            .fill(Color.appPlaceholderSecondary)
-            .frame(width: 118, height: 18)
+          MusicSkeletonLine(width: 118, height: 18, tone: .secondary)
         }
 
         Spacer(minLength: 12)
@@ -982,9 +1329,7 @@ struct HomeSkeletonView: View {
   }
 
   private func headerPill(width: CGFloat, height: CGFloat) -> some View {
-    RoundedRectangle(cornerRadius: 4, style: .continuous)
-      .fill(Color.appPlaceholderTertiary)
-      .frame(width: width, height: height)
+    MusicSkeletonLine(width: width, height: height, tone: .tertiary)
   }
 
   private enum TextPillTone {
@@ -992,22 +1337,10 @@ struct HomeSkeletonView: View {
   }
 
   private func textPill(width: CGFloat, height: CGFloat, tone: TextPillTone = .secondary) -> some View {
-    RoundedRectangle(cornerRadius: 3, style: .continuous)
-      .fill(tone == .secondary ? Color.appPlaceholderSecondary : Color.appPlaceholderPrimary)
-      .frame(width: width, height: height)
-  }
-
-  private func artworkFill(index: Int) -> LinearGradient {
-    LinearGradient(
-      colors: [
-        Color.appPlaceholderSecondary,
-        Color.appPlaceholderPrimary,
-        index.isMultiple(of: 2)
-          ? Color.appPlaceholderSecondary.opacity(0.72)
-          : Color.appPlaceholderTertiary.opacity(0.56),
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
+    MusicSkeletonLine(
+      width: width,
+      height: height,
+      tone: tone == .secondary ? .secondary : .primary
     )
   }
 
@@ -1024,7 +1357,7 @@ struct BrowseSongCollectionView: View {
   // decoding from dominating a fast collection scroll.
   private var showsArtwork: Bool { songs.count <= 200 }
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
@@ -1174,7 +1507,6 @@ struct BrowseSongCollectionView: View {
       }
     } else {
       MusicEmptyState(
-        systemImage: "music.note.list",
         title: "No Songs",
         message: "This collection does not have playable songs yet."
       )

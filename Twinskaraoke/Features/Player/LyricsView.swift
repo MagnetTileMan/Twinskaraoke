@@ -359,21 +359,15 @@ extension LyricsView {
   fileprivate var emptyState: some View {
     if didFail {
       VStack(spacing: 14) {
-        Image(systemName: "exclamationmark.bubble")
-          .font(.system(size: 34, weight: .regular))
-          .foregroundStyle(.primary.opacity(0.6))
-        Text("Couldn't load lyrics")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundStyle(.primary.opacity(0.85))
-        Text("Check your connection and try again.")
-          .font(.system(size: 13))
-          .foregroundStyle(.primary.opacity(0.55))
-          .multilineTextAlignment(.center)
+        MusicEmptyState(
+          title: "Couldn't load lyrics",
+          message: "Check your connection and try again."
+        )
         if let onRetry {
           Button {
             onRetry()
           } label: {
-            Label("Retry", systemImage: "arrow.clockwise")
+            Text("Retry")
               .font(.system(size: 14, weight: .semibold))
               .foregroundStyle(.primary)
               .padding(.horizontal, 22)
@@ -387,14 +381,10 @@ extension LyricsView {
       }
       .padding(.horizontal, 28)
     } else if hasNoLyrics {
-      VStack(spacing: 12) {
-        Image(systemName: "music.quarternote.3")
-          .font(.system(size: 34, weight: .regular))
-          .foregroundStyle(.primary.opacity(0.55))
-        Text("No lyrics for this song")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(.primary.opacity(0.75))
-      }
+      MusicEmptyState(
+        title: "No lyrics for this song",
+        message: "Lyrics will appear here when they are available."
+      )
     } else {
       LyricsLoadingSkeleton()
     }

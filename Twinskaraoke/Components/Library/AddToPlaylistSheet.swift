@@ -127,7 +127,6 @@ struct AddToPlaylistSheet: View {
   private var emptyState: some View {
     VStack(spacing: 18) {
       MusicEmptyState(
-        systemImage: "music.note.list",
         title: "No Playlists",
         message: "Create a playlist first to save this song."
       )

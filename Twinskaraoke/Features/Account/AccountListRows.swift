@@ -156,14 +156,10 @@ struct BadgeIcon: View {
           WebImage(url: url, options: ImageCacheConfig.defaultOptions) { image in
             image.resizable().scaledToFit().padding(4)
           } placeholder: {
-            Image(systemName: "rosette")
-              .font(.system(size: 18))
-              .foregroundStyle(.secondary)
+            MusicCircularPlaceholder()
           }
         } else {
-          Image(systemName: "rosette")
-            .font(.system(size: 18))
-            .foregroundStyle(.secondary)
+          MusicCircularPlaceholder()
         }
       }
       .frame(width: 44, height: 44)

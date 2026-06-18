@@ -5,24 +5,18 @@ struct FavoritesArtworkTile: View {
   var sizeFraction: CGFloat = 0.45
   var body: some View {
     GeometryReader { geo in
+      let side = min(geo.size.width, geo.size.height)
       ZStack {
-        Color.appFavoritesTileBackground
-        Image(systemName: "star.fill")
-          .resizable()
-          .scaledToFit()
-          .frame(
-            width: min(geo.size.width, geo.size.height) * sizeFraction,
-            height: min(geo.size.width, geo.size.height) * sizeFraction
-          )
-          .foregroundStyle(
-            LinearGradient(
-              colors: [
-                Color(red: 1.0, green: 0.18, blue: 0.33),
-                Color(red: 1.0, green: 0.36, blue: 0.55),
-              ],
-              startPoint: .top, endPoint: .bottom
-            )
-          )
+        MusicArtworkPlaceholder(cornerRadius: 0)
+        RoundedRectangle(cornerRadius: max(side * 0.06, 5), style: .continuous)
+          .fill(Color.appPlaceholderSecondary.opacity(0.76))
+          .frame(width: side * sizeFraction, height: side * sizeFraction)
+          .offset(x: -side * 0.10, y: -side * 0.10)
+        VStack(alignment: .leading, spacing: max(side * 0.035, 4)) {
+          MusicSkeletonLine(width: side * 0.32, height: max(side * 0.045, 6), tone: .tertiary)
+          MusicSkeletonLine(width: side * 0.22, height: max(side * 0.035, 5), tone: .primary)
+        }
+        .offset(x: side * 0.20, y: side * 0.20)
       }
       .frame(width: geo.size.width, height: geo.size.height)
     }
@@ -138,47 +132,25 @@ struct PlaylistMosaicArtwork: View {
 struct PlaylistPlaceholderArtwork: View {
   let seed: String
 
-  private var palette: (Color, Color) {
-    PlaylistPlaceholderArtwork.colorPair(for: seed)
-  }
-
   var body: some View {
     GeometryReader { geo in
+      let side = min(geo.size.width, geo.size.height)
       ZStack {
-        LinearGradient(
-          colors: [palette.0, palette.1],
-          startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        Image(systemName: "music.note.list")
-          .resizable()
-          .scaledToFit()
-          .frame(
-            width: min(geo.size.width, geo.size.height) * 0.4,
-            height: min(geo.size.width, geo.size.height) * 0.4
-          )
-          .foregroundStyle(.white.opacity(0.85))
+        MusicArtworkPlaceholder(cornerRadius: 0)
+        RoundedRectangle(cornerRadius: max(side * 0.05, 4), style: .continuous)
+          .fill(Color.appPlaceholderSecondary.opacity(0.72))
+          .frame(width: side * 0.54, height: side * 0.54)
+          .offset(x: -side * 0.12, y: -side * 0.10)
+        VStack(alignment: .leading, spacing: max(side * 0.035, 4)) {
+          MusicSkeletonLine(width: side * 0.34, height: max(side * 0.045, 6), tone: .tertiary)
+          MusicSkeletonLine(width: side * 0.24, height: max(side * 0.035, 5), tone: .primary)
+        }
+        .offset(x: side * 0.18, y: side * 0.21)
       }
       .frame(width: geo.size.width, height: geo.size.height)
     }
   }
 
-  static func colorPair(for seed: String) -> (Color, Color) {
-    let hash = seed.utf8.reduce(0) { acc, byte in
-      (acc &* 31) &+ UInt64(byte)
-    }
-    let hue = Double((hash >> 16) & 0xFF) / 255.0
-    let baseSat: Double = 0.55 + Double((hash >> 8) & 0x3F) / 255.0 * 0.35
-    let topBrightness: Double = 0.50 + Double(hash & 0x3F) / 255.0 * 0.30
-    let bottomBrightness: Double = 0.22 + Double((hash >> 24) & 0x3F) / 255.0 * 0.25
-
-    func hsb(_ h: Double, _ s: Double, _ b: Double) -> Color {
-      Color(hue: h, saturation: s, brightness: b)
-    }
-    return (
-      hsb(hue, baseSat, topBrightness),
-      hsb(hue, baseSat - 0.08, bottomBrightness)
-    )
-  }
 }
 
 extension Playlist {

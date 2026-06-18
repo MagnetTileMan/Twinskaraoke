@@ -11,7 +11,7 @@ struct PlaylistDetailView: View {
   @ObservedObject private var fallbackArt = FallbackArtProvider.shared
   @State private var scrollOffset: CGFloat = 0
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
@@ -277,9 +277,6 @@ private struct PlaylistEmptyStateView: View {
   private var title: String {
     isFavorites ? "No Favorites Yet" : "No Songs"
   }
-  private var icon: String {
-    isFavorites ? "star" : "music.note.list"
-  }
   private var resolvedMessage: String {
     guard !message.hasPrefix("The playlist") else { return message }
     if isFavorites {
@@ -289,18 +286,10 @@ private struct PlaylistEmptyStateView: View {
   }
   var body: some View {
     VStack(spacing: 16) {
-      MusicEmptyState(systemImage: icon, title: title, message: resolvedMessage)
-      Button {
+      MusicEmptyState(title: title, message: resolvedMessage)
+      MusicEmptyActionButton(title: "Refresh") {
         onRefresh()
-      } label: {
-        Label("Refresh", systemImage: "arrow.clockwise")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.appAccent)
-          .padding(.horizontal, 18)
-          .padding(.vertical, 10)
-          .background(Color.appAccent.opacity(0.12), in: Capsule())
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 24)

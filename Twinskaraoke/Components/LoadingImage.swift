@@ -85,7 +85,7 @@ struct LoadingImage: View {
       ]
     ZStack {
       if !transparentBackground {
-        MusicArtworkPlaceholder()
+        MusicArtworkPlaceholder(cornerRadius: cornerRadius)
       }
       if let lowResURL, !fullLoaded {
         WebImage(
@@ -129,20 +129,7 @@ struct LoadingImage: View {
         .transition(.opacity.animation(.easeOut(duration: 0.15)))
       }
 
-      if shouldShowLoading {
-        LoadingIndicator(size: min(size.width, size.height) * 0.5)
-          .transition(.opacity.animation(.easeOut(duration: 0.12)))
-      }
     }
-  }
-
-  private var shouldShowLoading: Bool {
-    showsLoading
-      && lowResURL == nil
-      && url != nil
-      && !fullLoaded
-      && !loadFailed
-      && renderedFullURL != url
   }
 
   private func markRendered(_ loadedURL: URL) {
@@ -172,18 +159,36 @@ struct LoadingImage: View {
     return CGSize(width: min(w, cap.width), height: min(h, cap.height))
   }
 
-  private struct MusicArtworkPlaceholder: View {
-    var body: some View {
-      LinearGradient(
-        colors: [
-          .appPlaceholderSecondary,
-          .appPlaceholderPrimary,
-          .appPlaceholderQuaternary,
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-      )
+}
+
+struct MusicArtworkPlaceholder: View {
+  var cornerRadius: CGFloat = 8
+
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack {
+        LinearGradient(
+          colors: [
+            .appPlaceholderSecondary,
+            .appPlaceholderPrimary,
+            .appPlaceholderQuaternary,
+          ],
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        )
+        LinearGradient(
+          colors: [
+            Color.white.opacity(0.18),
+            Color.clear,
+            Color.black.opacity(0.08),
+          ],
+          startPoint: .top,
+          endPoint: .bottomTrailing
+        )
+      }
+      .frame(width: proxy.size.width, height: proxy.size.height)
     }
+    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
   }
 }
 
@@ -328,32 +333,142 @@ extension View {
   }
 }
 
+enum MusicSkeletonTone {
+  case primary, secondary, tertiary, quaternary
+
+  var color: Color {
+    switch self {
+    case .primary: return .appPlaceholderPrimary
+    case .secondary: return .appPlaceholderSecondary
+    case .tertiary: return .appPlaceholderTertiary
+    case .quaternary: return .appPlaceholderQuaternary
+    }
+  }
+}
+
+struct MusicSkeletonBlock: View {
+  var cornerRadius: CGFloat = 4
+  var tone: MusicSkeletonTone = .primary
+  var strokeOpacity: Double = 0.035
+
+  var body: some View {
+    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+      .fill(tone.color)
+      .overlay {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+          .stroke(Color.primary.opacity(strokeOpacity), lineWidth: 0.6)
+      }
+  }
+}
+
+struct MusicSkeletonLine: View {
+  var width: CGFloat?
+  var height: CGFloat = 13
+  var tone: MusicSkeletonTone = .secondary
+
+  var body: some View {
+    MusicSkeletonBlock(cornerRadius: min(height / 2, 4), tone: tone, strokeOpacity: 0)
+      .frame(width: width, height: height)
+  }
+}
+
 struct MusicEmptyState: View {
-  let systemImage: String
   let title: String
   let message: String
 
+  init(title: String, message: String) {
+    self.title = title
+    self.message = message
+  }
+
   var body: some View {
-    VStack(spacing: 12) {
-      Image(systemName: systemImage)
-        .font(.system(size: 28, weight: .semibold))
-        .foregroundColor(.appAccent)
-        .frame(width: 64, height: 64)
-        .background(Color.appAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-      VStack(spacing: 4) {
+    VStack(spacing: 15) {
+      MusicEmptyStateMark()
+
+      VStack(spacing: 6) {
         Text(title)
-          .font(.system(size: 19, weight: .bold))
+          .font(.system(size: 21, weight: .bold))
           .foregroundColor(.primary)
           .multilineTextAlignment(.center)
         Text(message)
-          .font(.system(size: 14))
+          .font(.system(size: 15))
           .foregroundColor(.secondary)
           .multilineTextAlignment(.center)
           .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
       }
     }
-    .frame(maxWidth: 320)
+    .frame(maxWidth: 340)
     .frame(maxWidth: .infinity)
     .padding(.horizontal, 24)
+    .padding(.vertical, 10)
+  }
+}
+
+struct MusicEmptyActionButton: View {
+  let title: String
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Text(title)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundColor(.primary)
+        .padding(.horizontal, AM.Spacing.xl)
+        .padding(.vertical, 11)
+        .background(Color.appSecondaryBackground, in: Capsule())
+        .overlay {
+          Capsule()
+            .stroke(Color.appDivider, lineWidth: 0.7)
+        }
+    }
+    .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
+  }
+}
+
+struct MusicEmptyStateMark: View {
+  var body: some View {
+    ZStack(alignment: .bottomLeading) {
+      RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .fill(Color.appPlaceholderSecondary)
+        .frame(width: 116, height: 82)
+        .overlay {
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .stroke(Color.appDivider, lineWidth: 0.7)
+        }
+
+      RoundedRectangle(cornerRadius: 6, style: .continuous)
+        .fill(Color.appPlaceholderPrimary)
+        .frame(width: 56, height: 56)
+        .offset(x: 10, y: -13)
+
+      VStack(alignment: .leading, spacing: 6) {
+        MusicSkeletonLine(width: 38, height: 7, tone: .tertiary)
+        MusicSkeletonLine(width: 28, height: 6, tone: .primary)
+      }
+      .offset(x: 75, y: -27)
+    }
+    .frame(width: 132, height: 96)
+    .accessibilityHidden(true)
+  }
+}
+
+struct MusicCircularPlaceholder: View {
+  var body: some View {
+    GeometryReader { proxy in
+      let side = min(proxy.size.width, proxy.size.height)
+      ZStack {
+        Circle()
+          .fill(Color.appPlaceholderSecondary)
+        Circle()
+          .fill(Color.appPlaceholderPrimary)
+          .frame(width: side * 0.48, height: side * 0.48)
+          .offset(x: -side * 0.08, y: -side * 0.08)
+        MusicSkeletonLine(width: side * 0.30, height: max(side * 0.08, 4), tone: .tertiary)
+          .offset(x: side * 0.18, y: side * 0.20)
+      }
+      .frame(width: proxy.size.width, height: proxy.size.height)
+    }
+    .accessibilityHidden(true)
   }
 }

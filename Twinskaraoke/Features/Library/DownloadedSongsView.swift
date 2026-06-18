@@ -248,32 +248,8 @@ private struct DownloadedEmptyStateView: View {
 
   var body: some View {
     VStack(spacing: AM.Spacing.xl) {
-      ZStack {
-        RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
-          .fill(
-            LinearGradient(
-              colors: [
-                Color.appAccent.opacity(0.92),
-                Color(red: 0.12, green: 0.15, blue: 0.22),
-              ],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-          .frame(width: 158, height: 158)
-          .shadow(color: Color.appAccent.opacity(0.28), radius: 18, y: 10)
-
-        Circle()
-          .strokeBorder(.white.opacity(0.22), lineWidth: 1)
-          .frame(width: 92, height: 92)
-          .scaleEffect(isPulsing ? 1.08 : 0.94)
-          .opacity(isPulsing ? 0.55 : 1)
-
-        Image(systemName: "arrow.down.circle.fill")
-          .font(.system(size: 56, weight: .semibold))
-          .foregroundColor(.white)
-          .symbolRenderingMode(.hierarchical)
-      }
+      MusicEmptyStateMark()
+        .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.03 : 0.98))
       .scaleEffect(hasAppeared ? 1 : 0.94)
       .opacity(hasAppeared ? 1 : 0)
 
@@ -291,12 +267,10 @@ private struct DownloadedEmptyStateView: View {
 
       VStack(spacing: AM.Spacing.s) {
         DownloadedEmptyHintRow(
-          systemImage: "ellipsis.circle",
           title: "Open a song menu",
           message: "Use a track's context menu from Home, Search, or Library."
         )
         DownloadedEmptyHintRow(
-          systemImage: "arrow.down",
           title: "Choose Download",
           message: "Downloaded songs stay playable when the network drops."
         )
@@ -305,18 +279,9 @@ private struct DownloadedEmptyStateView: View {
       .opacity(hasAppeared ? 1 : 0)
       .offset(y: hasAppeared ? 0 : 10)
 
-      Button {
+      MusicEmptyActionButton(title: "Refresh") {
         onRefresh()
-      } label: {
-        Label("Refresh", systemImage: "arrow.clockwise")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
-          .padding(.horizontal, AM.Spacing.xl)
-          .padding(.vertical, 11)
-          .background(Color.appAccent, in: Capsule())
-          .shadow(color: Color.appAccent.opacity(0.28), radius: 10, y: 4)
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding(.horizontal, AM.Spacing.screenMargin)
@@ -347,17 +312,14 @@ private struct DownloadedEmptyStateView: View {
 }
 
 private struct DownloadedEmptyHintRow: View {
-  let systemImage: String
   let title: String
   let message: String
 
   var body: some View {
     HStack(spacing: AM.Spacing.m) {
-      Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundColor(.appAccent)
+      RoundedRectangle(cornerRadius: 5, style: .continuous)
+        .fill(Color.appPlaceholderPrimary)
         .frame(width: 30, height: 30)
-        .background(Color.appAccent.opacity(0.12), in: Circle())
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
           .font(.system(size: 14, weight: .semibold))

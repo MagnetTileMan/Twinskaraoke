@@ -97,20 +97,10 @@ struct QueueView: View {
             .padding(.horizontal, 20)
         }
         if upNext.isEmpty {
-          VStack(spacing: 8) {
-            Image(systemName: "music.note.list")
-              .font(.system(size: 32))
-              .foregroundColor(.secondary.opacity(0.55))
-              .symbolRenderingMode(.hierarchical)
-            VStack(spacing: 3) {
-              Text("No songs queued")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.primary)
-              Text("Songs you play next will appear here.")
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
-            }
-          }
+          MusicEmptyState(
+            title: "No songs queued",
+            message: "Songs you play next will appear here."
+          )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .accessibilityElement(children: .combine)
           .accessibilityLabel("No songs queued")

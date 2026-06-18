@@ -33,7 +33,6 @@ struct RandomSongsView: View {
             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
         } else if let message = viewModel.errorMessage, viewModel.songs.isEmpty {
           RandomSongsStateView(
-            systemImage: "wifi.exclamationmark",
             title: "Couldn't Load Songs",
             message: message,
             buttonTitle: "Try Again"
@@ -42,7 +41,6 @@ struct RandomSongsView: View {
           }
         } else if viewModel.songs.isEmpty {
           RandomSongsStateView(
-            systemImage: "shuffle",
             title: "No Random Songs",
             message: "Refresh to roll a new set of karaoke songs.",
             buttonTitle: "Refresh"
@@ -236,20 +234,7 @@ struct RandomSongsView: View {
   }
 
   private var mosaicPlaceholder: some View {
-    LinearGradient(
-      colors: [
-        Color.appPlaceholderSecondary,
-        Color.appPlaceholderPrimary,
-        Color.appPlaceholderQuaternary,
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
-    .overlay {
-      Image(systemName: "shuffle")
-        .font(.system(size: 58, weight: .semibold))
-        .foregroundColor(.appAccent.opacity(0.9))
-    }
+    MusicArtworkPlaceholder(cornerRadius: 0)
   }
 
   private func artworkURL(at index: Int) -> URL? {
@@ -284,7 +269,6 @@ private struct RandomSongRow: View {
 }
 
 private struct RandomSongsStateView: View {
-  let systemImage: String
   let title: String
   let message: String
   let buttonTitle: String
@@ -303,28 +287,8 @@ private struct RandomSongsStateView: View {
 
   var body: some View {
     VStack(spacing: AM.Spacing.xl) {
-      ZStack {
-        Circle()
-          .fill(Color.appAccent.opacity(isPulsing ? 0.16 : 0.08))
-          .frame(width: 118, height: 118)
-          .scaleEffect(isPulsing ? 1.08 : 0.96)
-        Circle()
-          .fill(
-            LinearGradient(
-              colors: [
-                Color.appAccent.opacity(0.94),
-                Color(red: 0.18, green: 0.10, blue: 0.28),
-              ],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-          .frame(width: 86, height: 86)
-        Image(systemName: systemImage)
-          .font(.system(size: 34, weight: .semibold))
-          .foregroundColor(.white)
-          .symbolRenderingMode(.hierarchical)
-      }
+      MusicEmptyStateMark()
+        .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.03 : 0.98))
       .scaleEffect(hasAppeared ? 1 : 0.94)
       .opacity(hasAppeared ? 1 : 0)
 
@@ -341,28 +305,17 @@ private struct RandomSongsStateView: View {
       }
       .frame(maxWidth: 340)
 
-      Button {
+      MusicEmptyActionButton(title: buttonTitle) {
         AppHaptic.selection.play()
         onRefresh()
-      } label: {
-        Label(buttonTitle, systemImage: "arrow.triangle.2.circlepath")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
-          .padding(.horizontal, AM.Spacing.xl)
-          .padding(.vertical, 11)
-          .background(Color.appAccent, in: Capsule())
-          .shadow(color: Color.appAccent.opacity(0.28), radius: 10, y: 4)
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
 
       VStack(spacing: AM.Spacing.s) {
         RandomSongsHintRow(
-          systemImage: "shuffle",
           title: "Fresh set",
           message: "Refresh anytime for a different karaoke mix."
         )
         RandomSongsHintRow(
-          systemImage: "ellipsis.circle",
           title: "Use song menus",
           message: "Favorite, queue, or download tracks from each result."
         )
@@ -405,17 +358,14 @@ private struct RandomSongsStateView: View {
 }
 
 private struct RandomSongsHintRow: View {
-  let systemImage: String
   let title: String
   let message: String
 
   var body: some View {
     HStack(spacing: AM.Spacing.m) {
-      Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundColor(.appAccent)
+      RoundedRectangle(cornerRadius: 5, style: .continuous)
+        .fill(Color.appPlaceholderPrimary)
         .frame(width: 30, height: 30)
-        .background(Color.appAccent.opacity(0.12), in: Circle())
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
           .font(.system(size: 14, weight: .semibold))
@@ -464,7 +414,7 @@ private struct RandomSongsActionsMenu: View {
     }
 
     if songs.isEmpty {
-      Label("No Songs", systemImage: "music.note.list")
+      Text("No Songs")
     } else {
       Divider()
 

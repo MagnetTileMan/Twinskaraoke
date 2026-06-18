@@ -114,7 +114,7 @@ private struct PopupHostView: View {
   }
 
   private var usesSidebarShell: Bool {
-    guard horizontalSizeClass == .regular else { return false }
+    guard AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) else { return false }
     #if canImport(UIKit)
       let idiom = UIDevice.current.userInterfaceIdiom
       return idiom == .pad || idiom == .mac
@@ -159,9 +159,13 @@ private struct PopupHostView: View {
       }
       .listStyle(.sidebar)
       .navigationTitle("Twinskaraoke")
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        SidebarNowPlayingHint()
+      }
     } detail: {
       currentSection.content
         .id(currentSection)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(shellTransition)
     }
     .navigationSplitViewStyle(.balanced)
@@ -335,6 +339,62 @@ private struct SidebarSectionRow: View {
     .padding(.vertical, 2)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(section.title)
+  }
+}
+
+private struct SidebarNowPlayingHint: View {
+  @ObservedObject private var popupState = PopupPlaybackState.shared
+
+  var body: some View {
+    Group {
+      if popupState.hasCurrentSong {
+        HStack(spacing: 10) {
+          artwork
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Now Playing")
+              .font(.system(size: 11, weight: .semibold))
+              .foregroundStyle(.secondary)
+              .textCase(.uppercase)
+            Text(popupState.title)
+              .font(.system(size: 13, weight: .semibold))
+              .foregroundStyle(.primary)
+              .lineLimit(1)
+            if !popupState.subtitle.isEmpty {
+              Text(popupState.subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+          }
+          Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.bar)
+        .overlay(alignment: .top) {
+          Rectangle()
+            .fill(Color.appDivider)
+            .frame(height: 0.5)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Now Playing")
+        .accessibilityValue(popupState.subtitle.isEmpty ? popupState.title : "\(popupState.title), \(popupState.subtitle)")
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var artwork: some View {
+    if let artwork = popupState.artwork {
+      Image(uiImage: artwork)
+        .resizable()
+        .scaledToFill()
+        .frame(width: 38, height: 38)
+        .clipShape(RoundedRectangle(cornerRadius: AM.Radius.thumb, style: .continuous))
+    } else {
+      MusicArtworkPlaceholder(cornerRadius: AM.Radius.thumb)
+        .frame(width: 38, height: 38)
+    }
   }
 }
 

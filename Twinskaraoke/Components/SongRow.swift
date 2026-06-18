@@ -96,14 +96,8 @@ struct SongRow: View {
           .frame(width: size.artSize, height: size.artSize)
           .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous))
         } else {
-          RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
-            .fill(Color(.tertiarySystemFill))
+          MusicArtworkPlaceholder(cornerRadius: size.cornerRadius)
             .frame(width: size.artSize, height: size.artSize)
-            .overlay {
-              Image(systemName: "music.note")
-                .font(.system(size: size.indicatorSize, weight: .semibold))
-                .foregroundStyle(.secondary)
-            }
         }
         if isCurrentSong {
           RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
@@ -207,27 +201,19 @@ struct SongRowSkeleton: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
-        .fill(Color.appPlaceholderPrimary)
+      MusicArtworkPlaceholder(cornerRadius: size.cornerRadius)
         .frame(width: size.artSize, height: size.artSize)
 
       VStack(alignment: .leading, spacing: 2) {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderSecondary)
-          .frame(width: titleWidth, height: titleHeight)
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
-          .frame(width: subtitleWidth, height: subtitleHeight)
+        MusicSkeletonLine(width: titleWidth, height: titleHeight, tone: .secondary)
+        MusicSkeletonLine(width: subtitleWidth, height: subtitleHeight, tone: .primary)
       }
 
       Spacer(minLength: 12)
 
-      RoundedRectangle(cornerRadius: 3, style: .continuous)
-        .fill(Color.appPlaceholderPrimary)
-        .frame(width: 38, height: 13)
+      MusicSkeletonLine(width: 38, height: 13, tone: .primary)
 
-      Circle()
-        .fill(Color.appPlaceholderPrimary)
+      MusicSkeletonBlock(cornerRadius: 16, tone: .primary, strokeOpacity: 0)
         .frame(width: 32, height: 32)
     }
     .padding(.vertical, size == .regular ? 5 : 3)
@@ -368,16 +354,7 @@ struct MusicGridCard: View {
         fixedDisplaySize: width.map { CGSize(width: $0, height: $0) }
       )
     } else {
-      RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-        .fill(Color.appPlaceholderPrimary)
-        .overlay {
-          GeometryReader { proxy in
-            Image(systemName: "music.note")
-              .font(.system(size: min(proxy.size.width, proxy.size.height) * 0.36, weight: .regular))
-              .foregroundStyle(.secondary.opacity(0.7))
-              .frame(width: proxy.size.width, height: proxy.size.height)
-          }
-        }
+      MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
     }
   }
 }

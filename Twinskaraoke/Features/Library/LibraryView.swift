@@ -106,7 +106,7 @@ struct LibraryView: View {
   }
 
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
 
   private var reduceMotion: Bool {
@@ -188,22 +188,46 @@ struct LibraryView: View {
 
   private func wideLibraryOverview(recentlyAddedSongs: [Song]) -> some View {
     VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+      if let featuredPlaylist = featuredWidePlaylist {
+        WideLibraryHero(
+          playlist: featuredPlaylist,
+          songs: featuredPlaylist.songListDTOs ?? viewModel.favoriteSongs
+        )
+      }
+
       HStack(alignment: .top, spacing: AM.Spacing.xxl) {
         VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
-          libraryPrimaryLinksContent
+          LibraryOverviewGroup(title: "Library") {
+            libraryPrimaryLinksContent
+          }
         }
-        .frame(minWidth: 300, idealWidth: 360, maxWidth: 400)
+        .frame(
+          minWidth: AM.Layout.wideInspectorWidth,
+          idealWidth: AM.Layout.wideInspectorWidth,
+          maxWidth: 400
+        )
 
         if !recentlyAddedSongs.isEmpty {
           RecentlyAddedSection(songs: recentlyAddedSongs, horizontalPadding: 0, headerHorizontalPadding: 0)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
       }
-      .frame(maxWidth: 1120, alignment: .topLeading)
+      .frame(maxWidth: AM.Layout.wideContentMaxWidth, alignment: .topLeading)
       .padding(.horizontal, AM.Spacing.screenMargin)
       .accessibilityIdentifier("Library.WideOverview")
     }
     .frame(maxWidth: .infinity, alignment: .top)
+  }
+
+  private var featuredWidePlaylist: Playlist? {
+    let all = viewModel.allPlaylists(saved: savedStore.playlists)
+    if let favoritesPlaylist = all.first(where: { $0.isFavorites }) {
+      return favoritesPlaylist
+    }
+    if let saved = savedStore.playlists.first {
+      return saved
+    }
+    return all.first
   }
 
   private var libraryPrimaryLinks: some View {
@@ -352,6 +376,84 @@ private struct LibraryOverviewGroup<Content: View>: View {
       content
         .padding(.horizontal, 0)
     }
+  }
+}
+
+private struct WideLibraryHero: View {
+  let playlist: Playlist
+  let songs: [Song]
+
+  var body: some View {
+    HStack(alignment: .center, spacing: AM.Spacing.xxl) {
+      PlaylistArtwork(playlist: playlist, cornerRadius: AM.Radius.hero)
+        .frame(width: 220, height: 220)
+        .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
+        .amShadow(AM.Shadow.heroPlaying)
+
+      VStack(alignment: .leading, spacing: AM.Spacing.l) {
+        VStack(alignment: .leading, spacing: 5) {
+          Text(playlist.isFavorites ? "Favorite Songs" : "Featured Playlist")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+          Text(playlist.name)
+            .font(.system(size: 34, weight: .bold))
+            .foregroundStyle(.primary)
+            .lineLimit(2)
+            .minimumScaleFactor(0.74)
+          PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(.secondary)
+        }
+
+        HStack(spacing: AM.Spacing.m) {
+          Button {
+            if let first = playableSongs.first {
+              AppHaptic.selection.play()
+              AudioPlayerManager.shared.playInOrder(song: first, context: playableSongs)
+            }
+          } label: {
+            LibraryActionButtonLabel(symbol: "play.fill", text: "Play", style: .primary)
+          }
+          .disabled(playableSongs.isEmpty)
+          .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.82))
+
+          Button {
+            AppHaptic.selection.play()
+            AudioPlayerManager.shared.playShuffled(from: playableSongs)
+          } label: {
+            LibraryActionButtonLabel(symbol: "shuffle", text: "Shuffle")
+          }
+          .disabled(playableSongs.isEmpty)
+          .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.82))
+
+          NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
+            Image(systemName: "chevron.right")
+              .font(.system(size: 16, weight: .bold))
+              .foregroundStyle(Color.appAccent)
+              .frame(width: 46, height: 46)
+              .background(Color.appControlInactiveFill, in: Circle())
+          }
+          .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
+          .accessibilityLabel("Open \(playlist.name)")
+          .accessibilityHint("Shows playlist details.")
+        }
+      }
+      .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(AM.Spacing.xl)
+    .background(Color.appSecondaryBackground, in: RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
+        .strokeBorder(Color.appDivider.opacity(0.7), lineWidth: 0.7)
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("Library.WideHero")
+  }
+
+  private var playableSongs: [Song] {
+    let direct = playlist.songListDTOs ?? []
+    return direct.isEmpty ? songs : direct
   }
 }
 
@@ -682,7 +784,6 @@ struct LibrarySongsView: View {
 
   private func emptyState(isSearching: Bool) -> some View {
     MusicEmptyState(
-      systemImage: "music.note",
       title: isSearching ? "No Results" : "No Songs",
       message: isSearching
         ? "Try another song or artist."
@@ -966,7 +1067,6 @@ struct LibraryCollectionListView: View {
 
   private var emptyState: some View {
     MusicEmptyState(
-      systemImage: kind.symbol,
       title: kind.emptyTitle,
       message: searchText.isEmpty
         ? "Songs you load from Twins Karaoke will appear here."
@@ -978,21 +1078,14 @@ struct LibraryCollectionListView: View {
   private var collectionSkeletonRows: some View {
     ForEach(0..<10, id: \.self) { _ in
       HStack(spacing: 12) {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
+        MusicArtworkPlaceholder(cornerRadius: 8)
           .frame(width: 56, height: 56)
         VStack(alignment: .leading, spacing: 3) {
-          RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Color.appPlaceholderSecondary)
-            .frame(width: 160, height: 16)
-          RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Color.appPlaceholderPrimary)
-            .frame(width: 88, height: 13)
+          MusicSkeletonLine(width: 160, height: 16, tone: .secondary)
+          MusicSkeletonLine(width: 88, height: 13, tone: .primary)
         }
         Spacer(minLength: 12)
-        RoundedRectangle(cornerRadius: 2, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
-          .frame(width: 7, height: 14)
+        MusicSkeletonLine(width: 7, height: 14, tone: .primary)
       }
       .frame(height: 64)
       .padding(.vertical, 4)
@@ -1193,7 +1286,6 @@ private struct LibraryCollectionEmptyStateView: View {
 
   var body: some View {
     MusicEmptyState(
-      systemImage: kind.symbol,
       title: kind.emptyTitle,
       message: "Songs you load from Twins Karaoke will appear here."
     )
@@ -1220,7 +1312,7 @@ private struct LibraryCollectionActionsMenu: View {
 
   var body: some View {
     if collection.songs.isEmpty {
-      Label("No Songs", systemImage: "music.note.list")
+      Text("No Songs")
     } else {
       Button {
         AppHaptic.selection.play()
@@ -1456,7 +1548,6 @@ struct PlaylistsGridScreen: View {
           PlaylistsSkeletonView(cols: cols)
         } else if displayed.isEmpty {
           MusicEmptyState(
-            systemImage: "music.note.list",
             title: searchText.isEmpty ? "No Playlists" : "No Results",
             message: searchText.isEmpty
               ? "Playlists you add will appear here."
@@ -1614,16 +1705,11 @@ struct PlaylistsSkeletonView: View {
     LazyVGrid(columns: cols, spacing: 16) {
       ForEach(0..<8, id: \.self) { index in
         VStack(alignment: .leading, spacing: AM.Spacing.s) {
-          RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-            .fill(Color.appPlaceholderPrimary)
+          MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
             .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
-          RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Color.appPlaceholderSecondary)
-            .frame(width: index % 3 == 0 ? 108 : 138, height: 15)
-          RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(Color.appPlaceholderPrimary)
-            .frame(width: 72, height: 13)
+          MusicSkeletonLine(width: index % 3 == 0 ? 108 : 138, height: 15, tone: .secondary)
+          MusicSkeletonLine(width: 72, height: 13, tone: .primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }

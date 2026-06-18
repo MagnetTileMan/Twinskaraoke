@@ -140,7 +140,7 @@ struct RadioView: View {
   }
 
   private var usesWideOverview: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
 
   @ViewBuilder
@@ -158,6 +158,8 @@ struct RadioView: View {
       stationCard(horizontalPadding: 0)
         .padding(.horizontal, AM.Spacing.screenMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
+      hostedStationsSection()
+      featuredShowsSection()
       if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
         historySection(history: history)
       }
@@ -173,14 +175,21 @@ struct RadioView: View {
           .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
 
         VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
+          hostedStationsSection(horizontalPadding: 0)
+          featuredShowsSection(horizontalPadding: 0)
           if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
             historySection(history: history, horizontalPadding: 0)
           }
         }
-        .frame(minWidth: 300, idealWidth: 360, maxWidth: 420, alignment: .topLeading)
+        .frame(
+          minWidth: AM.Layout.wideInspectorWidth,
+          idealWidth: AM.Layout.wideInspectorWidth,
+          maxWidth: 420,
+          alignment: .topLeading
+        )
       }
     }
-    .frame(maxWidth: 1120, alignment: .topLeading)
+    .frame(maxWidth: AM.Layout.wideContentMaxWidth, alignment: .topLeading)
     .frame(maxWidth: .infinity, alignment: .top)
     .padding(.horizontal, AM.Spacing.screenMargin)
     .accessibilityElement(children: .contain)
@@ -394,15 +403,7 @@ struct RadioView: View {
   }
   @ViewBuilder
   private var artPlaceholder: some View {
-    LinearGradient(
-      colors: [Color.appAccent, Color.purple],
-      startPoint: .topLeading, endPoint: .bottomTrailing
-    )
-    .overlay(
-      Image(systemName: "dot.radiowaves.left.and.right")
-        .font(.system(size: 64, weight: .medium))
-        .foregroundColor(.white.opacity(0.85))
-    )
+    MusicArtworkPlaceholder(cornerRadius: 0)
   }
   private func historySection(
     history: [RadioNowPlaying.HistoryItem],
@@ -613,9 +614,6 @@ private struct RadioRefreshBanner: View {
 
   var body: some View {
     HStack(spacing: 10) {
-      Image(systemName: "exclamationmark.triangle.fill")
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundColor(.appAccent)
       Text(message)
         .font(.system(size: 13, weight: .medium))
         .foregroundColor(.primary)
@@ -624,11 +622,16 @@ private struct RadioRefreshBanner: View {
       Button {
         onRetry()
       } label: {
-        Image(systemName: "arrow.clockwise")
-          .font(.system(size: 13, weight: .bold))
-          .foregroundColor(.appAccent)
-          .frame(width: 30, height: 30)
-          .background(Color.appAccent.opacity(0.12), in: Circle())
+        Text("Retry")
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundColor(.primary)
+          .padding(.horizontal, 12)
+          .frame(height: 30)
+          .background(Color.appSecondaryBackground, in: Capsule())
+          .overlay {
+            Capsule()
+              .stroke(Color.appDivider, lineWidth: 0.6)
+          }
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.7))
       .accessibilityLabel("Retry")
@@ -651,29 +654,12 @@ private struct RadioUnavailableView: View {
   var body: some View {
     VStack(spacing: 18) {
       MusicEmptyState(
-        systemImage: "dot.radiowaves.left.and.right",
         title: "Radio Unavailable",
         message: message
       )
-      Button {
+      MusicEmptyActionButton(title: isRefreshing ? "Refreshing" : "Try Again") {
         onRetry()
-      } label: {
-        HStack(spacing: 8) {
-          if isRefreshing {
-            LoadingIndicator(size: 18)
-          } else {
-            Image(systemName: "arrow.clockwise")
-              .font(.system(size: 15, weight: .semibold))
-          }
-          Text(isRefreshing ? "Refreshing" : "Try Again")
-            .font(.system(size: 15, weight: .semibold))
-        }
-        .foregroundColor(.appControlActiveForeground)
-        .padding(.horizontal, 18)
-        .frame(height: 42)
-        .background(Color.appControlActiveFill, in: Capsule())
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78))
       .disabled(isRefreshing)
       .accessibilityLabel(isRefreshing ? "Refreshing radio metadata" : "Try again")
       .accessibilityHint("Refreshes the live radio station metadata.")
@@ -693,16 +679,7 @@ private struct RadioStationContextPreview: View {
         if let artworkURL {
           LoadingImage(url: artworkURL, cornerRadius: 10)
         } else {
-          LinearGradient(
-            colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-          )
-          .overlay {
-            Image(systemName: "dot.radiowaves.left.and.right")
-              .font(.system(size: 58, weight: .semibold))
-              .foregroundColor(.white.opacity(0.9))
-          }
+          MusicArtworkPlaceholder(cornerRadius: 10)
         }
       }
       .frame(width: 220, height: 220)

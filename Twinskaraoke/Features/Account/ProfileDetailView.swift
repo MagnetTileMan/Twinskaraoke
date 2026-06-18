@@ -47,7 +47,6 @@ struct ProfileDetailView: View {
         }
         if unlocked.isEmpty && locked.isEmpty {
           MusicEmptyState(
-            systemImage: "rosette",
             title: "No Badges Yet",
             message: "Sing more songs to start unlocking profile badges."
           )
@@ -175,10 +174,14 @@ private struct ProfileAvatar: View {
   }
   private var fallback: some View {
     ZStack {
-      ProfileTheme.radialGradient
-      Text(String(displayName.prefix(1).uppercased()))
-        .font(.system(size: size * 0.42, weight: .bold))
-        .foregroundStyle(.white)
+      Circle().fill(Color.appPlaceholderSecondary)
+      if let first = displayName.first {
+        Text(String(first).uppercased())
+          .font(.system(size: size * 0.42, weight: .bold))
+          .foregroundStyle(.secondary)
+      } else {
+        MusicCircularPlaceholder()
+      }
     }
   }
 }
@@ -448,9 +451,7 @@ private struct BadgeMiniIcon: View {
   }
 
   private var placeholder: some View {
-    Image(systemName: "rosette")
-      .font(.system(size: 18))
-      .foregroundStyle(.secondary)
+    MusicCircularPlaceholder()
   }
 }
 
@@ -523,14 +524,10 @@ struct BadgeGridCell: View {
               .saturation(badge.unlocked ? 1 : 0)
               .opacity(badge.unlocked ? 1 : 0.4)
           } placeholder: {
-            Image(systemName: "rosette")
-              .font(.system(size: 22))
-              .foregroundStyle(.secondary)
+            MusicCircularPlaceholder()
           }
         } else {
-          Image(systemName: "rosette")
-            .font(.system(size: 22))
-            .foregroundStyle(.secondary)
+          MusicCircularPlaceholder()
         }
       }
       .frame(width: 64, height: 64)
@@ -656,9 +653,7 @@ private struct BadgeDetailIcon: View {
     .shadow(color: ProfileTheme.rarityColor(badge.rarity).opacity(0.22), radius: 16, y: 8)
   }
   private var placeholder: some View {
-    Image(systemName: "rosette")
-      .font(.system(size: 40))
-      .foregroundStyle(.secondary)
+    MusicCircularPlaceholder()
   }
 }
 

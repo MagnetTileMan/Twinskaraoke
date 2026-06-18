@@ -23,7 +23,7 @@ struct SearchView: View {
   }
 
   private var resultsMaxWidth: CGFloat {
-    horizontalSizeClass == .regular ? 780 : .infinity
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) ? 780 : .infinity
   }
 
   var body: some View {
@@ -216,11 +216,11 @@ private struct BrowseCategoriesView: View {
     ),
   ]
   private var usesWideHighlights: Bool {
-    horizontalSizeClass == .regular
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
   }
 
   private var contentMaxWidth: CGFloat {
-    horizontalSizeClass == .regular ? 1120 : .infinity
+    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) ? AM.Layout.wideContentMaxWidth : .infinity
   }
 
   private var sectionHorizontalPadding: CGFloat {
@@ -258,11 +258,11 @@ private struct BrowseCategoriesView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
         if usesWideHighlights {
-          wideHighlightsSection
+          wideBrowseBoard
         } else {
           featuredSection
+          genresSection
         }
-        genresSection
       }
       .frame(maxWidth: contentMaxWidth, alignment: .leading)
       .frame(maxWidth: .infinity)
@@ -294,6 +294,29 @@ private struct BrowseCategoriesView: View {
     .accessibilityIdentifier("SearchBrowse.WideHighlights")
   }
 
+  private var wideBrowseBoard: some View {
+    HStack(alignment: .top, spacing: AM.Spacing.xxl) {
+      VStack(alignment: .leading, spacing: AM.Spacing.l) {
+        Text("Featured")
+          .font(AM.Font.sectionHeader)
+          .foregroundStyle(.primary)
+        featuredGrid(horizontalPadding: 0)
+      }
+      .frame(width: 390, alignment: .topLeading)
+
+      VStack(alignment: .leading, spacing: AM.Spacing.l) {
+        Text("Genres")
+          .font(AM.Font.sectionHeader)
+          .foregroundStyle(.primary)
+        genresGridContent
+      }
+      .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+    }
+    .padding(.horizontal, sectionHorizontalPadding)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("SearchBrowse.WideHighlights")
+  }
+
   private var featuredSection: some View {
     featuredSectionContent
   }
@@ -307,6 +330,10 @@ private struct BrowseCategoriesView: View {
   }
 
   private var featuredGrid: some View {
+    featuredGrid(horizontalPadding: sectionHorizontalPadding)
+  }
+
+  private func featuredGrid(horizontalPadding: CGFloat) -> some View {
     LazyVGrid(columns: featuredColumns, spacing: AM.Spacing.m) {
       NavigationLink(
         destination: TopChartCollectionView(viewModel: topChartVM)
@@ -347,57 +374,60 @@ private struct BrowseCategoriesView: View {
       .accessibilityValue("\(publicPlaylistsVM.playlists.count) playlists")
       .accessibilityHint("Opens public karaoke playlists")
     }
-    .padding(.horizontal, sectionHorizontalPadding)
+    .padding(.horizontal, horizontalPadding)
   }
 
   private var genresSection: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.m) {
       AMSectionHeader("Genres")
-      if genresVM.isLoading && genresVM.genres.isEmpty {
-        LazyVGrid(columns: categoryColumns, spacing: AM.Spacing.m) {
-          ForEach(0..<6, id: \.self) { _ in
-            CategoryTileSkeleton()
-          }
-        }
+      genresGridContent
         .padding(.horizontal, sectionHorizontalPadding)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-      } else if genresVM.genres.isEmpty {
-        MusicEmptyState(
-          systemImage: "square.grid.2x2",
-          title: "Genres Unavailable",
-          message: "Pull down to refresh browse categories."
-        )
-        .padding(.top, AM.Spacing.s)
-        .transition(.opacity)
-      } else {
-        LazyVGrid(columns: categoryColumns, spacing: AM.Spacing.m) {
-          ForEach(genresVM.genres) { genre in
-            let palette = paletteForGenre(genre.name)
-            NavigationLink(
-              destination: GenreDetailView(genre: genre, viewModel: genresVM, palette: palette)
-            ) {
-              CategoryTile(
-                title: genre.name,
-                gradient: palette,
-                artworkURL: genresVM.artworkURLs[genre.id]
-              )
-            }
-            .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.78, haptic: .selection))
-            .accessibilityLabel(genre.name)
-            .accessibilityIdentifier("SearchCategory.\(genre.name.accessibilitySlug)")
-            .accessibilityValue("\(genre.songCount) songs")
-            .accessibilityHint("Opens \(genre.name) songs")
-            .onAppear { genresVM.loadMoreIfNeeded(current: genre) }
-          }
-        }
-        .padding(.horizontal, sectionHorizontalPadding)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-      }
       if genresVM.isLoadingMore {
         LoadingIndicator(size: 32)
           .frame(maxWidth: .infinity)
           .padding(.vertical, AM.Spacing.m)
       }
+    }
+  }
+
+  @ViewBuilder
+  private var genresGridContent: some View {
+    if genresVM.isLoading && genresVM.genres.isEmpty {
+      LazyVGrid(columns: categoryColumns, spacing: AM.Spacing.m) {
+        ForEach(0..<6, id: \.self) { _ in
+          CategoryTileSkeleton()
+        }
+      }
+      .transition(.opacity.combined(with: .move(edge: .bottom)))
+    } else if genresVM.genres.isEmpty {
+      MusicEmptyState(
+        title: "Genres Unavailable",
+        message: "Pull down to refresh browse categories."
+      )
+      .padding(.top, AM.Spacing.s)
+      .transition(.opacity)
+    } else {
+      LazyVGrid(columns: categoryColumns, spacing: AM.Spacing.m) {
+        ForEach(genresVM.genres) { genre in
+          let palette = paletteForGenre(genre.name)
+          NavigationLink(
+            destination: GenreDetailView(genre: genre, viewModel: genresVM, palette: palette)
+          ) {
+            CategoryTile(
+              title: genre.name,
+              gradient: palette,
+              artworkURL: genresVM.artworkURLs[genre.id]
+            )
+          }
+          .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.78, haptic: .selection))
+          .accessibilityLabel(genre.name)
+          .accessibilityIdentifier("SearchCategory.\(genre.name.accessibilitySlug)")
+          .accessibilityValue("\(genre.songCount) songs")
+          .accessibilityHint("Opens \(genre.name) songs")
+          .onAppear { genresVM.loadMoreIfNeeded(current: genre) }
+        }
+      }
+      .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
   }
 
@@ -507,12 +537,8 @@ private struct GenreDetailLoadingView: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 18) {
-        RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
+        MusicArtworkPlaceholder(cornerRadius: AM.Radius.hero)
           .frame(width: 240, height: 240)
-          .overlay {
-            LoadingIndicator(size: 34)
-          }
           .amShadow(AM.Shadow.heroIdle)
           .padding(.top, 8)
 
@@ -628,11 +654,9 @@ private struct SearchErrorStateView: View {
 
   var body: some View {
     SearchRecoveryStateView(
-      systemImage: "wifi.exclamationmark",
       title: "Search Unavailable",
       message: message,
       actionTitle: "Try Again",
-      actionIcon: "arrow.clockwise",
       hints: [
         ("Network", "Check Wi-Fi or cellular data"),
         ("Backend", "The karaoke catalog may need a moment"),
@@ -646,16 +670,11 @@ private struct SearchErrorStateView: View {
 
 private struct SearchNoResultsStateView: View {
   let query: String
-  private let suggestions = [
-    ("Hits", "sparkles"),
-    ("New Releases", "calendar"),
-    ("K-Pop", "music.mic"),
-    ("Romance", "heart"),
-  ]
+  private let suggestions = ["Hits", "New Releases", "K-Pop", "Romance"]
 
   var body: some View {
     VStack(spacing: AM.Spacing.xl) {
-      SearchStateGlyph(systemImage: "magnifyingglass")
+      SearchStateGlyph()
       VStack(spacing: AM.Spacing.s) {
         Text("No Results")
           .font(.system(size: 22, weight: .bold))
@@ -677,14 +696,14 @@ private struct SearchNoResultsStateView: View {
           columns: AM.Layout.adaptiveGridColumns(minimum: 132, spacing: AM.Spacing.s),
           spacing: AM.Spacing.s
         ) {
-          ForEach(suggestions, id: \.0) { suggestion in
+          ForEach(suggestions, id: \.self) { suggestion in
             NavigationLink(
               destination: SearchCategorySongCollectionView(
-                title: suggestion.0,
-                query: suggestion.0
+                title: suggestion,
+                query: suggestion
               )
             ) {
-              Label(suggestion.0, systemImage: suggestion.1)
+              Text(suggestion)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.primary)
                 .lineLimit(1)
@@ -709,11 +728,9 @@ private struct SearchNoResultsStateView: View {
 }
 
 private struct SearchRecoveryStateView: View {
-  let systemImage: String
   let title: String
   let message: String
   let actionTitle: String
-  let actionIcon: String
   let hints: [(String, String)]
   let onAction: () -> Void
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -733,7 +750,7 @@ private struct SearchRecoveryStateView: View {
 
   var body: some View {
     VStack(spacing: AM.Spacing.xl) {
-      SearchStateGlyph(systemImage: systemImage)
+      SearchStateGlyph()
         .scaleEffect(hasAppeared ? 1 : 0.94)
         .opacity(hasAppeared ? 1 : 0)
 
@@ -750,25 +767,16 @@ private struct SearchRecoveryStateView: View {
       }
       .frame(maxWidth: 330)
 
-      Button {
+      MusicEmptyActionButton(title: actionTitle) {
         AppHaptic.selection.play()
         onAction()
-      } label: {
-        Label(actionTitle, systemImage: actionIcon)
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
-          .padding(.horizontal, AM.Spacing.xl)
-          .padding(.vertical, 11)
-          .background(Color.appAccent, in: Capsule())
-          .shadow(color: Color.appAccent.opacity(0.28), radius: 10, y: 4)
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
 
       VStack(spacing: AM.Spacing.s) {
         ForEach(hints, id: \.0) { hint in
           HStack(spacing: AM.Spacing.s) {
             Circle()
-              .fill(Color.appAccent.opacity(0.22))
+              .fill(Color.appPlaceholderSecondary)
               .frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 2) {
               Text(hint.0)
@@ -800,7 +808,6 @@ private struct SearchRecoveryStateView: View {
 }
 
 private struct SearchStateGlyph: View {
-  let systemImage: String
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var isPulsing = false
@@ -813,18 +820,8 @@ private struct SearchStateGlyph: View {
   }
 
   var body: some View {
-    ZStack {
-      Circle()
-        .fill(Color.appAccent.opacity(isPulsing ? 0.16 : 0.08))
-        .frame(width: 104, height: 104)
-        .scaleEffect(isPulsing ? 1.08 : 0.96)
-      Circle()
-        .fill(Color.appAccent.opacity(0.12))
-        .frame(width: 76, height: 76)
-      Image(systemName: systemImage)
-        .font(.system(size: 31, weight: .semibold))
-        .foregroundColor(.appAccent)
-    }
+    MusicEmptyStateMark()
+      .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.03 : 0.98))
     .onAppear {
       guard !reduceMotion else {
         isPulsing = false
@@ -854,12 +851,8 @@ private struct SearchCategoryLoadingView: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 18) {
-        RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
-          .fill(Color.appPlaceholderPrimary)
+        MusicArtworkPlaceholder(cornerRadius: AM.Radius.hero)
           .frame(width: 240, height: 240)
-          .overlay {
-            LoadingIndicator(size: 34)
-          }
           .amShadow(AM.Shadow.heroIdle)
           .padding(.top, 8)
 
@@ -895,11 +888,9 @@ private struct SearchCategoryEmptyView: View {
   let onRetry: () -> Void
   var body: some View {
     SearchRecoveryStateView(
-      systemImage: "music.note.list",
       title: "No Songs",
       message: message,
       actionTitle: "Refresh",
-      actionIcon: "arrow.clockwise",
       hints: [
         ("Category", "Try a broader style or mood"),
         ("Catalog", "New songs appear as the library updates"),

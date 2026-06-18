@@ -222,14 +222,13 @@ private struct ArtistArtworkEmptyState: View {
   var body: some View {
     VStack(spacing: 14) {
       MusicEmptyState(
-        systemImage: "photo.on.rectangle",
         title: "No Artwork Yet",
         message: "Artwork credited to \(artistName) will appear here."
       )
       HStack(spacing: 8) {
-        Image(systemName: "sparkles")
-          .font(.system(size: 12, weight: .semibold))
-          .foregroundStyle(Color.appAccent)
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+          .fill(Color.appPlaceholderPrimary)
+          .frame(width: 12, height: 12)
         Text("Follow the artist gallery for new covers as they arrive.")
           .font(.caption.weight(.medium))
           .foregroundStyle(.secondary)

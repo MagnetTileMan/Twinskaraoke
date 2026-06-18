@@ -76,7 +76,6 @@ struct RadioQueueView: View {
             }
             if !hasSchedule {
               MusicEmptyState(
-                systemImage: "dot.radiowaves.left.and.right",
                 title: "Radio Schedule Unavailable",
                 message: "Pull down to refresh live station metadata."
               )

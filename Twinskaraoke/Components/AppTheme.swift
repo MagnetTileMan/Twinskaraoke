@@ -143,11 +143,45 @@ enum AM {
     static let shelfSpacing: CGFloat = 20
     static let shelfTile: CGFloat = 162
     static let compactShelfTile: CGFloat = 132
-    static let tabBarContentInset: CGFloat = 80
+    static let tabBarContentInset: CGFloat = 32
     static let sidebarContentInset: CGFloat = 32
   }
 
   enum Layout {
+    static let wideContentMaxWidth: CGFloat = 1180
+    static let wideRailMaxWidth: CGFloat = 740
+    static let wideInspectorWidth: CGFloat = 340
+
+    static func usesWideCanvas(
+      horizontalSizeClass: UserInterfaceSizeClass?,
+      availableWidth: CGFloat? = nil
+    ) -> Bool {
+      guard horizontalSizeClass == .regular else { return false }
+      #if canImport(UIKit)
+        if UIDevice.current.userInterfaceIdiom == .mac {
+          return true
+        }
+      #endif
+      let width = availableWidth ?? currentScreenWidth
+      return width >= 1050 && width > currentScreenHeight
+    }
+
+    private static var currentScreenWidth: CGFloat {
+      #if canImport(UIKit)
+        UIScreen.main.bounds.width
+      #else
+        1200
+      #endif
+    }
+
+    private static var currentScreenHeight: CGFloat {
+      #if canImport(UIKit)
+        UIScreen.main.bounds.height
+      #else
+        800
+      #endif
+    }
+
     static func shelfTileWidth(for availableWidth: CGFloat, compact: Bool = false) -> CGFloat {
       let sidePadding = Spacing.screenMargin * 2
       let visibleItems: CGFloat
@@ -365,14 +399,15 @@ struct AccountToolbarButton: View {
 
   @ViewBuilder
   private var fallbackAvatar: some View {
-    if let initial = displayInitial {
-      Text(initial)
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundStyle(.primary)
-    } else {
-      Image(systemName: "person.fill")
-        .font(.system(size: 17, weight: .regular))
-        .foregroundStyle(.secondary)
+    ZStack {
+      Circle().fill(Color.appPlaceholderSecondary)
+      if let initial = displayInitial {
+        Text(initial)
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundStyle(.secondary)
+      } else {
+        MusicCircularPlaceholder()
+      }
     }
   }
 

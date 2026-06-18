@@ -264,21 +264,14 @@ private struct ArtGalleryEmptyState: View {
   var body: some View {
     VStack(spacing: 16) {
       MusicEmptyState(
-        systemImage: isError ? "wifi.exclamationmark" : "paintpalette",
         title: isError ? "Artwork Couldn't Load" : "No Artwork Yet",
         message: isError
           ? "Check your connection and try loading the gallery again."
           : "New cover art and artist galleries will appear here."
       )
-      Button(action: onRefresh) {
-        Label(isError ? "Try Again" : "Refresh", systemImage: "arrow.clockwise")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(Color.appAccent)
-          .padding(.horizontal, 18)
-          .padding(.vertical, 10)
-          .background(Color.appAccent.opacity(0.12), in: Capsule())
+      MusicEmptyActionButton(title: isError ? "Try Again" : "Refresh") {
+        onRefresh()
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
     }
   }
 }

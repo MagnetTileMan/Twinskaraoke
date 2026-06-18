@@ -146,7 +146,6 @@ struct VideoGalleryView: View {
           .padding(.top, 16)
       } else if let message = viewModel.errorMessage, viewModel.videos.isEmpty {
         VideoGalleryStateView(
-          systemImage: "wifi.exclamationmark",
           title: "Couldn't Load Videos",
           message: message,
           buttonTitle: "Try Again"
@@ -156,7 +155,6 @@ struct VideoGalleryView: View {
         .frame(maxWidth: .infinity, minHeight: 420)
       } else if viewModel.videos.isEmpty {
         VideoGalleryStateView(
-          systemImage: "play.rectangle",
           title: "No Videos",
           message: "Recent Twinskaraoke videos will appear here.",
           buttonTitle: "Refresh"
@@ -237,8 +235,7 @@ private struct VideoThumbnail: View {
           if let url {
             LoadingImage(url: url, cornerRadius: cornerRadius, showsLoading: false)
           } else {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-              .fill(Color(.tertiarySystemFill))
+            MusicArtworkPlaceholder(cornerRadius: cornerRadius)
           }
         }
       )
@@ -322,16 +319,11 @@ private struct VideoGallerySkeleton: View {
         }
         .overlay(alignment: .bottomLeading) {
           HStack(spacing: 8) {
-            Circle()
-              .fill(Color.appPlaceholderSecondary)
+            MusicSkeletonBlock(cornerRadius: 14, tone: .secondary, strokeOpacity: 0)
               .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 5) {
-              RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(Color.appPlaceholderSecondary)
-                .frame(width: 92, height: 11)
-              RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(Color.appPlaceholderSecondary)
-                .frame(width: 186, height: 17)
+              MusicSkeletonLine(width: 92, height: 11, tone: .secondary)
+              MusicSkeletonLine(width: 186, height: 17, tone: .secondary)
             }
           }
           .padding(16)
@@ -339,21 +331,15 @@ private struct VideoGallerySkeleton: View {
         .padding(.horizontal, 16)
 
       VStack(alignment: .leading, spacing: 12) {
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
-          .fill(Color.appPlaceholderSecondary)
-          .frame(width: 152, height: 20)
+        MusicSkeletonLine(width: 152, height: 20, tone: .secondary)
           .padding(.horizontal, 16)
         LazyVGrid(columns: cols, spacing: 20) {
           ForEach(0..<6, id: \.self) { _ in
             VStack(alignment: .leading, spacing: 8) {
               VideoPlaceholderThumbnail(cornerRadius: 10)
                 .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
-              RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(Color.appPlaceholderSecondary)
-                .frame(height: 12)
-              RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(Color.appPlaceholderPrimary)
-                .frame(width: 78, height: 10)
+              MusicSkeletonLine(width: nil, height: 12, tone: .secondary)
+              MusicSkeletonLine(width: 78, height: 10, tone: .primary)
             }
           }
         }
@@ -370,24 +356,12 @@ private struct VideoPlaceholderThumbnail: View {
   var cornerRadius: CGFloat
 
   var body: some View {
-    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-      .fill(
-        LinearGradient(
-          colors: [
-            Color.appPlaceholderSecondary,
-            Color.appPlaceholderPrimary,
-            Color.appPlaceholderQuaternary,
-          ],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
-      )
+    MusicArtworkPlaceholder(cornerRadius: cornerRadius)
       .aspectRatio(16 / 9, contentMode: .fit)
   }
 }
 
 private struct VideoGalleryStateView: View {
-  let systemImage: String
   let title: String
   let message: String
   let buttonTitle: String
@@ -406,32 +380,8 @@ private struct VideoGalleryStateView: View {
 
   var body: some View {
     VStack(spacing: AM.Spacing.xl) {
-      ZStack {
-        RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
-          .fill(
-            LinearGradient(
-              colors: [
-                Color(red: 0.08, green: 0.09, blue: 0.12),
-                Color.appAccent.opacity(0.92),
-              ],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-          .frame(width: 168, height: 104)
-          .shadow(color: Color.appAccent.opacity(0.24), radius: 16, y: 8)
-
-        RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
-          .strokeBorder(.white.opacity(0.22), lineWidth: 1)
-          .frame(width: 126, height: 70)
-          .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.06 : 0.96))
-          .opacity(isPulsing ? 0.55 : 1)
-
-        Image(systemName: systemImage)
-          .font(.system(size: 42, weight: .semibold))
-          .foregroundColor(.white)
-          .symbolRenderingMode(.hierarchical)
-      }
+      MusicEmptyStateMark()
+        .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.03 : 0.98))
       .scaleEffect(reduceMotion ? 1 : (hasAppeared ? 1 : 0.94))
       .opacity(hasAppeared ? 1 : 0)
 
@@ -448,28 +398,17 @@ private struct VideoGalleryStateView: View {
       }
       .frame(maxWidth: 340)
 
-      Button {
+      MusicEmptyActionButton(title: buttonTitle) {
         AppHaptic.selection.play()
         onRefresh()
-      } label: {
-        Label(buttonTitle, systemImage: "arrow.clockwise")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
-          .padding(.horizontal, AM.Spacing.xl)
-          .padding(.vertical, 11)
-          .background(Color.appAccent, in: Capsule())
-          .shadow(color: Color.appAccent.opacity(0.28), radius: 10, y: 4)
       }
-      .buttonStyle(PressableButtonStyle(scale: 0.94, dim: 0.78, haptic: .selection))
 
       VStack(spacing: AM.Spacing.s) {
         VideoGalleryHintRow(
-          systemImage: "play.rectangle.on.rectangle",
           title: "Karaoke videos",
           message: "New uploads from the Twinskaraoke feed appear here."
         )
         VideoGalleryHintRow(
-          systemImage: "wifi",
           title: "Refresh the feed",
           message: "Pull down or tap retry when the video service is slow."
         )
@@ -509,17 +448,14 @@ private struct VideoGalleryStateView: View {
 }
 
 private struct VideoGalleryHintRow: View {
-  let systemImage: String
   let title: String
   let message: String
 
   var body: some View {
     HStack(spacing: AM.Spacing.m) {
-      Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundColor(.appAccent)
+      RoundedRectangle(cornerRadius: 5, style: .continuous)
+        .fill(Color.appPlaceholderPrimary)
         .frame(width: 30, height: 30)
-        .background(Color.appAccent.opacity(0.12), in: Circle())
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
           .font(.system(size: 14, weight: .semibold))

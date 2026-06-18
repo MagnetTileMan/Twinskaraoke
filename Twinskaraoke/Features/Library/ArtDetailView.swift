@@ -278,15 +278,9 @@ private struct ArtworkDetailHero: View {
           .padding(12)
       }
     } else {
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .fill(Color.appControlInactiveFill)
+      MusicArtworkPlaceholder(cornerRadius: 20)
         .frame(maxWidth: 285)
         .aspectRatio(1, contentMode: .fit)
-        .overlay {
-          Image(systemName: "photo")
-            .font(.system(size: 48, weight: .semibold))
-            .foregroundStyle(.secondary)
-        }
     }
   }
 }
