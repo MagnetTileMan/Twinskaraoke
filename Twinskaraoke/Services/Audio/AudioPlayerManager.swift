@@ -168,13 +168,38 @@ private enum ManagedAVPlayerKind {
   case radio, stream
 }
 
+/// Lightweight, isolated store for the high-frequency playback position.
+///
+/// `AudioPlayerManager`'s poll timer updates the normalized progress ~4×/second.
+/// Because `AudioPlayerManager` is a Combine `ObservableObject`, keeping progress
+/// among its `@Published` properties forced *every* observing view (the whole
+/// full-screen player tree) to re-evaluate its body 4×/second. Isolating the
+/// position here means only the small views that actually display it observe the
+/// high-frequency updates; the manager itself now publishes only on discrete
+/// state changes (track, play/pause, route, …).
+@MainActor
+final class PlaybackClock: ObservableObject {
+  static let shared = PlaybackClock()
+
+  /// Normalized playback position in `0...1`.
+  @Published var progress: Double = 0
+
+  private init() {}
+}
+
 @MainActor
 class AudioPlayerManager: ObservableObject {
   static let shared = AudioPlayerManager()
   @Published var currentSong: Song?
   @Published var isPlaying = false
   @Published var isBuffering = false
-  @Published var progress: Double = 0.0
+  /// Normalized playback position. Bridged to `PlaybackClock` so the ~4×/second
+  /// poll-timer updates no longer fan out to every `AudioPlayerManager` observer.
+  /// Existing read/write call sites keep working unchanged.
+  var progress: Double {
+    get { PlaybackClock.shared.progress }
+    set { PlaybackClock.shared.progress = newValue }
+  }
   @Published var queue: [Song] = []
   @Published var showFullScreen = false
   @Published var isEditingProgress = false
@@ -386,8 +411,10 @@ class AudioPlayerManager: ObservableObject {
     (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true)
   {
     didSet {
+      let changed = autoMixEnabled != oldValue
       UserDefaults.standard.set(autoMixEnabled, forKey: "nk.autoMixEnabled")
       if autoMixEnabled && crossfadeEnabled { crossfadeEnabled = false }
+      if changed { cancelPendingTransitionWork() }
       if !autoMixEnabled && !crossfadeEnabled { cancelPendingTransitionWork() }
     }
   }
@@ -395,8 +422,10 @@ class AudioPlayerManager: ObservableObject {
     (UserDefaults.standard.object(forKey: "nk.crossfadeEnabled") as? Bool ?? false)
   {
     didSet {
+      let changed = crossfadeEnabled != oldValue
       UserDefaults.standard.set(crossfadeEnabled, forKey: "nk.crossfadeEnabled")
       if crossfadeEnabled && autoMixEnabled { autoMixEnabled = false }
+      if changed { cancelPendingTransitionWork() }
       if !crossfadeEnabled && !autoMixEnabled { cancelPendingTransitionWork() }
     }
   }
@@ -408,6 +437,9 @@ class AudioPlayerManager: ObservableObject {
         return
       }
       UserDefaults.standard.set(crossfadeSeconds, forKey: "nk.crossfadeSeconds")
+      if crossfadeEnabled, crossfadeSeconds != oldValue {
+        cancelPendingTransitionWork()
+      }
     }
   }
   @Published var upcomingSong: Song?

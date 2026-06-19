@@ -632,7 +632,7 @@ private struct WideSongHeroCard: View {
       .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
-          .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
+          .strokeBorder(Color.appDivider, lineWidth: 0.8)
       }
       .amShadow(AM.Shadow.heroPlaying)
     }

@@ -180,7 +180,7 @@ struct MusicArtworkPlaceholder: View {
         )
         LinearGradient(
           colors: [
-            Color.white.opacity(0.18),
+            .appPlaceholderSheenSoft,
             Color.clear,
             Color.black.opacity(0.08),
           ],
@@ -277,7 +277,6 @@ struct MusicSkeletonShimmer: ViewModifier {
         GeometryReader { proxy in
           shimmer(width: proxy.size.width)
             .opacity(effectiveActive ? 1 : 0)
-            .blendMode(.plusLighter)
             .mask(content)
         }
         .clipShape(Rectangle())
@@ -317,8 +316,8 @@ struct MusicSkeletonShimmer: ViewModifier {
     LinearGradient(
       colors: [
         .clear,
-        Color.white.opacity(0.22),
-        Color.white.opacity(0.10),
+        .appPlaceholderSheen,
+        .appPlaceholderSheenSoft,
         .clear,
       ],
       startPoint: .top,

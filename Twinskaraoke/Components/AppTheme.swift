@@ -133,6 +133,12 @@ extension Color {
     static let appPlaceholderQuaternary = adaptive(
       light: UIColor(red: 0.72, green: 0.72, blue: 0.76, alpha: 1),
       dark: UIColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1))
+    static let appPlaceholderSheen = adaptive(
+      light: UIColor(red: 0.62, green: 0.63, blue: 0.67, alpha: 0.18),
+      dark: UIColor(red: 0.28, green: 0.28, blue: 0.32, alpha: 0.36))
+    static let appPlaceholderSheenSoft = adaptive(
+      light: UIColor(red: 0.62, green: 0.63, blue: 0.67, alpha: 0.10),
+      dark: UIColor(red: 0.24, green: 0.24, blue: 0.28, alpha: 0.22))
     static let appToolbarPillBackground = adaptive(
       light: UIColor.black.withAlphaComponent(0.82),
       dark: UIColor.white.withAlphaComponent(0.12))
@@ -383,17 +389,12 @@ private struct TabBarBottomPaddingModifier: ViewModifier {
 
 struct AccountToolbarButton: View {
   @AppStorage("nk.username") private var username: String = ""
-  @AppStorage("nk.avatar") private var avatar: String = ""
 
   var body: some View {
     NavigationLink {
       AccountView()
     } label: {
-      avatarContent
-        .frame(width: 30, height: 30)
-        .clipShape(Circle())
-      .frame(width: 36, height: 36)
-      .contentShape(Circle())
+      ToolbarIconLabel(systemImage: "person.fill")
     }
     .buttonStyle(PressableButtonStyle(scale: 0.92, dim: 0.78, haptic: .selection))
     .accessibilityIdentifier("AccountToolbarButton")
@@ -401,49 +402,8 @@ struct AccountToolbarButton: View {
     .accessibilityHint("Opens account and settings.")
   }
 
-  @ViewBuilder
-  private var avatarContent: some View {
-    if let url = avatarURL {
-      AsyncImage(url: url) { phase in
-        switch phase {
-        case .success(let image):
-          image.resizable().scaledToFill()
-        default:
-          fallbackAvatar
-        }
-      }
-    } else {
-      fallbackAvatar
-    }
-  }
-
-  @ViewBuilder
-  private var fallbackAvatar: some View {
-    ZStack {
-      Circle().fill(Color.appPlaceholderSecondary)
-      if let initial = displayInitial {
-        Text(initial)
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(.secondary)
-      } else {
-        MusicCircularPlaceholder()
-      }
-    }
-  }
-
   private var displayName: String {
     username.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  private var displayInitial: String? {
-    guard let first = displayName.first else { return nil }
-    return String(first).uppercased()
-  }
-
-  private var avatarURL: URL? {
-    let trimmed = avatar.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty, trimmed.lowercased() != "null" else { return nil }
-    return URL(string: trimmed)
   }
 
   private var accessibilityLabel: String {
@@ -505,13 +465,13 @@ private struct ToolbarControlBackground: View {
       .fill(.regularMaterial)
       .overlay {
         Circle()
-          .strokeBorder(borderColor, lineWidth: 0.7)
+          .strokeBorder(borderColor, lineWidth: 0.5)
       }
       .shadow(color: shadowColor, radius: 5, x: 0, y: 2)
   }
 
   private var borderColor: Color {
-    colorScheme == .dark ? Color.white.opacity(0.16) : Color.black.opacity(0.08)
+    colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.05)
   }
 
   private var shadowColor: Color {

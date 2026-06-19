@@ -1039,7 +1039,14 @@ final class AVEnginePlayback {
 
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
+    crossfadeFinalizeTask?.cancel()
     if !alreadyPreloaded {
+      crossfadePreloadTask?.cancel()
+    }
+    crossfadeLoadGeneration &+= 1
+    let loadGeneration = crossfadeLoadGeneration
+    if !alreadyPreloaded {
+      crossfadePreloadURL = nil
       preloadedCrossfadeURL = nil
       preparedCrossfadeMedia = nil
     } else {
@@ -1063,9 +1070,6 @@ final class AVEnginePlayback {
     }
 
     let token = suppressionToken
-    crossfadeFinalizeTask?.cancel()
-    crossfadeLoadGeneration &+= 1
-    let loadGeneration = crossfadeLoadGeneration
     Task {
       do {
         try await self.ensureCrossfadePrepared(

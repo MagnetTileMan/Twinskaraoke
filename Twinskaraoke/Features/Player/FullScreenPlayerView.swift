@@ -247,9 +247,8 @@ struct FullScreenPlayerView: View {
         if showLyrics {
           VStack(spacing: 0) {
             lyricsHeader(song: song, metrics: metrics)
-            LyricsView(
+            TimedLyricsView(
               lyrics: lyricsViewModel.lyrics,
-              currentTime: audioManager.playbackTime,
               showTranslations: showTranslatedLyrics,
               isLoading: lyricsViewModel.isLoading,
               didFail: lyricsViewModel.didFail,
@@ -405,9 +404,8 @@ struct FullScreenPlayerView: View {
 
       VStack(spacing: 0) {
         wideLyricsHeader(song: song)
-        LyricsView(
+        TimedLyricsView(
           lyrics: lyricsViewModel.lyrics,
-          currentTime: audioManager.playbackTime,
           showTranslations: showTranslatedLyrics,
           isLoading: lyricsViewModel.isLoading,
           didFail: lyricsViewModel.didFail,
@@ -680,36 +678,95 @@ struct FullScreenPlayerView: View {
     Color.white.opacity(0.92)
   }
 
-  @ViewBuilder
-  private func progressSection(song: Song, metrics: PlayerLayoutMetrics) -> some View {
-    let duration = max(audioManager.playbackDuration, 0)
-    let elapsed = min(max(audioManager.playbackTime, 0), duration)
-    AppleMusicProgressBar(
-      progress: $audioManager.progress,
-      isScrubbing: $audioManager.isEditingProgress,
-      onSeekEnd: { fraction in audioManager.seek(to: fraction) },
-      accessibilityLabel: "Playback position",
-      accessibilityValueText:
-        "\(formattedTime(elapsed)) elapsed, \(formattedTime(max(0, duration - elapsed))) remaining",
-      accessibilityHint: "Drag or swipe up and down to seek.",
-      scrubValueText: formattedTime(duration * audioManager.progress)
-    )
-    .padding(.horizontal, metrics.horizontalPadding)
-    .padding(.top, metrics.progressTopPadding)
-    HStack {
-      Text(formattedTime(elapsed))
-      Spacer()
-      Text(formattedTime(max(0, duration - elapsed)))
+  // The progress bar + time labels are the only part of the player that needs
+  // the ~4×/second position updates. Isolating them in `PlayerProgressSection`
+  // (which observes `PlaybackClock`) keeps the rest of the player tree from
+  // re-evaluating at that cadence.
+  private func progressSection(song _: Song, metrics: PlayerLayoutMetrics) -> some View {
+    PlayerProgressSection(metrics: metrics)
+  }
+
+  /// Progress bar + elapsed/remaining labels. Observes `PlaybackClock` so only this
+  /// small view re-renders ~4×/second; reads computed time/duration off the manager.
+  private struct PlayerProgressSection: View {
+    let metrics: PlayerLayoutMetrics
+    @EnvironmentObject private var audioManager: AudioPlayerManager
+    @ObservedObject private var clock = PlaybackClock.shared
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
+
+    private var reduceMotion: Bool {
+      AppMotion.reduceMotion(
+        systemReduceMotion: systemReduceMotion,
+        respectPreference: respectReducedMotion
+      )
     }
-    .font(.system(size: 12, weight: .medium, design: .monospaced))
-    .foregroundColor(audioManager.isEditingProgress ? .primary : .secondary)
-    .scaleEffect(audioManager.isEditingProgress ? 1.12 : 1.0, anchor: .center)
-    .animation(
-      reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
-      value: audioManager.isEditingProgress
-    )
-    .padding(.horizontal, metrics.horizontalPadding)
-    .padding(.top, 2)
+
+    private func formattedTime(_ seconds: Double) -> String {
+      let s = Int(seconds)
+      return String(format: "%d:%02d", s / 60, s % 60)
+    }
+
+    var body: some View {
+      let duration = max(audioManager.playbackDuration, 0)
+      let elapsed = min(max(audioManager.playbackTime, 0), duration)
+      VStack(spacing: 0) {
+        AppleMusicProgressBar(
+          progress: $clock.progress,
+          isScrubbing: $audioManager.isEditingProgress,
+          onSeekEnd: { fraction in audioManager.seek(to: fraction) },
+          accessibilityLabel: "Playback position",
+          accessibilityValueText:
+            "\(formattedTime(elapsed)) elapsed, \(formattedTime(max(0, duration - elapsed))) remaining",
+          accessibilityHint: "Drag or swipe up and down to seek.",
+          scrubValueText: formattedTime(duration * clock.progress)
+        )
+        .padding(.horizontal, metrics.horizontalPadding)
+        .padding(.top, metrics.progressTopPadding)
+        HStack {
+          Text(formattedTime(elapsed))
+          Spacer()
+          Text(formattedTime(max(0, duration - elapsed)))
+        }
+        .font(.system(size: 12, weight: .medium, design: .monospaced))
+        .foregroundColor(audioManager.isEditingProgress ? .primary : .secondary)
+        .scaleEffect(audioManager.isEditingProgress ? 1.12 : 1.0, anchor: .center)
+        .animation(
+          reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
+          value: audioManager.isEditingProgress
+        )
+        .padding(.horizontal, metrics.horizontalPadding)
+        .padding(.top, 2)
+      }
+    }
+  }
+
+  /// Thin wrapper that feeds the live playback time into `LyricsView`. It observes
+  /// `PlaybackClock`, so it (and only it) re-evaluates ~4×/second to keep the active
+  /// lyric line and autoscroll in sync now that the surrounding layout no longer does.
+  private struct TimedLyricsView: View {
+    let lyrics: [LyricLine]
+    var showTranslations: Bool = false
+    var isLoading: Bool = false
+    var didFail: Bool = false
+    var hasNoLyrics: Bool = false
+    let onSeek: (TimeInterval) -> Void
+    var onRetry: (() -> Void)? = nil
+    @ObservedObject private var clock = PlaybackClock.shared
+    @EnvironmentObject private var audioManager: AudioPlayerManager
+
+    var body: some View {
+      LyricsView(
+        lyrics: lyrics,
+        currentTime: audioManager.playbackTime,
+        showTranslations: showTranslations,
+        isLoading: isLoading,
+        didFail: didFail,
+        hasNoLyrics: hasNoLyrics,
+        onSeek: onSeek,
+        onRetry: onRetry
+      )
+    }
   }
   private func controlsRow(metrics: PlayerLayoutMetrics) -> some View {
     HStack(spacing: 0) {

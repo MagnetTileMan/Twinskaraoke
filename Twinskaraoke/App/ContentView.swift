@@ -42,7 +42,7 @@ private final class PopupPlaybackState: ObservableObject {
       .sink { [weak self] in self?.artwork = $0 }
       .store(in: &cancellables)
 
-    manager.$progress
+    PlaybackClock.shared.$progress
       .throttle(for: .milliseconds(350), scheduler: RunLoop.main, latest: true)
       .map { Float(min(max($0, 0), 1)) }
       .removeDuplicates()

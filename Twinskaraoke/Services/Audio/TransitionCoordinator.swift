@@ -272,6 +272,9 @@ final class TransitionCoordinator {
         continuation.resume()
       }
       session.start(from: remoteURL)
+      if Task.isCancelled {
+        session.cancel()
+      }
     }
   }
 

@@ -158,7 +158,6 @@ struct RadioView: View {
         .padding(.horizontal, AM.Spacing.screenMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
       hostedStationsSection()
-      featuredShowsSection()
       if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
         historySection(history: history)
       }
@@ -175,7 +174,6 @@ struct RadioView: View {
 
         VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
           hostedStationsSection(horizontalPadding: 0)
-          featuredShowsSection(horizontalPadding: 0)
           if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
             historySection(history: history, horizontalPadding: 0)
           }
@@ -465,41 +463,6 @@ struct RadioView: View {
     }
     .accessibilityIdentifier("Radio.HostedStationsSection")
   }
-  private func featuredShowsSection(
-    horizontalPadding: CGFloat = AM.Spacing.screenMargin
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 12) {
-      RadioSectionHeader("Featured Shows")
-        .padding(.horizontal, horizontalPadding)
-      ScrollView(.horizontal, showsIndicators: false) {
-        HStack(spacing: 14) {
-          ForEach(RadioShowTile.featured) { tile in
-            Button {
-              AppHaptic.selection.play()
-              radio.playLiveStream()
-            } label: {
-              RadioShowTileView(tile: tile)
-            }
-            .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.82))
-            .accessibilityLabel("Play \(tile.title)")
-            .accessibilityValue(tile.host)
-            .accessibilityHint("Starts the live radio station.")
-            .contextMenu {
-              radioActions
-            } preview: {
-              RadioStationContextPreview(
-                title: tile.title,
-                subtitle: tile.host,
-                artworkURL: nil
-              )
-            }
-          }
-        }
-        .padding(.horizontal, horizontalPadding)
-      }
-    }
-    .accessibilityIdentifier("Radio.FeaturedShowsSection")
-  }
 }
 
 private struct RadioSectionHeader: View {
@@ -784,62 +747,6 @@ private struct RadioStationTileView: View {
         .lineLimit(1)
     }
     .frame(width: 200)
-    .accessibilityElement(children: .combine)
-  }
-}
-
-private struct RadioShowTile: Identifiable {
-  let id = UUID()
-  let title: String
-  let host: String
-  let gradient: [Color]
-  static let featured: [RadioShowTile] = [
-    .init(
-      title: "The Zane Lowe Show", host: "Zane Lowe",
-      gradient: [
-        Color(red: 0.55, green: 0.10, blue: 0.55), Color(red: 0.20, green: 0.05, blue: 0.30),
-      ]),
-    .init(
-      title: "Ebro Darden", host: "Hip-Hop",
-      gradient: [
-        Color(red: 0.10, green: 0.55, blue: 0.55), Color(red: 0.05, green: 0.25, blue: 0.30),
-      ]),
-    .init(
-      title: "Travis Mills", host: "The Pop Show",
-      gradient: [
-        Color(red: 0.95, green: 0.40, blue: 0.65), Color(red: 0.45, green: 0.10, blue: 0.30),
-      ]),
-    .init(
-      title: "Kelleigh Bannen", host: "Today's Country",
-      gradient: [
-        Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.30, blue: 0.05),
-      ]),
-  ]
-}
-
-private struct RadioShowTileView: View {
-  let tile: RadioShowTile
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      ZStack(alignment: .bottomLeading) {
-        LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-        Image(systemName: "mic.fill")
-          .font(.system(size: 26, weight: .medium))
-          .foregroundColor(.white.opacity(0.85))
-          .padding(12)
-      }
-      .frame(width: 160, height: 160)
-      .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
-      .amShadow(AM.Shadow.card)
-      Text(tile.title)
-        .font(.system(size: 14, weight: .semibold))
-        .lineLimit(1)
-      Text(tile.host)
-        .font(.system(size: 12))
-        .foregroundColor(.secondary)
-        .lineLimit(1)
-    }
-    .frame(width: 160)
     .accessibilityElement(children: .combine)
   }
 }
