@@ -57,7 +57,7 @@ struct CreditsView: View {
             + "kyarashard • ttsuyuki • nyss_7 • isrlygood • rachinova • ninjakai03 • "
             + "czadymny • gbritannia • sir_recker • dodo8071795"
         )
-        .font(.system(size: 13))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .padding(.vertical, 4)
       }
@@ -75,7 +75,7 @@ struct CreditsView: View {
             + "Unofficial Neuro Karaoke Archive (V3).\n\n"
             + "Currently managed by: @ninjakai03 (mm2wood), @turuumgl, @nyss_7, @inforno_fire"
         )
-        .font(.system(size: 13))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .padding(.vertical, 4)
       }
@@ -85,7 +85,7 @@ struct CreditsView: View {
             + "respective artists. The following artists have granted permission for their "
             + "artwork to be used on this website:"
         )
-        .font(.system(size: 13))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .padding(.vertical, 4)
         ForEach(CreditsArtists.all, id: \.0) { artist in
@@ -101,10 +101,10 @@ struct CreditsView: View {
   @ViewBuilder
   private func creditRow(name: String, detail: String, url: String? = nil) -> some View {
     VStack(alignment: .leading, spacing: 3) {
-      Text(name).font(.system(size: 15, weight: .semibold))
-      Text(detail).font(.system(size: 13)).foregroundStyle(.secondary)
+      Text(name).font(.body.bold())
+      Text(detail).font(.subheadline).foregroundStyle(.secondary)
       if let url, let u = URL(string: url) {
-        Link(url, destination: u).font(.system(size: 12)).lineLimit(1)
+        Link(url, destination: u).font(.caption).lineLimit(1)
       }
     }
     .padding(.vertical, 2)
@@ -116,15 +116,15 @@ struct ArtistCreditRow: View {
   let link: String
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(name).font(.system(size: 14, weight: .medium))
+      Text(name).font(.body)
       if let url = URL(string: link), !link.isEmpty {
         Link(link, destination: url)
-          .font(.system(size: 11))
+          .font(.caption)
           .foregroundStyle(.secondary)
           .lineLimit(1)
       } else {
         Text("No socials")
-          .font(.system(size: 11))
+          .font(.caption)
           .foregroundStyle(.secondary)
       }
     }

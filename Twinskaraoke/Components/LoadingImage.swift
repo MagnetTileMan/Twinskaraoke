@@ -128,7 +128,7 @@ struct LoadingImage: View {
         .onSuccess { _, _, _ in
           markRendered(url)
         }
-        .transition(.opacity.animation(AppMotion.easeOut(duration: 0.15)))
+        .transition(.opacity.animation(AppMotion.spring(response: 0.15, dampingFraction: 0.9)))
       }
 
     }
@@ -136,7 +136,7 @@ struct LoadingImage: View {
 
   private func markRendered(_ loadedURL: URL) {
     guard renderedFullURL != loadedURL || !fullLoaded || loadFailed else { return }
-    withAnimation(AppMotion.easeOut(duration: 0.12)) {
+    withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
       renderedFullURL = loadedURL
       fullLoaded = true
       loadFailed = false
@@ -144,7 +144,7 @@ struct LoadingImage: View {
   }
 
   private func markFinishedAfterFailure() {
-    withAnimation(AppMotion.easeOut(duration: 0.12)) {
+    withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
       loadFailed = true
     }
   }
@@ -215,7 +215,7 @@ struct LoadingIndicator: View {
     .frame(width: containerSize, height: containerSize)
     .contentShape(Rectangle())
     .animation(
-      reduceMotion ? nil : AppMotion.linear(duration: 0.82).repeatForever(autoreverses: false),
+      reduceMotion ? nil : AppMotion.spring(response: 0.82, dampingFraction: 0.86).repeatForever(autoreverses: false),
       value: isAnimating
     )
     .onAppear {
@@ -302,11 +302,11 @@ struct MusicSkeletonShimmer: ViewModifier {
   private func restartIfNeeded(active: Bool) {
     if active {
       phase = -0.8
-      withAnimation(AppMotion.linear(duration: 1.65).repeatForever(autoreverses: false)) {
+      withOptionalAnimation(AppMotion.spring(response: 1.65, dampingFraction: 0.9).repeatForever(autoreverses: false)) {
         phase = 1.8
       }
     } else {
-      withAnimation(nil) {
+      withOptionalAnimation(nil) {
         phase = -0.8
       }
     }
@@ -389,12 +389,12 @@ struct MusicEmptyState: View {
 
       VStack(spacing: 6) {
         Text(title)
-          .font(.system(size: 21, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title3.bold())
+          .foregroundStyle(.primary)
           .multilineTextAlignment(.center)
         Text(message)
-          .font(.system(size: 15))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
           .lineLimit(3)
           .fixedSize(horizontal: false, vertical: true)
@@ -414,8 +414,8 @@ struct MusicEmptyActionButton: View {
   var body: some View {
     Button(action: action) {
       Text(title)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundColor(.primary)
+        .font(.body.bold())
+        .foregroundStyle(.primary)
         .padding(.horizontal, AM.Spacing.xl)
         .padding(.vertical, 11)
         .background(Color.appSecondaryBackground, in: Capsule())

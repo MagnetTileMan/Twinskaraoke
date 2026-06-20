@@ -8,12 +8,8 @@ struct HomeView: View {
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
-  }
-
   private var loadingAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.35)
+    reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
   }
 
   private var reduceMotion: Bool {
@@ -25,23 +21,25 @@ struct HomeView: View {
 
   var body: some View {
     NavigationStack {
-      ScrollView {
-        Group {
-          if viewModel.isLoading {
-            HomeSkeletonView()
-              .transition(.opacity)
-          } else {
-            homeOverview
-              .transition(.opacity)
+      GeometryReader { proxy in
+        ScrollView {
+          Group {
+            if viewModel.isLoading {
+              HomeSkeletonView()
+                .transition(.opacity)
+            } else {
+              homeOverview(availableWidth: proxy.size.width)
+                .transition(.opacity)
+            }
           }
+          .animation(loadingAnimation, value: viewModel.isLoading)
+          .padding(.top, AM.Spacing.l)
+          .padding(.bottom, AM.Spacing.l)
         }
-        .animation(loadingAnimation, value: viewModel.isLoading)
-        .padding(.top, AM.Spacing.l)
-        .padding(.bottom, AM.Spacing.l)
+        .smoothScrolling()
+        .tabBarScrollInset()
+        .musicScreenBackground()
       }
-      .smoothScrolling()
-      .tabBarScrollInset()
-      .musicScreenBackground()
       .navigationTitle("Home")
       .navigationBarTitleDisplayMode(.large)
       .toolbar {
@@ -54,8 +52,11 @@ struct HomeView: View {
   }
 
   @ViewBuilder
-  private var homeOverview: some View {
-    if usesWideOverview {
+  private func homeOverview(availableWidth: CGFloat) -> some View {
+    if AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    ) {
       wideHomeOverview
     } else {
       compactHomeOverview
@@ -189,10 +190,6 @@ struct NewView: View {
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
-  }
-
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
       systemReduceMotion: systemReduceMotion,
@@ -201,28 +198,30 @@ struct NewView: View {
   }
 
   private var loadingAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.35)
+    reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
   }
 
   var body: some View {
     NavigationStack {
-      ScrollView {
-        Group {
-          if viewModel.isLoading {
-            NewSkeletonView()
-              .transition(.opacity)
-          } else {
-            newOverview
-              .transition(.opacity)
+      GeometryReader { proxy in
+        ScrollView {
+          Group {
+            if viewModel.isLoading {
+              NewSkeletonView()
+                .transition(.opacity)
+            } else {
+              newOverview(availableWidth: proxy.size.width)
+                .transition(.opacity)
+            }
           }
+          .animation(loadingAnimation, value: viewModel.isLoading)
+          .padding(.top, AM.Spacing.m)
+          .padding(.bottom, AM.Spacing.l)
         }
-        .animation(loadingAnimation, value: viewModel.isLoading)
-        .padding(.top, AM.Spacing.m)
-        .padding(.bottom, AM.Spacing.l)
+        .smoothScrolling()
+        .tabBarScrollInset()
+        .musicScreenBackground()
       }
-      .smoothScrolling()
-      .tabBarScrollInset()
-      .musicScreenBackground()
       .navigationTitle("New")
       .navigationBarTitleDisplayMode(.large)
       .toolbar {
@@ -235,8 +234,11 @@ struct NewView: View {
   }
 
   @ViewBuilder
-  private var newOverview: some View {
-    if usesWideOverview {
+  private func newOverview(availableWidth: CGFloat) -> some View {
+    if AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    ) {
       wideNewOverview
     } else {
       compactNewOverview
@@ -460,7 +462,7 @@ struct PlaylistListView: View {
       prompt: "Search Playlists"
     )
     .animation(
-      reduceMotion ? nil : .easeInOut(duration: 0.22),
+      reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
       value: displayedPlaylists.map(\.id)
     )
     .onAppear {
@@ -604,22 +606,22 @@ private struct WideSongHeroCard: View {
         HStack(alignment: .bottom, spacing: AM.Spacing.xl) {
           VStack(alignment: .leading, spacing: 7) {
             Text(eyebrow)
-              .font(.system(size: 12, weight: .bold))
+              .font(.caption.bold())
               .foregroundStyle(.white.opacity(0.72))
               .textCase(.uppercase)
             Text(title)
-              .font(.system(size: 34, weight: .bold))
+              .font(.largeTitle.bold())
               .foregroundStyle(.white)
               .lineLimit(2)
               .minimumScaleFactor(0.72)
             Text(subtitle)
-              .font(.system(size: 16, weight: .medium))
+              .font(.subheadline)
               .foregroundStyle(.white.opacity(0.82))
               .lineLimit(2)
           }
           Spacer(minLength: AM.Spacing.l)
           Image(systemName: "play.fill")
-            .font(.system(size: 19, weight: .bold))
+            .font(.title3.bold())
             .foregroundStyle(.black)
             .frame(width: 54, height: 54)
             .background(.white, in: Circle())
@@ -672,10 +674,10 @@ private struct WideHeroModuleTitle: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 3) {
       Text(title)
-        .font(.system(size: 22, weight: .bold))
+        .font(.title3.bold())
         .foregroundStyle(.primary)
       Text(subtitle)
-        .font(.system(size: 13, weight: .medium))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
     }
     .padding(.bottom, 2)
@@ -720,24 +722,26 @@ private struct WideHeroActionRowContent: View {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
           .fill(Color.appControlInactiveFill)
         Image(systemName: systemImage)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.subheadline.bold())
           .foregroundStyle(Color.appAccent)
       }
-      .frame(width: 42, height: 42)
+      .frame(width: 44, height: 44)
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.headline)
           .foregroundStyle(.primary)
           .lineLimit(1)
         Text(subtitle)
-          .font(.system(size: 13))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       Spacer(minLength: 0)
       Image(systemName: "chevron.right")
-        .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(.secondary.opacity(0.65))
+        .font(AM.Font.chevron)
+        .foregroundStyle(.tertiary)
+        .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
     }
     .padding(10)
     .background(Color.appSecondaryBackground, in: RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
@@ -755,10 +759,12 @@ private struct WideSongListPanel: View {
         HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.s) {
           Text(title)
             .font(AM.Font.sectionHeader)
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
           Image(systemName: "chevron.right")
-            .font(.system(size: 17, weight: .bold))
-            .foregroundColor(.secondary.opacity(0.7))
+            .font(AM.Font.chevron)
+            .foregroundStyle(.tertiary)
+            .frame(width: 44, height: 44)
+            .accessibilityHidden(true)
           Spacer()
         }
       }
@@ -884,15 +890,15 @@ private struct NewFeatureCard: View {
       VStack(alignment: .leading, spacing: 8) {
         VStack(alignment: .leading, spacing: 2) {
           Text(kicker)
-            .font(.system(size: 11, weight: .bold))
+            .font(.caption.bold())
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
           Text(title)
-            .font(.system(size: 20, weight: .semibold))
+            .font(.headline)
             .foregroundStyle(.primary)
             .lineLimit(2)
           Text(subtitle)
-            .font(.system(size: 14))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
@@ -904,9 +910,9 @@ private struct NewFeatureCard: View {
             endPoint: .bottom
           )
           Image(systemName: "play.fill")
-            .font(.system(size: 15, weight: .bold))
+            .font(.headline.bold())
             .foregroundStyle(.white)
-            .frame(width: 34, height: 34)
+            .frame(width: 44, height: 44)
             .background(.black.opacity(0.32), in: Circle())
             .padding(10)
         }
@@ -1028,14 +1034,16 @@ private struct NewMoreToExplore: View {
           NavigationLink(destination: SearchCategorySongCollectionView(title: title, query: title)) {
             HStack {
               Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .font(.body)
                 .foregroundStyle(Color.appAccent)
               Spacer()
               Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(AM.Font.chevron)
+                .foregroundStyle(.tertiary)
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
             }
-            .frame(height: 42)
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
@@ -1068,15 +1076,15 @@ private struct LatestSingleSection: View {
             .amShadow(AM.Shadow.card)
           VStack(alignment: .leading, spacing: 6) {
             Text(song.title)
-              .font(.system(size: 18, weight: .bold))
+              .font(.headline)
               .foregroundStyle(.primary)
               .lineLimit(2)
             Text(song.displayArtist)
-              .font(.system(size: 13, weight: .medium))
+              .font(.subheadline)
               .foregroundStyle(.secondary)
               .lineLimit(2)
             Label("Play Latest Release", systemImage: "play.fill")
-              .font(.system(size: 12, weight: .semibold))
+              .font(.caption.bold())
               .foregroundStyle(Color.appAccent)
               .padding(.top, 4)
           }
@@ -1136,17 +1144,17 @@ struct NewSkeletonView: View {
         pulse = false
         return
       }
-      withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+      withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.82).repeatForever(autoreverses: true)) {
         pulse = true
       }
     }
     .onChange(of: reduceMotion) { _, reduceMotion in
       if reduceMotion {
-        withAnimation(nil) {
+        withOptionalAnimation(nil) {
           pulse = false
         }
       } else {
-        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+        withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.82).repeatForever(autoreverses: true)) {
           pulse = true
         }
       }
@@ -1178,11 +1186,11 @@ struct NewSkeletonView: View {
         MusicSkeletonLine(width: width * (index == 0 ? 0.34 : 0.46), height: 14, tone: .secondary)
       }
 
-      MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
-        .frame(width: width, height: width * 0.56)
-        .overlay(alignment: .bottomLeading) {
-          MusicSkeletonBlock(cornerRadius: 17, tone: .secondary, strokeOpacity: 0)
-            .frame(width: 34, height: 34)
+        MusicArtworkPlaceholder(cornerRadius: AM.Radius.card)
+          .frame(width: width, height: width * 0.56)
+          .overlay(alignment: .bottomLeading) {
+            MusicSkeletonBlock(cornerRadius: 17, tone: .secondary, strokeOpacity: 0)
+            .frame(width: 44, height: 44)
             .padding(10)
         }
     }
@@ -1356,8 +1364,11 @@ struct BrowseSongCollectionView: View {
   // Very large result sets skip per-row artwork to keep cell creation and image
   // decoding from dominating a fast collection scroll.
   private var showsArtwork: Bool { songs.count <= 200 }
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
+  private func usesWideOverview(availableWidth: CGFloat) -> Bool {
+    AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    )
   }
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
@@ -1374,7 +1385,9 @@ struct BrowseSongCollectionView: View {
       ScrollView {
         collectionOverview(width: geo.size.width)
         .tabBarBottomPadding()
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: songs.count)
+        .animation(
+          reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+          value: songs.count)
         .background(
           GeometryReader { proxy in
             Color.clear.preference(
@@ -1391,12 +1404,14 @@ struct BrowseSongCollectionView: View {
     .navigationTitle(scrollOffset < -180 ? title : "")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(scrollOffset < -180 ? .visible : .hidden, for: .navigationBar)
-    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: scrollOffset < -180)
+    .animation(
+      reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+      value: scrollOffset < -180)
   }
 
   @ViewBuilder
   private func collectionOverview(width: CGFloat) -> some View {
-    if usesWideOverview {
+    if usesWideOverview(availableWidth: width) {
       wideCollectionOverview
     } else {
       compactCollectionOverview(width: width)
@@ -1425,7 +1440,7 @@ struct BrowseSongCollectionView: View {
       }
       .frame(width: 320, alignment: .topLeading)
 
-      songsContent(rowHorizontalPadding: 0)
+      songsContent(isWideOverview: true, rowHorizontalPadding: 0)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
     .frame(maxWidth: 1120, alignment: .topLeading)
@@ -1465,7 +1480,7 @@ struct BrowseSongCollectionView: View {
         .multilineTextAlignment(alignment)
       Text(songCountText)
         .font(.subheadline)
-        .foregroundColor(.secondary)
+        .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
     .padding(.horizontal, alignment == .leading ? 0 : AM.Spacing.screenMargin)
@@ -1482,25 +1497,31 @@ struct BrowseSongCollectionView: View {
   }
 
   @ViewBuilder
-  private func songsContent(rowHorizontalPadding: CGFloat = AM.Spacing.screenMargin) -> some View {
+  private func songsContent(
+    isWideOverview: Bool = false,
+    rowHorizontalPadding: CGFloat = AM.Spacing.screenMargin
+  ) -> some View {
     if !songs.isEmpty {
       VStack(spacing: 0) {
-        if !usesWideOverview {
+        if !isWideOverview {
           actionButtons()
         }
         LazyVStack(spacing: 0) {
           ForEach(songs) { song in
-            SongRow(song: song, size: .regular, showsArtwork: showsArtwork)
-              .padding(.horizontal, rowHorizontalPadding)
-              .padding(.vertical, 6)
-              .contentShape(Rectangle())
-              .onTapGesture {
-                play(song)
-              }
-              .songRowAccessibility(song: song) {
-                play(song)
-              }
-              .accessibilityIdentifier("BrowseSongCollection.song.\(song.id)")
+            Button {
+              play(song)
+            } label: {
+              SongRow(song: song, size: .regular, showsArtwork: showsArtwork)
+                .padding(.horizontal, rowHorizontalPadding)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .songRowAccessibility(song: song) {
+                  play(song)
+                }
+            }
+            .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
+            .accessibilityHint("Starts playback.")
+            .accessibilityIdentifier("BrowseSongCollection.song.\(song.id)")
             Divider().padding(.leading, rowHorizontalPadding + (showsArtwork ? 60 : 12))
           }
         }
@@ -1524,11 +1545,11 @@ struct BrowseSongCollectionView: View {
         }
       } label: {
         Label("Play", systemImage: "play.fill")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.headline)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 10)
           .background(Color.primary.opacity(0.08))
-          .foregroundColor(.appAccent)
+          .foregroundStyle(Color.appAccent)
           .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       }
       .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.82))
@@ -1539,11 +1560,11 @@ struct BrowseSongCollectionView: View {
         AudioPlayerManager.shared.playShuffled(from: songs)
       } label: {
         Label("Shuffle", systemImage: "shuffle")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.headline)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 10)
           .background(Color.primary.opacity(0.08))
-          .foregroundColor(.appAccent)
+          .foregroundStyle(Color.appAccent)
           .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       }
       .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.82))

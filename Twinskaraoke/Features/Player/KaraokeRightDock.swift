@@ -79,10 +79,10 @@ struct KaraokeRightDock: View {
         }
 
         Image(systemName: audioManager.karaokeMode ? "mic.fill" : "mic")
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundColor(audioManager.karaokeMode ? .appAccent : .primary.opacity(0.85))
+          .font(.headline)
+          .foregroundStyle(audioManager.karaokeMode ? Color.appAccent : Color.primary.opacity(0.85))
       }
-      .frame(width: 36, height: 36)
+      .frame(width: 44, height: 44)
       .modifier(GlassCircle())
       .opacity(canActivateKaraoke ? 1 : 0.6)
     }
@@ -96,8 +96,8 @@ struct KaraokeRightDock: View {
   private var karaokeVerticalSlider: some View {
     VStack(spacing: 8) {
       Image(systemName: "person.slash")
-        .font(.system(size: 11))
-        .foregroundColor(.secondary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
       VerticalKaraokeLevel(
         value: Binding(
           get: { Double(audioManager.aiVocalStrength) },
@@ -116,8 +116,8 @@ struct KaraokeRightDock: View {
         adjustVocalRemoval(direction)
       }
       Image(systemName: "person.wave.2")
-        .font(.system(size: 11))
-        .foregroundColor(.secondary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
     .padding(.vertical, 12)
     .padding(.horizontal, 8)
@@ -127,7 +127,8 @@ struct KaraokeRightDock: View {
   private var processingIndicator: some View {
     VStack(spacing: 4) {
       Text(processingPercentText)
-        .font(.system(size: 9, weight: .semibold))
+        .font(.caption.monospacedDigit())
+        .bold()
         .foregroundStyle(isProcessing ? Color.appAccent : .secondary)
         .monospacedDigit()
     }
@@ -145,7 +146,7 @@ struct KaraokeRightDock: View {
   }
 
   private var dockAnimation: Animation? {
-    reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)
+    reduceMotion ? nil : AppMotion.spring(response: 0.4, dampingFraction: 0.85)
   }
 
   private var sliderTransition: AnyTransition {

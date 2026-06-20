@@ -8,6 +8,29 @@ struct PlayerArtworkView: View {
   let size: CGFloat
   var onTap: (() -> Void)?
   var body: some View {
+    Group {
+      if let onTap {
+        Button {
+          AppHaptic.selection.play()
+          onTap()
+        } label: {
+          artwork
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.88, haptic: nil))
+      } else {
+        artwork
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(song.title) artwork")
+    .accessibilityHint(onTap == nil ? "Album artwork." : "Opens full-screen artwork.")
+    .accessibilityAction {
+      onTap?()
+    }
+  }
+
+  private var artwork: some View {
     ZStack {
       LoadingImage(
         url: audioManager.displayImageURL(for: song), cornerRadius: AM.Radius.hero,
@@ -23,20 +46,7 @@ struct PlayerArtworkView: View {
           .transition(bufferingTransition)
       }
     }
-    .frame(maxWidth: .infinity)
     .animation(bufferingAnimation, value: audioManager.isBuffering)
-    .onTapGesture {
-      if onTap != nil {
-        AppHaptic.selection.play()
-      }
-      onTap?()
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel("\(song.title) artwork")
-    .accessibilityHint(onTap == nil ? "Album artwork." : "Opens full-screen artwork.")
-    .accessibilityAction {
-      onTap?()
-    }
   }
 
   private var bufferingOverlay: some View {
@@ -57,11 +67,11 @@ struct PlayerArtworkView: View {
   }
 
   private var artworkPlaybackAnimation: Animation? {
-    reduceMotion ? nil : .spring(response: 0.55, dampingFraction: 0.86)
+    reduceMotion ? nil : AppMotion.spring(response: 0.55, dampingFraction: 0.86)
   }
 
   private var bufferingAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.18)
+    reduceMotion ? nil : AppMotion.spring(response: 0.25, dampingFraction: 0.86)
   }
 
   private var bufferingTransition: AnyTransition {

@@ -16,7 +16,7 @@ struct LibraryActionButtonLabel: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 12)
-    .foregroundColor(foregroundColor)
+    .foregroundStyle(foregroundColor)
     .background(backgroundColor)
     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
   }
@@ -37,6 +37,6 @@ struct LibraryActionButtonLabel: View {
   }
 
   private var iconFont: Font? {
-    style == .tertiary ? nil : .system(size: 15, weight: .semibold)
+    style == .tertiary ? nil : .headline
   }
 }

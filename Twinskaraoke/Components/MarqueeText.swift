@@ -7,12 +7,14 @@ struct MarqueeText: View {
   var speed: CGFloat = 35
   var gap: CGFloat = 48
   var startDelay: Double = 1.2
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var textSize: CGSize = .zero
   @State private var containerWidth: CGFloat = 0
   @State private var phase: CGFloat = 0
   @State private var animationTask: Task<Void, Never>?
   private var needsScroll: Bool {
-    containerWidth > 0 && textSize.width > containerWidth + 0.5
+    !reduceMotion && containerWidth > 0 && textSize.width > containerWidth + 0.5
   }
   var body: some View {
     Text(text)
@@ -25,12 +27,12 @@ struct MarqueeText: View {
           ZStack(alignment: .leading) {
             if needsScroll {
               HStack(spacing: gap) {
-                Text(text).font(font).foregroundColor(color).fixedSize()
-                Text(text).font(font).foregroundColor(color).fixedSize()
+                Text(text).font(font).foregroundStyle(color).fixedSize()
+                Text(text).font(font).foregroundStyle(color).fixedSize()
               }
               .offset(x: -phase)
             } else {
-              Text(text).font(font).foregroundColor(color).fixedSize()
+              Text(text).font(font).foregroundStyle(color).fixedSize()
             }
           }
           .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
@@ -95,7 +97,7 @@ struct MarqueeText: View {
     animationTask = Task { @MainActor in
       try? await Task.sleep(nanoseconds: UInt64(startDelay * 1_000_000_000))
       while !Task.isCancelled {
-        withAnimation(.linear(duration: duration)) {
+        withOptionalAnimation(AppMotion.spring(response: duration, dampingFraction: 0.9)) {
           phase = distance
         }
         try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
@@ -104,6 +106,13 @@ struct MarqueeText: View {
         try? await Task.sleep(nanoseconds: UInt64(startDelay * 1_000_000_000))
       }
     }
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 

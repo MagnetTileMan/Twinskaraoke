@@ -15,7 +15,8 @@ private final class RadioPlaybackState: ObservableObject {
 
   private var cancellables = Set<AnyCancellable>()
 
-  private init(manager: AudioPlayerManager = .shared) {
+  private init() {
+    let manager = AudioPlayerManager.shared
     manager.$currentSong
       .map(\.?.id)
       .removeDuplicates()
@@ -46,38 +47,45 @@ struct RadioView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var showingRadioSchedule = false
+
+  private var metadataPulseAnimation: Animation? {
+    reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.82)
+  }
+
   var body: some View {
     NavigationStack {
-      ScrollView {
-        LazyVStack(spacing: 0) {
-          if radio.nowPlaying == nil && radio.refreshErrorMessage != nil && !radio.isRefreshing {
-            RadioUnavailableView(
-              message: radio.refreshErrorMessage ?? "Radio metadata is temporarily unavailable.",
-              isRefreshing: radio.isRefreshing
-            ) {
-              Task { await retryRadioRefresh() }
+      GeometryReader { proxy in
+        ScrollView {
+          LazyVStack(spacing: 0) {
+            if radio.nowPlaying == nil && radio.refreshErrorMessage != nil && !radio.isRefreshing {
+              RadioUnavailableView(
+                message: radio.refreshErrorMessage ?? "Radio metadata is temporarily unavailable.",
+                isRefreshing: radio.isRefreshing
+              ) {
+                Task { await retryRadioRefresh() }
+              }
+              .padding(.top, 36)
+              .transition(unavailableTransition)
+            } else if radio.nowPlaying == nil {
+              RadioSkeletonView()
+                .transition(.opacity)
+            } else {
+              radioOverview(availableWidth: proxy.size.width)
+                .transition(.opacity)
             }
-            .padding(.top, 36)
-            .transition(unavailableTransition)
-          } else if radio.nowPlaying == nil {
-            RadioSkeletonView()
-              .transition(.opacity)
-          } else {
-            radioOverview
-              .transition(.opacity)
           }
+          .padding(.top, AM.Spacing.l)
+          .padding(.bottom, AM.Spacing.l)
         }
-        .padding(.top, AM.Spacing.l)
-        .padding(.bottom, AM.Spacing.l)
+        .tabBarScrollInset()
+        .smoothScrolling()
+        .musicScreenBackground()
       }
-      .tabBarScrollInset()
-      .smoothScrolling()
-      .musicScreenBackground()
       .navigationTitle("Radio")
       .navigationBarTitleDisplayMode(.large)
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
-          HStack(spacing: 12) {
+          HStack(spacing: 6) {
             ToolbarIconButton(
               systemImage: "list.bullet",
               accessibilityLabel: "Live Schedule"
@@ -138,13 +146,12 @@ struct RadioView: View {
     )
   }
 
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
-  }
-
   @ViewBuilder
-  private var radioOverview: some View {
-    if usesWideOverview {
+  private func radioOverview(availableWidth: CGFloat) -> some View {
+    if AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    ) {
       wideRadioOverview
     } else {
       compactRadioOverview
@@ -233,16 +240,20 @@ struct RadioView: View {
     VStack(alignment: .leading, spacing: 12) {
       VStack(alignment: .leading, spacing: 4) {
         Text("Featured Episode")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundStyle(.secondary)
+          .font(.caption.bold())
+          .foregroundStyle(Color.secondary)
           .textCase(.uppercase)
           .accessibilityIdentifier("Radio.FeaturedEpisode.Label")
         Text(song?.displayTitle ?? np?.station.name ?? "Twinskaraoke Radio")
-          .font(.system(size: 30, weight: .semibold))
-          .foregroundStyle(.primary)
+          .font(.title.bold())
+          .foregroundStyle(Color.primary)
           .lineLimit(2)
           .accessibilityIdentifier("Radio.FeaturedEpisode.Title")
       }
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel("Featured Episode")
+      .accessibilityValue(song?.displayTitle ?? np?.station.name ?? "Twinskaraoke Radio")
+      .animation(metadataPulseAnimation, value: song?.displayTitle)
 
       radioHero(
         song: song,
@@ -276,22 +287,22 @@ struct RadioView: View {
             VStack(alignment: .leading, spacing: 2) {
               Text("Up Next")
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(Color.secondary)
               Text(next.title ?? next.text ?? "")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .lineLimit(1)
               Text(next.artist ?? "")
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
+                .font(.subheadline)
+                .foregroundStyle(Color.secondary)
                 .lineLimit(1)
             }
             Spacer()
             Image(systemName: "chevron.right")
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundColor(.secondary)
+              .font(.headline.weight(.semibold))
+              .foregroundStyle(Color.secondary)
           }
           .padding(.horizontal, 16)
-          .padding(.vertical, 8)
+          .padding(.vertical, 12)
           .background(
             Color.appControlInactiveFill,
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -350,7 +361,7 @@ struct RadioView: View {
       VStack(alignment: .leading, spacing: 8) {
         RadioLiveBadge(isActive: isLivePlaying)
         Text(song?.displayArtist ?? station?.description ?? "Live radio")
-          .font(.system(size: 17, weight: .medium))
+          .font(.headline)
           .foregroundStyle(.white.opacity(0.9))
           .lineLimit(1)
       }
@@ -384,9 +395,10 @@ struct RadioView: View {
           LoadingIndicator(size: 28)
         } else {
           Image(systemName: isLivePlaying ? "pause.fill" : "play.fill")
-            .font(.system(size: 20, weight: .bold))
-            .foregroundColor(.black)
+            .font(.title3.bold())
+            .foregroundStyle(Color.black)
             .offset(x: isLivePlaying ? 0 : 2)
+            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
         }
       }
     }
@@ -444,7 +456,7 @@ private struct RadioSectionHeader: View {
     HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.s) {
       Text(title)
         .font(AM.Font.sectionHeader)
-        .foregroundColor(.primary)
+        .foregroundStyle(Color.primary)
       Spacer()
     }
     .padding(.top, 2)
@@ -468,8 +480,8 @@ private struct RadioLiveBadge: View {
       .frame(width: 12, height: 12)
 
       Text("LIVE")
-        .font(.system(size: 10, weight: .heavy))
-        .foregroundColor(.white)
+        .font(.caption.bold())
+        .foregroundStyle(.white)
     }
     .padding(.horizontal, 9)
     .padding(.vertical, 5)
@@ -525,12 +537,12 @@ private struct RadioStatusPill: View {
 
   var body: some View {
     Label(text, systemImage: systemImage)
-      .font(.system(size: 11, weight: .semibold))
+      .font(.caption.weight(.semibold))
       .lineLimit(1)
       .minimumScaleFactor(0.78)
-      .foregroundColor(tint)
+      .foregroundStyle(tint)
       .padding(.horizontal, 9)
-      .frame(height: 26)
+      .frame(minHeight: 32)
       .background(
         Capsule()
           .fill(Color.appControlInactiveFill)
@@ -545,18 +557,18 @@ private struct RadioRefreshBanner: View {
   var body: some View {
     HStack(spacing: 10) {
       Text(message)
-        .font(.system(size: 13, weight: .medium))
-        .foregroundColor(.primary)
+        .font(.subheadline)
+        .foregroundStyle(Color.primary)
         .lineLimit(2)
       Spacer(minLength: 8)
       Button {
         onRetry()
       } label: {
         Text("Retry")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(Color.primary)
           .padding(.horizontal, 12)
-          .frame(height: 30)
+          .frame(minWidth: 44, minHeight: 44)
           .background(Color.appSecondaryBackground, in: Capsule())
           .overlay {
             Capsule()
@@ -616,16 +628,16 @@ private struct RadioStationContextPreview: View {
       .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
       VStack(alignment: .leading, spacing: 3) {
         Text("Live Station")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(.appAccent)
+          .font(.caption.bold())
+          .foregroundStyle(Color.appAccent)
           .textCase(.uppercase)
         Text(title)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline.weight(.semibold))
+          .foregroundStyle(Color.primary)
           .lineLimit(2)
         Text(subtitle)
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(Color.secondary)
           .lineLimit(2)
       }
     }
@@ -680,17 +692,17 @@ private struct RadioHistoryRow: View {
       }
       VStack(alignment: .leading, spacing: 2) {
         Text(song.title ?? song.text ?? "")
-          .font(.system(size: 15, weight: .semibold))
+          .font(.body.weight(.semibold))
           .lineLimit(1)
         Text(song.artist ?? "")
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(Color.secondary)
           .lineLimit(1)
       }
       Spacer()
       Image(systemName: "chevron.right")
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundColor(.secondary)
+        .font(.headline.weight(.semibold))
+        .foregroundStyle(Color.secondary)
     }
   }
 }
@@ -711,7 +723,7 @@ struct RadioSkeletonView: View {
         pulse = false
         return
       }
-      withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+      withAnimation(pulseAnimation) {
         pulse = true
       }
     }
@@ -723,7 +735,7 @@ struct RadioSkeletonView: View {
           pulse = false
         }
       } else {
-        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+        withAnimation(pulseAnimation) {
           pulse = true
         }
       }
@@ -880,5 +892,10 @@ struct RadioSkeletonView: View {
       systemReduceMotion: systemReduceMotion,
       respectPreference: respectReducedMotion
     )
+  }
+
+  private var pulseAnimation: Animation {
+    .spring(response: 0.9, dampingFraction: 0.78)
+      .repeatForever(autoreverses: true)
   }
 }

@@ -7,14 +7,16 @@ struct AboutLinkRow: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: icon)
-        .font(.system(size: 13, weight: .semibold))
+        .font(.subheadline.bold())
         .foregroundStyle(.white)
-        .frame(width: 28, height: 28)
+        .frame(width: 44, height: 44)
         .background(color)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       Text(title)
+        .font(.body)
       Spacer()
     }
+    .accessibilityElement(children: .combine)
   }
 }
 

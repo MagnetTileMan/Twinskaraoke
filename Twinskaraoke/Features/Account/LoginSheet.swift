@@ -4,6 +4,8 @@ import SwiftUI
 struct LoginSheet: View {
   @ObservedObject var auth: AuthManager
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var username = ""
   @State private var password = ""
   @State private var showPassword = false
@@ -26,7 +28,7 @@ struct LoginSheet: View {
           credentialsCard
           if let err = auth.errorMessage, !err.isEmpty {
             errorBanner(err)
-              .transition(.move(edge: .top).combined(with: .opacity))
+              .transition(errorTransition)
           }
           signInButton
           divider
@@ -53,8 +55,14 @@ struct LoginSheet: View {
       .onChange(of: auth.errorMessage ?? "") { _, message in
         if !message.isEmpty { AppHaptic.error.play() }
       }
-      .animation(.spring(response: 0.34, dampingFraction: 0.86), value: auth.errorMessage ?? "")
-      .animation(.spring(response: 0.32, dampingFraction: 0.84), value: auth.isLoading)
+      .animation(
+        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.86),
+        value: auth.errorMessage ?? ""
+      )
+      .animation(
+        reduceMotion ? nil : AppMotion.spring(response: 0.32, dampingFraction: 0.84),
+        value: auth.isLoading
+      )
     }
   }
   private var header: some View {
@@ -66,7 +74,7 @@ struct LoginSheet: View {
         .accessibilityHidden(true)
       VStack(spacing: 6) {
         Text("Sign in to Twinskaraoke")
-          .font(.system(size: 26, weight: .bold))
+          .font(.title.bold())
           .multilineTextAlignment(.center)
         Text("Access your library, favorites, and playlists across devices.")
           .font(.subheadline)
@@ -89,7 +97,7 @@ struct LoginSheet: View {
         RoundedRectangle(cornerRadius: 22, style: .continuous)
           .fill(ProfileTheme.radialGradient)
         Image(systemName: "music.mic")
-          .font(.system(size: 40, weight: .semibold))
+          .font(.largeTitle.bold())
           .foregroundStyle(.white)
       }
     }
@@ -98,7 +106,7 @@ struct LoginSheet: View {
     VStack(spacing: 0) {
       HStack(spacing: 12) {
         Image(systemName: "person.fill")
-          .font(.system(size: 15, weight: .semibold))
+          .font(.subheadline.bold())
           .foregroundStyle(.secondary)
           .frame(width: 22)
           .accessibilityHidden(true)
@@ -114,7 +122,7 @@ struct LoginSheet: View {
       Divider().padding(.leading, 50)
       HStack(spacing: 12) {
         Image(systemName: "lock.fill")
-          .font(.system(size: 15, weight: .semibold))
+          .font(.subheadline.bold())
           .foregroundStyle(.secondary)
           .frame(width: 22)
           .accessibilityHidden(true)
@@ -142,9 +150,9 @@ struct LoginSheet: View {
               Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
             }
           }
-          .font(.system(size: 15, weight: .medium))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
-          .frame(width: 32, height: 32)
+          .frame(width: 44, height: 44)
           .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.72))
@@ -165,7 +173,10 @@ struct LoginSheet: View {
           lineWidth: 1.2
         )
     }
-    .animation(.spring(response: 0.28, dampingFraction: 0.86), value: focus)
+    .animation(
+      reduceMotion ? nil : AppMotion.spring(response: 0.28, dampingFraction: 0.86),
+      value: focus
+    )
   }
   private func errorBanner(_ message: String) -> some View {
     HStack(spacing: 10) {
@@ -194,7 +205,7 @@ struct LoginSheet: View {
           LoadingIndicator(size: 22)
         } else {
           Text("Sign In")
-            .font(.system(size: 17, weight: .semibold))
+            .font(.headline)
             .foregroundStyle(.white)
         }
       }
@@ -214,7 +225,7 @@ struct LoginSheet: View {
     HStack(spacing: 12) {
       Rectangle().fill(Color(.separator)).frame(height: 0.5)
       Text("OR")
-        .font(.system(size: 12, weight: .semibold))
+        .font(.caption.bold())
         .foregroundStyle(.secondary)
       Rectangle().fill(Color(.separator)).frame(height: 0.5)
     }
@@ -228,7 +239,7 @@ struct LoginSheet: View {
       HStack(spacing: 10) {
         DiscordIcon(size: 20, color: .white)
         Text("Continue with Discord")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.headline)
           .foregroundStyle(.white)
       }
       .frame(maxWidth: .infinity)
@@ -259,6 +270,17 @@ struct LoginSheet: View {
     AppHaptic.medium.play()
     focus = nil
     Task { await auth.login(username: trimmedUsername, password: password) }
+  }
+
+  private var errorTransition: AnyTransition {
+    reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 

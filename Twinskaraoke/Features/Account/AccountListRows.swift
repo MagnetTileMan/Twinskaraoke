@@ -88,7 +88,7 @@ struct ProfileHeaderRow: View {
     ZStack {
       ProfileTheme.radialGradient
       Text(String(displayName.prefix(1).uppercased()))
-        .font(.system(size: 26, weight: .bold))
+        .font(.title2.bold())
         .foregroundStyle(.white)
     }
   }
@@ -103,10 +103,10 @@ struct UnlockedBadgesRow: View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
         Text("Badges")
-          .font(.system(size: 15, weight: .semibold))
+          .font(.headline)
         Spacer()
         Text("\(unlockedCount) / \(totalCount)")
-          .font(.system(size: 13, weight: .medium))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
       }
       ScrollView(.horizontal, showsIndicators: false) {
@@ -166,7 +166,7 @@ struct BadgeIcon: View {
       .overlay(
         Circle().strokeBorder(ProfileTheme.rarityColor(badge.rarity), lineWidth: 1.5))
       Text(badge.name)
-        .font(.system(size: 9, weight: .medium))
+        .font(.caption)
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .frame(width: 56)

@@ -302,7 +302,7 @@ struct FullScreenPlayerView: View {
         showingQueue: $showingQueue,
         song: song,
         onLyricsToggle: {
-          withAnimation(playerSurfaceAnimation) {
+          withOptionalAnimation(playerSurfaceAnimation) {
             showLyrics.toggle()
           }
           if showLyrics { lyricsViewModel.fetch(songID: song.id) }
@@ -341,7 +341,7 @@ struct FullScreenPlayerView: View {
           showingQueue: $showingQueue,
           song: song,
           onLyricsToggle: {
-            withAnimation(playerSurfaceAnimation) {
+            withOptionalAnimation(playerSurfaceAnimation) {
               showLyrics.toggle()
             }
             if showLyrics { lyricsViewModel.fetch(songID: song.id) }
@@ -387,7 +387,7 @@ struct FullScreenPlayerView: View {
           showingQueue: $showingQueue,
           song: song,
           onLyricsToggle: {
-            withAnimation(playerSurfaceAnimation) {
+            withOptionalAnimation(playerSurfaceAnimation) {
               showLyrics.toggle()
             }
             if showLyrics { lyricsViewModel.fetch(songID: song.id) }
@@ -442,29 +442,25 @@ struct FullScreenPlayerView: View {
   }
 
   private var dismissBar: some View {
-    Capsule()
-      .fill(Color.primary.opacity(0.35))
-      .frame(width: 40, height: 5)
+    Button {
+      AppHaptic.light.play()
+      audioManager.showFullScreen = false
+    } label: {
+      Capsule()
+        .fill(Color.primary.opacity(0.35))
+        .frame(width: 40, height: 5)
+        .frame(width: 44, height: 44)
+    }
       .frame(maxWidth: .infinity)
-      .contentShape(Rectangle())
-      .onTapGesture {
-        AppHaptic.light.play()
-        audioManager.showFullScreen = false
-      }
-      .accessibilityElement(children: .ignore)
+      .buttonStyle(PressableButtonStyle(scale: 0.96, dim: 0.7, haptic: .light))
       .accessibilityLabel("Dismiss player")
       .accessibilityHint("Collapses the full-screen player.")
-      .accessibilityAddTraits(.isButton)
-      .accessibilityAction {
-        AppHaptic.light.play()
-        audioManager.showFullScreen = false
-      }
   }
   @ViewBuilder
   private func lyricsHeader(song: Song, metrics: PlayerLayoutMetrics) -> some View {
     HStack(spacing: 12) {
       Button {
-        withAnimation(playerSurfaceAnimation) {
+        withOptionalAnimation(playerSurfaceAnimation) {
           showLyrics = false
         }
       } label: {
@@ -477,12 +473,12 @@ struct FullScreenPlayerView: View {
           .id(song.id)
           VStack(alignment: .leading, spacing: 2) {
             Text(song.title)
-              .font(.system(size: metrics.lyricsTitleSize, weight: .bold))
-              .foregroundColor(.primary)
+              .font(metrics.lyricsTitleSize <= 15 ? .subheadline.bold() : .headline.bold())
+              .foregroundStyle(.primary)
               .lineLimit(1)
             Text(song.displayArtist)
-              .font(.system(size: metrics.lyricsSubtitleSize))
-              .foregroundColor(.secondary)
+              .font(metrics.lyricsSubtitleSize <= 12 ? .caption : .subheadline)
+              .foregroundStyle(.secondary)
               .lineLimit(1)
           }
         }
@@ -504,9 +500,9 @@ struct FullScreenPlayerView: View {
         }
       } label: {
         Image(systemName: favorites.isFavorite(song.id) ? "star.fill" : "star")
-          .font(.system(size: 22, weight: .regular))
-          .foregroundColor(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
-          .frame(width: 38, height: 38)
+          .font(.title3)
+          .foregroundStyle(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
+          .frame(width: 44, height: 44)
           .background(playerTitleButtonBackground, in: Circle())
           .overlay(playerTitleButtonBorder)
       }
@@ -519,9 +515,9 @@ struct FullScreenPlayerView: View {
         songActions(song: song)
       } label: {
         Image(systemName: "ellipsis")
-          .font(.system(size: 19, weight: .bold))
-          .foregroundColor(playerTitleIconColor())
-          .frame(width: 38, height: 38)
+          .font(.headline.bold())
+          .foregroundStyle(playerTitleIconColor())
+          .frame(width: 44, height: 44)
           .background(playerTitleButtonBackground, in: Circle())
           .overlay(playerTitleButtonBorder)
           .contentShape(Circle())
@@ -539,26 +535,26 @@ struct FullScreenPlayerView: View {
     HStack(alignment: .center, spacing: 12) {
       VStack(alignment: .leading, spacing: 3) {
         Text("Lyrics")
-          .font(.system(size: 22, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title.bold())
+          .foregroundStyle(.primary)
           .accessibilityIdentifier("FullScreenPlayer.wideLyricsTitle")
         Text(song.title)
-          .font(.system(size: 14, weight: .medium))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
 
       Spacer(minLength: 8)
 
       Button {
-        withAnimation(playerSurfaceAnimation) {
+        withOptionalAnimation(playerSurfaceAnimation) {
           showLyrics = false
         }
       } label: {
         Image(systemName: "chevron.down")
-          .font(.system(size: 17, weight: .bold))
-          .foregroundColor(playerTitleIconColor())
-          .frame(width: 38, height: 38)
+          .font(.headline.bold())
+          .foregroundStyle(playerTitleIconColor())
+          .frame(width: 44, height: 44)
           .background(playerTitleButtonBackground, in: Circle())
           .overlay(playerTitleButtonBorder)
       }
@@ -570,9 +566,9 @@ struct FullScreenPlayerView: View {
         songActions(song: song)
       } label: {
         Image(systemName: "ellipsis")
-          .font(.system(size: 19, weight: .bold))
-          .foregroundColor(playerTitleIconColor())
-          .frame(width: 38, height: 38)
+          .font(.headline.bold())
+          .foregroundStyle(playerTitleIconColor())
+          .frame(width: 44, height: 44)
           .background(playerTitleButtonBackground, in: Circle())
           .overlay(playerTitleButtonBorder)
           .contentShape(Circle())
@@ -593,13 +589,13 @@ struct FullScreenPlayerView: View {
     HStack(alignment: .center, spacing: 12) {
       VStack(alignment: .leading, spacing: 4) {
         Text(song.title)
-          .font(.system(size: metrics.titleSize, weight: .bold))
-          .foregroundColor(.primary)
+          .font(metrics.titleSize <= 20 ? .headline.bold() : AM.Font.nowPlayingTitle)
+          .foregroundStyle(.primary)
           .lineLimit(1)
           .truncationMode(.tail)
         Text(song.displayArtist)
-          .font(.system(size: metrics.artistSize))
-          .foregroundColor(.secondary)
+          .font(metrics.artistSize <= 15 ? .subheadline : AM.Font.nowPlayingArtist)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       .accessibilityElement(children: .combine)
@@ -624,9 +620,12 @@ struct FullScreenPlayerView: View {
             Image(systemName: isFav ? "star.fill" : "star")
           }
         }
-        .font(.system(size: 24, weight: .regular))
-        .foregroundColor(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
-        .frame(width: metrics.titleButtonSize, height: metrics.titleButtonSize)
+        .font(.title2)
+        .foregroundStyle(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
+        .frame(
+          width: max(metrics.titleButtonSize, 44),
+          height: max(metrics.titleButtonSize, 44)
+        )
         .contentShape(Rectangle())
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
@@ -642,9 +641,12 @@ struct FullScreenPlayerView: View {
         songActions(song: song)
       } label: {
         Image(systemName: "ellipsis")
-          .font(.system(size: metrics.moreButtonIconSize, weight: .bold))
-          .foregroundColor(playerTitleIconColor())
-          .frame(width: metrics.titleButtonSize, height: metrics.titleButtonSize)
+          .font(.headline.bold())
+          .foregroundStyle(playerTitleIconColor())
+          .frame(
+            width: max(metrics.titleButtonSize, 44),
+            height: max(metrics.titleButtonSize, 44)
+          )
           .background(playerTitleButtonBackground, in: Circle())
           .overlay(playerTitleButtonBorder)
           .contentShape(Circle())
@@ -724,11 +726,11 @@ struct FullScreenPlayerView: View {
           Spacer()
           Text(formattedTime(max(0, duration - elapsed)))
         }
-        .font(.system(size: 12, weight: .medium, design: .monospaced))
-        .foregroundColor(audioManager.isEditingProgress ? .primary : .secondary)
+        .font(AM.Font.timecode)
+        .foregroundStyle(audioManager.isEditingProgress ? Color.primary : Color.secondary)
         .scaleEffect(audioManager.isEditingProgress ? 1.12 : 1.0, anchor: .center)
         .animation(
-          reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
+          reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.85),
           value: audioManager.isEditingProgress
         )
         .padding(.horizontal, metrics.horizontalPadding)
@@ -770,9 +772,10 @@ struct FullScreenPlayerView: View {
         audioManager.playPrevious()
       } label: {
         Image(systemName: "backward.fill")
-          .font(.system(size: metrics.sideControlSize, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title.bold())
+          .foregroundStyle(.primary)
           .frame(maxWidth: .infinity)
+          .frame(minHeight: 44)
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6, haptic: .light))
       .accessibilityLabel("Previous track")
@@ -788,9 +791,10 @@ struct FullScreenPlayerView: View {
             Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
           }
         }
-        .font(.system(size: metrics.primaryControlSize, weight: .bold))
-        .foregroundColor(.primary)
+        .font(.largeTitle.bold())
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity)
+        .frame(minHeight: 44)
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6, haptic: .medium))
       .accessibilityLabel(audioManager.isPlaying ? "Pause" : "Play")
@@ -799,9 +803,10 @@ struct FullScreenPlayerView: View {
         audioManager.playNextOrRandom()
       } label: {
         Image(systemName: "forward.fill")
-          .font(.system(size: metrics.sideControlSize, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title.bold())
+          .foregroundStyle(.primary)
           .frame(maxWidth: .infinity)
+          .frame(minHeight: 44)
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6, haptic: .light))
       .accessibilityLabel("Next track")
@@ -893,10 +898,10 @@ struct FullScreenPlayerView: View {
           }
         }
         Image(systemName: showTranslatedLyrics ? "globe.badge.chevron.backward" : "globe")
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundColor(showTranslatedLyrics ? .appAccent : .primary.opacity(0.85))
+          .font(.headline)
+          .foregroundStyle(showTranslatedLyrics ? Color.appAccent : Color.primary.opacity(0.85))
       }
-      .frame(width: 36, height: 36)
+      .frame(width: 44, height: 44)
       .modifier(GlassCircle())
     }
     .buttonStyle(PressableButtonStyle(scale: 0.9, dim: 0.7))
@@ -905,7 +910,7 @@ struct FullScreenPlayerView: View {
     .accessibilityValue(lyricsTranslationAccessibilityValue)
     .accessibilityHint(lyricsTranslationAccessibilityHint)
     .animation(
-      reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
+      reduceMotion ? nil : AppMotion.spring(response: 0.32, dampingFraction: 0.86),
       value: lyricsViewModel.translationState
     )
   }

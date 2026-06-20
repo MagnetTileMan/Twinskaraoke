@@ -4,6 +4,8 @@ import SwiftUI
 struct QRApproveView: View {
   @ObservedObject var auth: AuthManager
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var phase: Phase = .scanning
   @State private var permission: CameraPermission = .unknown
   @State private var scannerIsActive = false
@@ -47,8 +49,8 @@ struct QRApproveView: View {
       .toolbarBackground(.hidden, for: .navigationBar)
     }
     .task { await checkPermission() }
-    .animation(.spring(response: 0.36, dampingFraction: 0.84), value: phaseKey)
-    .animation(.easeInOut(duration: 0.2), value: permissionKey)
+    .animation(phaseAnimation, value: phaseKey)
+    .animation(permissionAnimation, value: permissionKey)
   }
 
   private var content: some View {
@@ -83,12 +85,7 @@ struct QRApproveView: View {
       }
     }
     .id(phaseKey)
-    .transition(
-      .asymmetric(
-        insertion: .opacity.combined(with: .scale(scale: 0.97)).combined(with: .move(edge: .bottom)),
-        removal: .opacity.combined(with: .scale(scale: 1.02))
-      )
-    )
+    .transition(contentTransition)
   }
 
   @ViewBuilder
@@ -189,7 +186,7 @@ struct QRApproveView: View {
 
         Button {
           AppHaptic.light.play()
-          withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+          withOptionalAnimation(phaseAnimation) {
             phase = .scanning
           }
         } label: {
@@ -236,7 +233,7 @@ struct QRApproveView: View {
       Button {
         if retry {
           AppHaptic.selection.play()
-          withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+          withOptionalAnimation(phaseAnimation) {
             phase = .scanning
           }
         } else {
@@ -283,7 +280,7 @@ struct QRApproveView: View {
       dismiss()
     case .failure:
       AppHaptic.selection.play()
-      withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+      withOptionalAnimation(phaseAnimation) {
         phase = .scanning
       }
     }
@@ -293,7 +290,7 @@ struct QRApproveView: View {
     guard case .scanning = phase else { return }
     guard let sessionId = parseSessionId(from: value) else { return }
     AppHaptic.success.play()
-    withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) {
+    withOptionalAnimation(phaseAnimation) {
       phase = .confirming(sessionId: sessionId)
     }
   }
@@ -316,13 +313,13 @@ struct QRApproveView: View {
   }
 
   private func approve(sessionId: String) async {
-    withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+    withOptionalAnimation(phaseAnimation) {
       phase = .approving(sessionId: sessionId)
     }
     do {
       try await auth.approveQRSession(sessionId: sessionId)
       AppHaptic.success.play()
-      withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) {
+      withOptionalAnimation(phaseAnimation) {
         phase = .success
       }
     } catch let AuthManager.AuthError.http(code, _) {
@@ -333,12 +330,12 @@ struct QRApproveView: View {
       default: msg = "Server error (\(code))."
       }
       AppHaptic.error.play()
-      withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) {
+      withOptionalAnimation(phaseAnimation) {
         phase = .failure(msg)
       }
     } catch {
       AppHaptic.error.play()
-      withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) {
+      withOptionalAnimation(phaseAnimation) {
         phase = .failure(error.localizedDescription)
       }
     }
@@ -357,9 +354,35 @@ struct QRApproveView: View {
       permission = .denied
     }
   }
+
+  private var contentTransition: AnyTransition {
+    reduceMotion
+      ? .opacity
+      : .asymmetric(
+        insertion: .opacity.combined(with: .scale(scale: 0.97)).combined(with: .move(edge: .bottom)),
+        removal: .opacity.combined(with: .scale(scale: 1.02))
+      )
+  }
+
+  private var phaseAnimation: Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: 0.36, dampingFraction: 0.84)
+  }
+
+  private var permissionAnimation: Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
+  }
 }
 
 private struct QRPermissionLoadingView: View {
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var pulse = false
 
   var body: some View {
@@ -385,10 +408,21 @@ private struct QRPermissionLoadingView: View {
     .shadow(color: Color.appShadow, radius: 22, y: 10)
     .padding(.horizontal, 24)
     .onAppear {
-      withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) {
+      withOptionalAnimation(pulseAnimation) {
         pulse = true
       }
     }
+  }
+
+  private var pulseAnimation: Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: 1.15, dampingFraction: 0.82).repeatForever(autoreverses: true)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 
@@ -427,6 +461,8 @@ private struct QRPermissionDeniedView: View {
 
 private struct QRScannerChrome: View {
   let isActive: Bool
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
   var body: some View {
     GeometryReader { proxy in
@@ -451,14 +487,27 @@ private struct QRScannerChrome: View {
           .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
           .shadow(color: .black.opacity(0.35), radius: 22, y: 10)
       }
-      .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: isActive)
+      .animation(chromeAnimation, value: isActive)
     }
     .allowsHitTesting(false)
+  }
+
+  private var chromeAnimation: Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: 1.6, dampingFraction: 0.86).repeatForever(autoreverses: true)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 
 private struct QRScanLine: View {
   let isActive: Bool
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
 
   var body: some View {
     GeometryReader { proxy in
@@ -478,9 +527,20 @@ private struct QRScanLine: View {
         )
         .frame(height: 2)
         .shadow(color: Color.appAccent.opacity(0.55), radius: 8, y: 0)
-        .offset(y: isActive ? proxy.size.height - 38 : 36)
-        .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: isActive)
+        .offset(y: reduceMotion ? proxy.size.height / 2 : (isActive ? proxy.size.height - 38 : 36))
+        .animation(scanLineAnimation, value: isActive)
     }
+  }
+
+  private var scanLineAnimation: Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: 1.7, dampingFraction: 0.86).repeatForever(autoreverses: true)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 
@@ -543,10 +603,10 @@ private struct QRScannerInstructionPanel: View {
     VStack(alignment: .leading, spacing: 10) {
       Label {
         Text("Scan Web Sign-In Code")
-          .font(.system(size: 16, weight: .semibold))
+          .font(.headline)
       } icon: {
         Image(systemName: "qrcode.viewfinder")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.headline)
           .foregroundStyle(Color.appAccent)
       }
       Text("Point the camera at the QR code shown on twinskaraoke.com.")
@@ -555,7 +615,7 @@ private struct QRScannerInstructionPanel: View {
         .fixedSize(horizontal: false, vertical: true)
       HStack(spacing: 8) {
         Image(systemName: "lock.fill")
-          .font(.system(size: 11, weight: .bold))
+          .font(.caption.bold())
           .foregroundStyle(.secondary)
         Text("You will approve the session before signing in.")
           .font(.caption.weight(.medium))
@@ -578,11 +638,13 @@ private struct QRHeroGlyph: View {
   let tint: Color
   var isSpinning = false
   var isPulsing = false
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var animate = false
 
   var body: some View {
     Image(systemName: systemImage)
-      .font(.system(size: 42, weight: .semibold))
+      .font(.largeTitle.bold())
       .foregroundStyle(tint)
       .frame(width: 86, height: 86)
       .background(tint.opacity(0.12), in: Circle())
@@ -590,15 +652,24 @@ private struct QRHeroGlyph: View {
       .scaleEffect(isPulsing && animate ? 1.06 : 1)
       .rotationEffect(.degrees(isSpinning && animate ? 360 : 0))
       .shadow(color: tint.opacity(0.18), radius: 16, y: 8)
-      .animation(
-        isSpinning
-          ? .linear(duration: 1.3).repeatForever(autoreverses: false)
-          : .easeInOut(duration: 1.05).repeatForever(autoreverses: true),
-        value: animate
-      )
+      .animation(heroAnimation, value: animate)
       .onAppear {
-        animate = isSpinning || isPulsing
+        animate = !reduceMotion && (isSpinning || isPulsing)
       }
+  }
+
+  private var heroAnimation: Animation? {
+    guard !reduceMotion else { return nil }
+    return isSpinning
+      ? AppMotion.spring(response: 1.3, dampingFraction: 0.9).repeatForever(autoreverses: false)
+      : AppMotion.spring(response: 1.05, dampingFraction: 0.82).repeatForever(autoreverses: true)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
   }
 }
 
@@ -610,16 +681,16 @@ private struct QRInfoRow: View {
   var body: some View {
     HStack(spacing: 12) {
       Image(systemName: symbol)
-        .font(.system(size: 15, weight: .semibold))
+        .font(.headline)
         .foregroundStyle(Color.appAccent)
-        .frame(width: 28, height: 28)
+        .frame(width: 44, height: 44)
         .background(Color.appAccent.opacity(0.12), in: Circle())
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
           .font(.caption)
           .foregroundStyle(.secondary)
         Text(value)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.body.bold())
           .foregroundStyle(.primary)
           .lineLimit(1)
       }
@@ -636,7 +707,7 @@ private struct QRActionLabel: View {
 
   var body: some View {
     Label(title, systemImage: systemImage)
-      .font(.system(size: 17, weight: .semibold))
+      .font(.headline)
       .foregroundStyle(isPrimary ? Color.appControlActiveForeground : Color.appAccent)
       .frame(maxWidth: .infinity)
       .frame(height: 50)

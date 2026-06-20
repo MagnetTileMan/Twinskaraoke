@@ -11,7 +11,7 @@ struct StorageSection: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Text("Library")
-        .font(.system(size: 17, weight: .bold))
+        .font(.headline)
       VStack(spacing: 14) {
         StorageMeterRow(
           icon: "internaldrive",
@@ -71,9 +71,9 @@ private struct StorageMeterRow: View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 10) {
         Image(systemName: icon)
-          .font(.system(size: 13, weight: .semibold))
+          .font(.subheadline.bold())
           .foregroundStyle(.secondary)
-          .frame(width: 18)
+          .frame(width: 44, height: 44)
         Text(label)
           .font(.subheadline)
         Spacer()
@@ -91,9 +91,9 @@ private struct SongsPerPlaylistRow: View {
   var body: some View {
     HStack(spacing: 10) {
       Image(systemName: "square.stack.3d.up")
-        .font(.system(size: 13, weight: .semibold))
+        .font(.subheadline.bold())
         .foregroundStyle(.secondary)
-        .frame(width: 18)
+        .frame(width: 44, height: 44)
       Text("Songs per playlist")
         .font(.subheadline)
       Spacer()

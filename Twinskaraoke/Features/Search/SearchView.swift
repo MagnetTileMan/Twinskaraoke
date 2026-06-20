@@ -12,7 +12,15 @@ struct SearchView: View {
   @State private var playbackTask: Task<Void, Never>?
 
   private var stateChangeAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.3)
+    reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84)
+  }
+
+  private var subtleStateTransition: AnyTransition {
+    reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98))
+  }
+
+  private var resultsEmptyTransition: AnyTransition {
+    reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom))
   }
 
   private var reduceMotion: Bool {
@@ -22,69 +30,79 @@ struct SearchView: View {
     )
   }
 
-  private var resultsMaxWidth: CGFloat {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) ? 780 : .infinity
+  private func usesWideCanvas(availableWidth: CGFloat) -> Bool {
+    AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    )
+  }
+
+  private func resultsMaxWidth(availableWidth: CGFloat) -> CGFloat {
+    usesWideCanvas(availableWidth: availableWidth) ? 780 : .infinity
   }
 
   var body: some View {
     NavigationStack {
-      Group {
-        if viewModel.isSearching && viewModel.results.isEmpty {
-          SearchResultsLoadingView()
-            .transition(.opacity)
-        } else if let errorMessage = viewModel.searchErrorMessage,
-          viewModel.results.isEmpty,
-          !viewModel.searchText.isEmpty
-        {
-          SearchErrorStateView(message: errorMessage) {
-            viewModel.retrySearch()
-          }
-          .transition(.opacity.combined(with: .scale(scale: 0.98)))
-        } else if viewModel.results.isEmpty && !viewModel.searchText.isEmpty {
-          SearchNoResultsStateView(query: viewModel.searchText)
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
-        } else if viewModel.results.isEmpty {
-          BrowseCategoriesView()
-            .transition(.opacity)
-        } else {
-          List {
-            SearchResultsSummaryHeader(
-              query: viewModel.searchText,
-              resultCount: viewModel.results.count
-            )
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
-            .listRowSeparator(.hidden)
-
-            ForEach(viewModel.results) { song in
-              Button {
-                playSelection(song)
-              } label: {
-                SearchResultRow(song: song, isPending: pendingSongID == song.id) {
-                  playSelection(song)
-                }
-              }
-              .disabled(pendingSongID != nil)
-              .buttonStyle(PressableButtonStyle())
-              .listRowBackground(Color.clear)
-              .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+      GeometryReader { proxy in
+        Group {
+          if viewModel.isSearching && viewModel.results.isEmpty {
+            SearchResultsLoadingView()
+              .transition(.opacity)
+          } else if let errorMessage = viewModel.searchErrorMessage,
+            viewModel.results.isEmpty,
+            !viewModel.searchText.isEmpty
+          {
+            SearchErrorStateView(message: errorMessage) {
+              viewModel.retrySearch()
             }
+            .transition(subtleStateTransition)
+          } else if viewModel.results.isEmpty && !viewModel.searchText.isEmpty {
+            SearchNoResultsStateView(query: viewModel.searchText)
+              .transition(resultsEmptyTransition)
+          } else if viewModel.results.isEmpty {
+            BrowseCategoriesView(availableWidth: proxy.size.width)
+              .transition(.opacity)
+          } else {
+            List {
+              SearchResultsSummaryHeader(
+                query: viewModel.searchText,
+                resultCount: viewModel.results.count
+              )
+              .listRowBackground(Color.clear)
+              .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
+              .listRowSeparator(.hidden)
+
+              ForEach(viewModel.results) { song in
+                Button {
+                  playSelection(song)
+                } label: {
+                  SearchResultRow(song: song, isPending: pendingSongID == song.id) {
+                    playSelection(song)
+                  }
+                }
+                .disabled(pendingSongID != nil)
+                .buttonStyle(PressableButtonStyle())
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                .listRowSeparator(.hidden)
+              }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .smoothScrolling()
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: resultsMaxWidth(availableWidth: proxy.size.width))
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("SearchResults.List")
+            .transition(.opacity)
           }
-          .listStyle(.plain)
-          .scrollContentBackground(.hidden)
-          .smoothScrolling()
-          .scrollIndicators(.hidden)
-          .frame(maxWidth: resultsMaxWidth)
-          .frame(maxWidth: .infinity)
-          .accessibilityIdentifier("SearchResults.List")
-          .transition(.opacity)
         }
+        .musicScreenBackground()
+        .animation(
+          stateChangeAnimation,
+          value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)"
+        )
       }
-      .musicScreenBackground()
-      .animation(
-        stateChangeAnimation,
-        value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)"
-      )
       .navigationTitle("Search")
       .navigationBarTitleDisplayMode(.large)
       .toolbar {
@@ -139,18 +157,18 @@ private struct SearchResultsSummaryHeader: View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(alignment: .firstTextBaseline) {
         Text("Songs")
-          .font(.system(size: 22, weight: .bold))
-          .foregroundStyle(.primary)
+          .font(.title2.bold())
+          .foregroundStyle(Color.primary)
         Spacer(minLength: 12)
         Text(resultCountText)
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(Color.secondary)
           .monospacedDigit()
       }
       if !trimmedQuery.isEmpty {
         Text("Results for \"\(trimmedQuery)\"")
-          .font(.system(size: 13, weight: .medium))
-          .foregroundStyle(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(Color.secondary)
           .lineLimit(1)
       }
     }
@@ -163,6 +181,7 @@ private struct SearchResultsSummaryHeader: View {
 }
 
 private struct BrowseCategoriesView: View {
+  let availableWidth: CGFloat
   @StateObject private var genresVM = GenresViewModel()
   @StateObject private var topChartVM = TopChartViewModel()
   @StateObject private var publicPlaylistsVM = PublicPlaylistsViewModel()
@@ -216,11 +235,14 @@ private struct BrowseCategoriesView: View {
     ),
   ]
   private var usesWideHighlights: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
+    AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    )
   }
 
   private var contentMaxWidth: CGFloat {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) ? AM.Layout.wideContentMaxWidth : .infinity
+    usesWideHighlights ? AM.Layout.wideContentMaxWidth : .infinity
   }
 
   private var sectionHorizontalPadding: CGFloat {
@@ -547,7 +569,7 @@ private struct GenreDetailLoadingView: View {
             .multilineTextAlignment(.center)
           Text("Loading songs")
             .font(.subheadline)
-            .foregroundColor(.secondary)
+            .foregroundStyle(Color.secondary)
         }
 
         LazyVStack(spacing: 0) {
@@ -676,20 +698,20 @@ private struct SearchNoResultsStateView: View {
       SearchStateGlyph()
       VStack(spacing: AM.Spacing.s) {
         Text("No Results")
-          .font(.system(size: 22, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title2.bold())
+          .foregroundStyle(Color.primary)
           .multilineTextAlignment(.center)
         Text("No songs matched \"\(query.trimmingCharacters(in: .whitespacesAndNewlines))\".")
-          .font(.system(size: 15))
-          .foregroundColor(.secondary)
+          .font(.body)
+          .foregroundStyle(Color.secondary)
           .multilineTextAlignment(.center)
           .lineLimit(3)
       }
 
       VStack(alignment: .leading, spacing: AM.Spacing.m) {
         Text("Explore instead")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundColor(.secondary)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(Color.secondary)
           .textCase(.uppercase)
         LazyVGrid(
           columns: AM.Layout.adaptiveGridColumns(minimum: 132, spacing: AM.Spacing.s),
@@ -703,8 +725,8 @@ private struct SearchNoResultsStateView: View {
               )
             ) {
               Text(suggestion)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.primary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity, minHeight: 44)
@@ -755,12 +777,12 @@ private struct SearchRecoveryStateView: View {
 
       VStack(spacing: AM.Spacing.s) {
         Text(title)
-          .font(.system(size: 22, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.title2.bold())
+          .foregroundStyle(Color.primary)
           .multilineTextAlignment(.center)
         Text(message)
-          .font(.system(size: 15))
-          .foregroundColor(.secondary)
+          .font(.body)
+          .foregroundStyle(Color.secondary)
           .multilineTextAlignment(.center)
           .lineLimit(3)
       }
@@ -779,11 +801,11 @@ private struct SearchRecoveryStateView: View {
               .frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 2) {
               Text(hint.0)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.primary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
               Text(hint.1)
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
+                .font(.subheadline)
+                .foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 0)
           }
@@ -799,7 +821,7 @@ private struct SearchRecoveryStateView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding(.horizontal, AM.Spacing.screenMargin)
     .onAppear {
-      withAnimation(entranceAnimation) {
+      withOptionalAnimation(entranceAnimation) {
         hasAppeared = true
       }
     }
@@ -811,13 +833,6 @@ private struct SearchStateGlyph: View {
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var isPulsing = false
 
-  private var reduceMotion: Bool {
-    AppMotion.reduceMotion(
-      systemReduceMotion: systemReduceMotion,
-      respectPreference: respectReducedMotion
-    )
-  }
-
   var body: some View {
     MusicEmptyStateMark()
       .scaleEffect(reduceMotion ? 1 : (isPulsing ? 1.03 : 0.98))
@@ -826,22 +841,34 @@ private struct SearchStateGlyph: View {
         isPulsing = false
         return
       }
-      withAnimation(.easeInOut(duration: 1.45).repeatForever(autoreverses: true)) {
+      withOptionalAnimation(pulseAnimation) {
         isPulsing = true
       }
     }
     .onChange(of: reduceMotion) { _, reduceMotion in
       if reduceMotion {
-        withAnimation(nil) {
+        withOptionalAnimation(nil) {
           isPulsing = false
         }
       } else {
-        withAnimation(.easeInOut(duration: 1.45).repeatForever(autoreverses: true)) {
+        withOptionalAnimation(pulseAnimation) {
           isPulsing = true
         }
       }
     }
     .accessibilityHidden(true)
+  }
+
+  private var reduceMotion: Bool {
+    AppMotion.reduceMotion(
+      systemReduceMotion: systemReduceMotion,
+      respectPreference: respectReducedMotion
+    )
+  }
+
+  private var pulseAnimation: Animation? {
+    reduceMotion ? nil : .spring(response: 0.9, dampingFraction: 0.78)
+      .repeatForever(autoreverses: true)
   }
 }
 
@@ -861,7 +888,7 @@ private struct SearchCategoryLoadingView: View {
             .multilineTextAlignment(.center)
           Text("Loading songs")
             .font(.subheadline)
-            .foregroundColor(.secondary)
+            .foregroundStyle(Color.secondary)
         }
 
         LazyVStack(spacing: 0) {
@@ -924,13 +951,13 @@ private struct SearchFeaturedShortcutTile: View {
 
       VStack(alignment: .leading, spacing: 5) {
         Text(title)
-          .font(.system(size: isCompactWidth ? 20 : 22, weight: .bold))
-          .foregroundColor(.white)
+          .font(.headline.bold())
+          .foregroundStyle(.white)
           .lineLimit(2)
           .minimumScaleFactor(0.82)
         if let subtitle {
           Text(subtitle)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.white.opacity(0.82))
             .lineLimit(1)
         }
@@ -994,8 +1021,8 @@ private struct CategoryTile: View {
       )
       .allowsHitTesting(false)
       Text(title)
-        .font(.system(size: isCompactWidth ? 19 : 20, weight: .bold))
-        .foregroundColor(.white)
+        .font(.headline.bold())
+        .foregroundStyle(.white)
         .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
         .padding(AM.Spacing.m)
         .lineLimit(2)

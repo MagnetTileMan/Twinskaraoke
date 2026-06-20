@@ -7,8 +7,8 @@ struct PlayerVolumeRow: View {
   var body: some View {
     HStack(spacing: 12) {
       Image(systemName: "speaker.fill")
-        .font(.system(size: 13))
-        .foregroundColor(.secondary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
         .accessibilityHidden(true)
       AppleMusicProgressBar(
         progress: $audioManager.volume,
@@ -23,8 +23,8 @@ struct PlayerVolumeRow: View {
         accessibilityHint: "Drag or swipe up and down to adjust volume."
       )
       Image(systemName: "speaker.wave.3.fill")
-        .font(.system(size: 13))
-        .foregroundColor(.secondary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
         .accessibilityHidden(true)
     }
     .padding(.horizontal, horizontalPadding)

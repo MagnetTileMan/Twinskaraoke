@@ -19,7 +19,8 @@ private final class PopupPlaybackState: ObservableObject {
 
   private var cancellables = Set<AnyCancellable>()
 
-  private init(manager: AudioPlayerManager = .shared) {
+  private init() {
+    let manager = AudioPlayerManager.shared
     manager.$currentSong
       .map { song in
         PopupSongSnapshot(
@@ -135,15 +136,23 @@ private struct PopupHostView: View {
 
   @ViewBuilder
   private var rootShell: some View {
-    if usesSidebarShell {
-      sidebarShell
-    } else {
-      rootTabs
+    GeometryReader { proxy in
+      Group {
+        if usesSidebarShell(availableWidth: proxy.size.width) {
+          sidebarShell
+        } else {
+          rootTabs
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
   }
 
-  private var usesSidebarShell: Bool {
-    guard AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass) else { return false }
+  private func usesSidebarShell(availableWidth: CGFloat) -> Bool {
+    guard AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    ) else { return false }
     #if canImport(UIKit)
       let idiom = UIDevice.current.userInterfaceIdiom
       return idiom == .pad || idiom == .mac
@@ -226,7 +235,7 @@ private struct PopupHostView: View {
   }
 
   private var shellAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.24)
+    reduceMotion ? nil : AppMotion.spring(response: 0.24, dampingFraction: 0.88)
   }
 
   private var shellTransition: AnyTransition {
@@ -353,13 +362,13 @@ private struct SidebarSectionRow: View {
   var body: some View {
     Label {
       Text(section.title)
-        .font(.system(size: 17, weight: isSelected ? .semibold : .regular))
+        .font(isSelected ? .headline : .body)
     } icon: {
       ZStack {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
           .fill(section.sidebarTint.opacity(isSelected ? 1 : 0.14))
         Image(systemName: isSelected ? section.selectedSystemImage : section.systemImage)
-          .font(.system(size: 13, weight: .semibold))
+          .font(.caption.bold())
           .foregroundStyle(isSelected ? Color.white : section.sidebarTint)
       }
       .frame(width: 25, height: 25)
@@ -381,16 +390,16 @@ private struct SidebarNowPlayingHint: View {
           artwork
           VStack(alignment: .leading, spacing: 2) {
             Text("Now Playing")
-              .font(.system(size: 11, weight: .semibold))
+              .font(.caption.bold())
               .foregroundStyle(.secondary)
               .textCase(.uppercase)
             Text(popupState.title)
-              .font(.system(size: 13, weight: .semibold))
+              .font(.subheadline.bold())
               .foregroundStyle(.primary)
               .lineLimit(1)
             if !popupState.subtitle.isEmpty {
               Text(popupState.subtitle)
-                .font(.system(size: 12))
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
@@ -561,9 +570,9 @@ private struct PopupBarTrailingItems: View, Equatable {
               .contentTransition(.opacity)
           }
         }
-        .font(.system(size: 23, weight: .semibold))
-        .foregroundColor(.primary)
-        .frame(width: 34, height: 34)
+        .font(.title3.bold())
+        .foregroundStyle(.primary)
+        .frame(width: 44, height: 44)
         .contentShape(Rectangle())
       }
       .buttonStyle(PressableButtonStyle(scale: 0.86, dim: 0.65, haptic: .medium))
@@ -574,9 +583,9 @@ private struct PopupBarTrailingItems: View, Equatable {
       if !isRadioMode {
         Button(action: onNext) {
           Image(systemName: "forward.fill")
-            .font(.system(size: 21, weight: .semibold))
-            .foregroundColor(.primary)
-            .frame(width: 34, height: 34)
+            .font(.title3.bold())
+            .foregroundStyle(.primary)
+            .frame(width: 44, height: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.86, dim: 0.65, haptic: .light))

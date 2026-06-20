@@ -30,11 +30,11 @@ struct iOSAppDevelopmentView: View {
       Section {
         VStack(alignment: .leading, spacing: 8) {
           Text("Twinskaraoke iOS")
-            .font(.system(size: 17, weight: .semibold))
+            .font(.headline)
           Text(
             "A native SwiftUI client for the Neuro & Evil Karaoke Web Player. Built around the public Neurokaraoke API, with offline downloads, karaoke vocal removal, beat-aware crossfade, and Live Radio playback."
           )
-          .font(.system(size: 14))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
@@ -43,22 +43,22 @@ struct iOSAppDevelopmentView: View {
         Link(destination: repoURL) {
           HStack(spacing: 14) {
             Image(systemName: "chevron.left.forwardslash.chevron.right")
-              .font(.system(size: 13, weight: .semibold))
+              .font(.subheadline.bold())
               .foregroundStyle(.white)
               .frame(width: 28, height: 28)
               .background(Color.black)
               .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
               Text("github.com/Evil-Project/Twinskaraoke")
-                .font(.system(size: 14, weight: .medium))
+                .font(.body)
                 .foregroundStyle(.primary)
               Text("Open repository")
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "arrow.up.right.square")
-              .font(.system(size: 13))
+              .font(.subheadline)
               .foregroundStyle(.secondary)
           }
         }
@@ -75,7 +75,7 @@ struct iOSAppDevelopmentView: View {
         Text(
           "Issues and pull requests are welcome on GitHub. The repository contains build instructions and the project's coding conventions."
         )
-        .font(.system(size: 13))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .padding(.vertical, 2)
       }
@@ -88,10 +88,10 @@ struct iOSAppDevelopmentView: View {
   @ViewBuilder
   private func techRow(_ name: String, detail: String) -> some View {
     HStack {
-      Text(name).font(.system(size: 14, weight: .medium))
+      Text(name).font(.body)
       Spacer()
       Text(detail)
-        .font(.system(size: 12))
+        .font(.subheadline)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.trailing)
     }

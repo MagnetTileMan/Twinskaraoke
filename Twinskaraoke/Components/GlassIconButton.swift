@@ -2,14 +2,16 @@ import SwiftUI
 
 struct GlassXButton: View {
   var action: () -> Void
-  var size: CGFloat = 36
+  var size: CGFloat = 44
   var iconSize: CGFloat = 16
+  var accessibilityLabel = "Close"
 
   var body: some View {
     Button(action: action) {
-      Image(systemName: "xmark")
-        .font(.system(size: iconSize, weight: .semibold))
-        .foregroundColor(.appGlassForeground)
+      Label(accessibilityLabel, systemImage: "xmark")
+        .labelStyle(.iconOnly)
+        .font(.headline)
+        .foregroundStyle(Color.appGlassForeground)
         .frame(width: size, height: size)
     }
     .modifier(GlassCircle())
@@ -19,15 +21,17 @@ struct GlassXButton: View {
 
 struct GlassCheckmarkButton: View {
   var action: () -> Void
-  var size: CGFloat = 36
+  var size: CGFloat = 44
   var iconSize: CGFloat = 16
   var isEnabled: Bool = true
+  var accessibilityLabel = "Done"
 
   var body: some View {
     Button(action: action) {
-      Image(systemName: "checkmark")
-        .font(.system(size: iconSize, weight: .semibold))
-        .foregroundColor(isEnabled ? .appGlassForeground : .secondary.opacity(0.5))
+      Label(accessibilityLabel, systemImage: "checkmark")
+        .labelStyle(.iconOnly)
+        .font(.headline)
+        .foregroundStyle(isEnabled ? Color.appGlassForeground : Color.secondary)
         .frame(width: size, height: size)
     }
     .disabled(!isEnabled)

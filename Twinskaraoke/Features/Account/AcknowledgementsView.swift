@@ -51,13 +51,13 @@ struct AcknowledgementsView: View {
     List(credits) { credit in
       VStack(alignment: .leading, spacing: 4) {
         Text(credit.name)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.body.bold())
         Text(credit.detail)
-          .font(.system(size: 13))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
         if let url = credit.url {
           Link(url.absoluteString, destination: url)
-            .font(.system(size: 12))
+            .font(.caption)
             .lineLimit(1)
         }
       }

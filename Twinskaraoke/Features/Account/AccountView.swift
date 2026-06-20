@@ -237,8 +237,9 @@ private struct SignInPromptRow: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: "person.fill")
-        .font(.system(size: 60))
+        .font(.largeTitle)
         .foregroundStyle(Color(.systemGray3))
+        .frame(width: 64, height: 64)
       VStack(alignment: .leading, spacing: 3) {
         Text("Sign In")
           .font(.title3.weight(.semibold))
@@ -249,8 +250,10 @@ private struct SignInPromptRow: View {
       }
       Spacer()
       Image(systemName: "chevron.right")
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(Color(.systemGray3))
+        .font(AM.Font.chevron)
+        .foregroundStyle(.tertiary)
+        .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
     }
     .padding(.vertical, 6)
     .accessibilityElement(children: .ignore)
@@ -340,16 +343,16 @@ private struct NotificationsView: View {
   private var summaryRow: some View {
     HStack(spacing: 14) {
       Image(systemName: "bell.badge.fill")
-        .font(.system(size: 24, weight: .semibold))
-        .foregroundColor(.white)
+        .font(.title3.bold())
+        .foregroundStyle(.white)
         .frame(width: 52, height: 52)
         .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
       VStack(alignment: .leading, spacing: 3) {
         Text("Notification Preferences")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.headline)
           .foregroundStyle(.primary)
         Text("\(enabledCount) alert\(enabledCount == 1 ? "" : "s") enabled")
-          .font(.system(size: 14))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
           .monospacedDigit()
       }
@@ -373,16 +376,16 @@ private struct NotificationPreferenceToggle: View {
     Toggle(isOn: $isOn) {
       HStack(spacing: 12) {
         Image(systemName: symbol)
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
-          .frame(width: 30, height: 30)
+          .font(.subheadline.bold())
+          .foregroundStyle(.white)
+          .frame(width: 44, height: 44)
           .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         VStack(alignment: .leading, spacing: 2) {
           Text(title)
-            .font(.system(size: 16))
+            .font(.body)
             .foregroundStyle(.primary)
           Text(subtitle)
-            .font(.system(size: 13))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
             .lineLimit(2)
         }

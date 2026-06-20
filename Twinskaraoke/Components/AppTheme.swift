@@ -188,24 +188,8 @@ enum AM {
           return true
         }
       #endif
-      let width = availableWidth ?? currentScreenWidth
-      return width >= 1050 && width > currentScreenHeight
-    }
-
-    private static var currentScreenWidth: CGFloat {
-      #if canImport(UIKit)
-        UIScreen.main.bounds.width
-      #else
-        1200
-      #endif
-    }
-
-    private static var currentScreenHeight: CGFloat {
-      #if canImport(UIKit)
-        UIScreen.main.bounds.height
-      #else
-        800
-      #endif
+      guard let availableWidth else { return false }
+      return availableWidth >= 1050
     }
 
     static func shelfTileWidth(for availableWidth: CGFloat, compact: Bool = false) -> CGFloat {
@@ -261,16 +245,16 @@ enum AM {
   }
 
   enum Font {
-    static let sectionHeader = SwiftUI.Font.system(size: 23, weight: .bold)
-    static let groupHeader = SwiftUI.Font.system(size: 17, weight: .bold)
-    static let tileTitle = SwiftUI.Font.system(size: 15, weight: .semibold)
-    static let tileCaption = SwiftUI.Font.system(size: 13)
-    static let rowTitle = SwiftUI.Font.system(size: 16, weight: .regular)
-    static let rowSubtitle = SwiftUI.Font.system(size: 13)
-    static let nowPlayingTitle = SwiftUI.Font.system(size: 22, weight: .bold)
-    static let nowPlayingArtist = SwiftUI.Font.system(size: 17)
-    static let timecode = SwiftUI.Font.system(size: 12, weight: .medium, design: .monospaced)
-    static let chevron = SwiftUI.Font.system(size: 14, weight: .bold)
+    static let sectionHeader = SwiftUI.Font.title.bold()
+    static let groupHeader = SwiftUI.Font.headline.bold()
+    static let tileTitle = SwiftUI.Font.headline
+    static let tileCaption = SwiftUI.Font.caption
+    static let rowTitle = SwiftUI.Font.body
+    static let rowSubtitle = SwiftUI.Font.subheadline
+    static let nowPlayingTitle = SwiftUI.Font.title.bold()
+    static let nowPlayingArtist = SwiftUI.Font.headline
+    static let timecode = SwiftUI.Font.caption.monospacedDigit()
+    static let chevron = SwiftUI.Font.headline.bold()
   }
 
   enum Shadow {
@@ -302,6 +286,18 @@ extension View {
   func tabBarBottomPadding() -> some View {
     self.modifier(TabBarBottomPaddingModifier())
   }
+}
+
+@MainActor
+@discardableResult
+func withOptionalAnimation<Result>(
+  _ animation: Animation?,
+  _ body: () throws -> Result
+) rethrows -> Result {
+  if let animation {
+    return try withAnimation(animation, body)
+  }
+  return try body()
 }
 
 @MainActor
@@ -445,16 +441,27 @@ private struct ToolbarIconLabel: View {
   @Environment(\.isEnabled) private var isEnabled
 
   var body: some View {
-    ZStack {
-      ToolbarControlBackground()
-      Image(systemName: systemImage)
-        .font(.system(size: 16, weight: .semibold))
-        .symbolRenderingMode(.hierarchical)
-        .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
-        .offset(x: iconHorizontalOffset)
+    if #available(iOS 26.0, *) {
+      // iOS 26 wraps toolbar buttons in system Liquid Glass. Handing it a compact
+      // icon — no custom disc or fixed-width frame — lets that glass render a
+      // native circle instead of stretching into a capsule.
+      iconImage
+    } else {
+      ZStack {
+        ToolbarControlBackground()
+        iconImage
+          .offset(x: iconHorizontalOffset)
+      }
+      .frame(width: 44, height: 44)
+      .contentShape(Circle())
     }
-    .frame(width: 36, height: 36)
-    .contentShape(Circle())
+  }
+
+  private var iconImage: some View {
+    Image(systemName: systemImage)
+      .font(.headline)
+      .symbolRenderingMode(.hierarchical)
+      .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
   }
 
   private var iconHorizontalOffset: CGFloat {
@@ -469,18 +476,53 @@ private struct ToolbarControlBackground: View {
     Circle()
       .fill(.regularMaterial)
       .overlay {
+        // Domed top sheen: light grazes the upper surface and fades to clear,
+        // so the disc reads as a curved piece of glass rather than a flat fill.
         Circle()
-          .strokeBorder(borderColor, lineWidth: 0.5)
+          .fill(
+            LinearGradient(
+              stops: [
+                .init(color: sheenColor, location: 0),
+                .init(color: .clear, location: 0.55),
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
       }
-      .shadow(color: shadowColor, radius: 5, x: 0, y: 2)
+      .overlay {
+        // Rim light: a hairline that catches light along the top edge and
+        // settles into shadow at the base — the polished "outside" of the control.
+        Circle()
+          .strokeBorder(
+            LinearGradient(
+              colors: [rimHighlight, rimShadow],
+              startPoint: .top,
+              endPoint: .bottom
+            ),
+            lineWidth: 0.8
+          )
+      }
+      .shadow(color: shadowColor, radius: 3, x: 0, y: 1)
+      // Inset the disc inside the 44pt tap frame so it (and its shadow) stay
+      // within the toolbar group's rounded border instead of bleeding past it.
+      .padding(4)
   }
 
-  private var borderColor: Color {
-    colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.05)
+  private var sheenColor: Color {
+    colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.55)
+  }
+
+  private var rimHighlight: Color {
+    colorScheme == .dark ? Color.white.opacity(0.24) : Color.white.opacity(0.90)
+  }
+
+  private var rimShadow: Color {
+    colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.06)
   }
 
   private var shadowColor: Color {
-    colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.10)
+    colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
   }
 }
 
@@ -512,11 +554,11 @@ struct AMSectionHeader<Destination: View>: View {
     HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.s) {
       Text(title)
         .font(AM.Font.sectionHeader)
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
       if showChevron {
         Image(systemName: "chevron.right")
-          .font(.system(size: 17, weight: .bold))
-          .foregroundColor(.secondary.opacity(0.7))
+          .font(.headline.bold())
+          .foregroundStyle(.secondary)
       }
       Spacer()
     }

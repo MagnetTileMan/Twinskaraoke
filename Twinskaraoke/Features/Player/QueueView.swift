@@ -16,7 +16,7 @@ struct QueueView: View {
   }
 
   private var queueShuffleAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.35)
+    reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86)
   }
 
   private var headerAnimation: Animation? {
@@ -143,7 +143,7 @@ struct QueueView: View {
             }
             .onMove { source, destination in
               AppHaptic.selection.play()
-              withAnimation(queueMutationAnimation) {
+              withOptionalAnimation(queueMutationAnimation) {
                 audioManager.moveInUpNext(from: source, to: destination)
               }
             }
@@ -170,11 +170,11 @@ struct QueueView: View {
     HStack(spacing: 12) {
       VStack(alignment: .leading, spacing: 2) {
         Text("Playing Next")
-          .font(.system(size: 18, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline.weight(.semibold))
+          .foregroundStyle(Color.primary)
         Text(upNextCount == 1 ? "1 song queued" : "\(upNextCount) songs queued")
-          .font(.system(size: 12))
-          .foregroundColor(.secondary)
+          .font(.caption)
+          .foregroundStyle(Color.secondary)
           .monospacedDigit()
       }
       .accessibilityElement(children: .combine)
@@ -184,15 +184,15 @@ struct QueueView: View {
       if upNextCount > 0 {
         Button(role: .destructive) {
           AppHaptic.warning.play()
-          withAnimation(queueMutationAnimation) {
+          withOptionalAnimation(queueMutationAnimation) {
             audioManager.removeFromUpNext(at: IndexSet(integersIn: 0..<upNextCount))
           }
         } label: {
           Text("Clear")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.appAccent)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.appAccent)
             .padding(.horizontal, 12)
-            .frame(height: 34)
+            .frame(minWidth: 44, minHeight: 44)
             .background(Color.appControlInactiveFill, in: Capsule())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.93, dim: 0.72))
@@ -206,9 +206,9 @@ struct QueueView: View {
         dismiss()
       } label: {
         Image(systemName: "xmark")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundColor(.appGlassForeground)
-          .frame(width: 36, height: 36)
+          .font(.headline.weight(.semibold))
+          .foregroundStyle(Color.appGlassForeground)
+          .frame(width: 44, height: 44)
       }
       .modifier(GlassCircle())
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
@@ -222,43 +222,46 @@ struct QueueView: View {
   }
 
   private func currentSongRow(_ current: Song) -> some View {
-    HStack(spacing: 12) {
-      LoadingImage(url: audioManager.displayImageURL(for: current), cornerRadius: 6)
-        .frame(width: 48, height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-      VStack(alignment: .leading, spacing: 3) {
-        Text("Now Playing")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(.appAccent)
-          .textCase(.uppercase)
-        Text(current.title)
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundColor(.primary)
-          .lineLimit(1)
-        Text(current.displayArtist)
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
-          .lineLimit(1)
-      }
-      Spacer()
-      // Keep context-menu-backed rows static while playback is active; animated
-      // TimelineView content behind translucent menus can cause menu flicker.
-      EqualizerBars(isAnimating: false)
-        .frame(width: 16, height: 16)
-        .foregroundColor(.appAccent)
-    }
-    .padding(.vertical, 2)
-    .contentShape(Rectangle())
-    .onTapGesture {
+    Button {
       AppHaptic.light.play()
       dismiss()
+    } label: {
+      HStack(spacing: 12) {
+        LoadingImage(url: audioManager.displayImageURL(for: current), cornerRadius: 6)
+          .frame(width: 48, height: 48)
+          .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        VStack(alignment: .leading, spacing: 3) {
+          Text("Now Playing")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Color.appAccent)
+            .textCase(.uppercase)
+          Text(current.title)
+            .font(.headline.weight(.semibold))
+            .foregroundStyle(Color.primary)
+            .lineLimit(1)
+          Text(current.displayArtist)
+            .font(.subheadline)
+            .foregroundStyle(Color.secondary)
+            .lineLimit(1)
+        }
+        Spacer()
+        // Keep context-menu-backed rows static while playback is active; animated
+        // TimelineView content behind translucent menus can cause menu flicker.
+        EqualizerBars(isAnimating: false)
+          .frame(width: 16, height: 16)
+          .foregroundStyle(Color.appAccent)
+      }
     }
+    .buttonStyle(.plain)
+    .padding(.vertical, 2)
+    .contentShape(Rectangle())
     .contextMenu {
       SongActionsMenuItems(song: current) {
         showCurrentAddToPlaylist = true
       }
     } preview: {
       SongContextPreview(song: current)
+        .environmentObject(audioManager)
     }
     .accessibilityElement(children: .combine)
     .accessibilityLabel("Now Playing")
@@ -289,7 +292,7 @@ struct QueueView: View {
 
   private func removeUpNextSongs(at indices: IndexSet) {
     AppHaptic.warning.play()
-    withAnimation(queueMutationAnimation) {
+    withOptionalAnimation(queueMutationAnimation) {
       audioManager.removeFromUpNext(at: indices)
     }
   }
@@ -319,31 +322,54 @@ struct QueueRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      ZStack(alignment: .topLeading) {
-        LoadingImage(url: audioManager.displayImageURL(for: song), cornerRadius: 7)
-          .frame(width: 50, height: 50)
-          .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        if isPlayingNext {
-          Text("NEXT")
-            .font(.system(size: 8, weight: .heavy))
-            .foregroundColor(.white)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(Color.appAccent))
-            .padding(5)
+      Button(action: onPlay) {
+        HStack(spacing: 12) {
+          ZStack(alignment: .topLeading) {
+            LoadingImage(url: audioManager.displayImageURL(for: song), cornerRadius: 7)
+              .frame(width: 50, height: 50)
+              .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            if isPlayingNext {
+              Text("NEXT")
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.appAccent))
+                .padding(5)
+            }
+          }
+          VStack(alignment: .leading, spacing: 3) {
+            Text(song.title)
+              .font(.body.weight(.medium))
+              .foregroundStyle(Color.primary)
+              .lineLimit(1)
+            Text(song.displayArtist)
+              .font(.subheadline)
+              .foregroundStyle(Color.secondary)
+              .lineLimit(1)
+          }
+          Spacer(minLength: 12)
         }
       }
-      VStack(alignment: .leading, spacing: 3) {
-        Text(song.title)
-          .font(.system(size: 15, weight: .medium))
-          .foregroundColor(.primary)
-          .lineLimit(1)
-        Text(song.displayArtist)
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
-          .lineLimit(1)
+      .buttonStyle(.plain)
+      .contentShape(Rectangle())
+      .contextMenu {
+        SongActionsMenuItems(song: song) {
+          showAddToPlaylist = true
+        }
+        Divider()
+        Button(role: .destructive) {
+          onRemove()
+        } label: {
+          Label("Remove from Queue", systemImage: "text.badge.minus")
+        }
+      } preview: {
+        SongContextPreview(song: song)
+          .environmentObject(audioManager)
       }
-      Spacer(minLength: 12)
+      .accessibilityLabel("\(position). \(song.title), \(song.displayArtist)")
+      .accessibilityValue(isPlayingNext ? "Playing next" : "Queued")
+      .accessibilityHint("Plays this song from the queue.")
       Menu {
         SongActionsMenuItems(song: song) {
           showAddToPlaylist = true
@@ -355,38 +381,22 @@ struct QueueRow: View {
           Label("Remove from Queue", systemImage: "text.badge.minus")
         }
       } label: {
-        Image(systemName: "ellipsis")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundColor(.secondary)
-          .frame(width: 32, height: 32)
+        Label("More actions", systemImage: "ellipsis")
+          .font(.headline.weight(.semibold))
+          .foregroundStyle(Color.secondary)
+          .labelStyle(.iconOnly)
+          .frame(width: 44, height: 44)
           .background(.primary.opacity(0.055), in: Circle())
           .contentShape(Circle())
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
+      .accessibilityLabel("More actions")
+      .accessibilityHint("Shows actions for \(song.title).")
     }
     .padding(.vertical, 3)
-    .contentShape(Rectangle())
-    .onTapGesture(perform: onPlay)
-    .contextMenu {
-      SongActionsMenuItems(song: song) {
-        showAddToPlaylist = true
-      }
-      Divider()
-      Button(role: .destructive) {
-        onRemove()
-      } label: {
-        Label("Remove from Queue", systemImage: "text.badge.minus")
-      }
-    } preview: {
-      SongContextPreview(song: song)
-    }
     .sheet(isPresented: $showAddToPlaylist) {
       AddToPlaylistSheet(song: song)
     }
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(position). \(song.title), \(song.displayArtist)")
-    .accessibilityValue(isPlayingNext ? "Playing next" : "Queued")
-    .accessibilityHint("Double tap to play. More actions are available.")
     .accessibilityAction(named: "Play") {
       onPlay()
     }
@@ -419,10 +429,10 @@ struct QueueModeButton: View {
           Image(systemName: symbol)
         }
       }
-      .font(.system(size: 16, weight: .semibold))
-      .foregroundColor(isActive ? .appControlActiveForeground : .primary)
+      .font(.headline.weight(.semibold))
+      .foregroundStyle(isActive ? Color.appControlActiveForeground : Color.primary)
       .frame(maxWidth: .infinity)
-      .frame(height: 40)
+      .frame(minHeight: 44)
       .modifier(QueueModeBackground(isActive: isActive))
     }
     .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.75, haptic: .selection))

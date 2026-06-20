@@ -25,7 +25,7 @@ struct RadioPlayerLayout: View {
         } preview: {
           SongContextPreview(song: song)
         }
-      Spacer(minLength: 24)
+      Spacer(minLength: 10)
       playStopButton
       Spacer(minLength: 24)
       PlayerVolumeRow()
@@ -48,26 +48,26 @@ struct RadioPlayerLayout: View {
             .scaleEffect(reduceMotion ? 1.0 : (audioManager.isPlaying ? 1.0 : 0.6))
             .animation(liveDotAnimation, value: audioManager.isPlaying)
           Text("LIVE RADIO")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundColor(.appAccent)
+            .font(.caption.bold())
+            .foregroundStyle(Color.appAccent)
             .tracking(1.2)
           if let listeners = RadioController.shared.nowPlaying?.listeners {
             Text("·")
-              .font(.system(size: 11, weight: .bold))
-              .foregroundColor(.secondary.opacity(0.7))
+              .font(.caption.bold())
+              .foregroundStyle(.tertiary)
             Text("\(listeners.unique) listening")
-              .font(.system(size: 11))
-              .foregroundColor(.secondary)
+              .font(.caption)
+              .foregroundStyle(.secondary)
           }
         }
         MarqueeText(
           text: song.title,
-          font: .system(size: 22, weight: .bold),
+          font: AM.Font.nowPlayingTitle,
           color: .primary
         )
         Text(song.displayArtist)
-          .font(.system(size: 17))
-          .foregroundColor(.secondary)
+          .font(AM.Font.nowPlayingArtist)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       .accessibilityElement(children: .combine)
@@ -87,9 +87,9 @@ struct RadioPlayerLayout: View {
               Image(systemName: isFav ? "star.fill" : "star")
             }
           }
-          .font(.system(size: 24, weight: .regular))
-          .foregroundColor(favorites.isFavorite(songID) ? .appAccent : .primary)
-          .frame(width: 36, height: 36)
+          .font(.title2)
+          .foregroundStyle(favorites.isFavorite(songID) ? Color.appAccent : Color.primary)
+          .frame(width: 44, height: 44)
           .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
@@ -113,8 +113,8 @@ struct RadioPlayerLayout: View {
           Image(systemName: audioManager.isPlaying ? "stop.fill" : "play.fill")
         }
       }
-      .font(.system(size: 56, weight: .regular))
-      .foregroundColor(.primary)
+      .font(.largeTitle.bold())
+      .foregroundStyle(.primary)
       .frame(width: 88, height: 88)
       .contentShape(Rectangle())
     }
@@ -175,8 +175,8 @@ struct RadioPlayerLayout: View {
   private var liveDotAnimation: Animation? {
     guard !reduceMotion else { return nil }
     return audioManager.isPlaying
-      ? .easeInOut(duration: 1.0).repeatForever(autoreverses: true)
-      : .default
+      ? AppMotion.spring(response: 0.42, dampingFraction: 0.78).repeatForever(autoreverses: true)
+      : AppMotion.spring(response: 0.25, dampingFraction: 0.78)
   }
 
   private var radioFavoriteID: String? {

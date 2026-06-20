@@ -111,10 +111,6 @@ struct LibraryView: View {
     horizontalSizeClass == .compact
   }
 
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
-  }
-
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
       systemReduceMotion: systemReduceMotion,
@@ -125,20 +121,22 @@ struct LibraryView: View {
   var body: some View {
     let recentlyAddedSongs = Array(recentSongsViewModel.songs.prefix(12))
     NavigationStack(path: $path) {
-      ScrollView {
-        libraryOverview(recentlyAddedSongs: recentlyAddedSongs)
-        .padding(.top, AM.Spacing.s)
-        .padding(.bottom, AM.Spacing.l)
+      GeometryReader { proxy in
+        ScrollView {
+          libraryOverview(recentlyAddedSongs: recentlyAddedSongs, availableWidth: proxy.size.width)
+          .padding(.top, AM.Spacing.s)
+          .padding(.bottom, AM.Spacing.l)
+        }
+        .scrollIndicators(.hidden)
+        .smoothScrolling()
+        .tabBarScrollInset()
+        .musicScreenBackground()
       }
-      .scrollIndicators(.hidden)
-      .smoothScrolling()
-      .tabBarScrollInset()
-      .musicScreenBackground()
       .navigationTitle("Library")
       .navigationBarTitleDisplayMode(.large)
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
-          HStack(spacing: usesCompactToolbar ? 8 : 12) {
+          HStack(spacing: usesCompactToolbar ? 4 : 6) {
             LibraryToolbarActions(
               compact: usesCompactToolbar,
               onCreatePlaylist: {
@@ -166,7 +164,9 @@ struct LibraryView: View {
       .onChange(of: favorites.favoriteIDs) { _, _ in
         viewModel.fetchFavoriteSongs()
       }
-      .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: recentlyAddedSongs.map(\.id))
+      .animation(
+        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+        value: recentlyAddedSongs.map(\.id))
       .sheet(isPresented: $showCreateSheet) {
         CreatePlaylistSheet()
       }
@@ -174,8 +174,11 @@ struct LibraryView: View {
   }
 
   @ViewBuilder
-  private func libraryOverview(recentlyAddedSongs: [Song]) -> some View {
-    if usesWideOverview {
+  private func libraryOverview(recentlyAddedSongs: [Song], availableWidth: CGFloat) -> some View {
+    if AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    ) {
       wideLibraryOverview(recentlyAddedSongs: recentlyAddedSongs)
     } else {
       compactLibraryOverview(recentlyAddedSongs: recentlyAddedSongs)
@@ -300,13 +303,8 @@ struct LibraryView: View {
     NavigationLink {
       destination
     } label: {
-      HStack(spacing: 0) {
-        LibraryRow(icon: icon, color: .appAccent, title: title, subtitle: subtitle)
-        Image(systemName: "chevron.right")
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.secondary.opacity(0.55))
-      }
-      .contentShape(Rectangle())
+      LibraryRow(icon: icon, color: .appAccent, title: title, subtitle: subtitle)
+        .contentShape(Rectangle())
     }
     .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
 
@@ -344,21 +342,9 @@ private struct LibraryToolbarActions: View {
 private struct LibraryLinkSeparator: View {
   var body: some View {
     Rectangle()
-      .fill(Color.appDivider.opacity(0.42))
+      .fill(Color.appDivider.opacity(0.6))
       .frame(height: 0.5)
-      .padding(.leading, 52)
-      .padding(.trailing, 28)
-      .mask(
-        LinearGradient(
-          colors: [
-            .black,
-            .black.opacity(0.92),
-            .black.opacity(0.18)
-          ],
-          startPoint: .leading,
-          endPoint: .trailing
-        )
-      )
+      .padding(.leading, 44)
   }
 }
 
@@ -374,8 +360,8 @@ private struct LibraryOverviewGroup<Content: View>: View {
   var body: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.s) {
       Text(title)
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundColor(.secondary)
+        .font(.caption.bold())
+        .foregroundStyle(.secondary)
         .textCase(.uppercase)
         .padding(.horizontal, AM.Spacing.s)
 
@@ -399,16 +385,16 @@ private struct WideLibraryHero: View {
       VStack(alignment: .leading, spacing: AM.Spacing.l) {
         VStack(alignment: .leading, spacing: 5) {
           Text(playlist.isFavorites ? "Favourite Songs" : "Featured Playlist")
-            .font(.system(size: 12, weight: .bold))
+            .font(.caption.bold())
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
           Text(playlist.name)
-            .font(.system(size: 34, weight: .bold))
+            .font(.largeTitle.bold())
             .foregroundStyle(.primary)
             .lineLimit(2)
             .minimumScaleFactor(0.74)
           PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
-            .font(.system(size: 15, weight: .medium))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
         }
 
@@ -435,7 +421,7 @@ private struct WideLibraryHero: View {
 
           NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
             Image(systemName: "chevron.right")
-              .font(.system(size: 16, weight: .bold))
+              .font(AM.Font.chevron)
               .foregroundStyle(Color.appAccent)
               .frame(width: 46, height: 46)
               .background(Color.appControlInactiveFill, in: Circle())
@@ -660,7 +646,7 @@ struct LibrarySongsView: View {
   }
 
   private var listAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.22)
+    reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84)
   }
 
   var body: some View {
@@ -686,16 +672,19 @@ struct LibrarySongsView: View {
         }
         Section {
           ForEach(songs) { song in
-            SongRow(song: song, size: .regular, showsArtwork: showsRowArtwork)
-              .id(song.id)
-              .padding(.vertical, 6)
-              .contentShape(Rectangle())
-              .onTapGesture {
-                play(song, context: songs)
-              }
-              .songRowAccessibility(song: song) {
-                play(song, context: songs)
-              }
+            Button {
+              play(song, context: songs)
+            } label: {
+              SongRow(song: song, size: .regular, showsArtwork: showsRowArtwork)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .songRowAccessibility(song: song) {
+                  play(song, context: songs)
+                }
+            }
+            .id(song.id)
+            .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
+            .accessibilityHint("Starts playback.")
             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             .listRowBackground(Color.clear)
             .onAppear {
@@ -758,11 +747,12 @@ struct LibrarySongsView: View {
         }
       }
     } label: {
-      Image(systemName: "arrow.up.arrow.down")
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundColor(.appAccent)
-        .frame(width: 34, height: 34)
-        .contentShape(Rectangle())
+      Label("Sort Songs", systemImage: "arrow.up.arrow.down")
+        .font(.headline)
+        .foregroundStyle(Color.appAccent)
+        .frame(width: 44, height: 44)
+        .labelStyle(.iconOnly)
+        .contentShape(Circle())
     }
     .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.72, haptic: .selection))
   }
@@ -991,7 +981,7 @@ struct LibraryCollectionListView: View {
   }
 
   private var listAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.22)
+    reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84)
   }
 
   private var collections: [LibrarySongCollection] {
@@ -1111,8 +1101,8 @@ struct LibraryCollectionRow: View {
         .frame(width: 56, height: 56)
       VStack(alignment: .leading, spacing: 3) {
         Text(collection.title)
-          .font(.system(size: 16, weight: .regular))
-          .foregroundColor(.primary)
+          .font(AM.Font.rowTitle)
+          .foregroundStyle(.primary)
           .lineLimit(1)
         HStack(spacing: 5) {
           Text(collection.subtitle)
@@ -1121,8 +1111,8 @@ struct LibraryCollectionRow: View {
             Text(duration)
           }
         }
-        .font(.system(size: 13))
-        .foregroundColor(.secondary)
+        .font(AM.Font.rowSubtitle)
+        .foregroundStyle(.secondary)
         .lineLimit(1)
       }
       Spacer(minLength: 0)
@@ -1147,7 +1137,7 @@ struct LibraryCollectionDetailView: View {
   }
 
   private var chromeAnimation: Animation? {
-    reduceMotion ? nil : .easeInOut(duration: 0.2)
+    reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84)
   }
 
   private var contentAnimation: Animation? {
@@ -1171,7 +1161,7 @@ struct LibraryCollectionDetailView: View {
               }
             }
             .font(.subheadline)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
           }
           .padding(.horizontal)
           if collection.songs.isEmpty {
@@ -1186,16 +1176,19 @@ struct LibraryCollectionDetailView: View {
             let showsRowArtwork = collection.songs.count <= 200
             LazyVStack(spacing: 0) {
               ForEach(collection.songs) { song in
-                SongRow(song: song, size: .regular, showsArtwork: showsRowArtwork)
-                  .padding(.horizontal)
-                  .padding(.vertical, 8)
-                  .contentShape(Rectangle())
-                  .onTapGesture {
-                    play(song)
-                  }
-                  .songRowAccessibility(song: song) {
-                    play(song)
-                  }
+                Button {
+                  play(song)
+                } label: {
+                  SongRow(song: song, size: .regular, showsArtwork: showsRowArtwork)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .songRowAccessibility(song: song) {
+                      play(song)
+                    }
+                }
+                .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
+                .accessibilityHint("Starts playback.")
                 Divider().padding(.leading, 76)
               }
             }
@@ -1224,11 +1217,12 @@ struct LibraryCollectionDetailView: View {
         Menu {
           LibraryCollectionActionsMenu(collection: collection)
         } label: {
-          Image(systemName: "ellipsis")
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.appAccent)
-            .frame(width: 32, height: 32)
-            .contentShape(Rectangle())
+          Label("More Actions", systemImage: "ellipsis")
+            .font(.headline)
+            .foregroundStyle(Color.appAccent)
+            .frame(width: 44, height: 44)
+            .labelStyle(.iconOnly)
+            .contentShape(Circle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
       }
@@ -1375,12 +1369,12 @@ private struct LibraryCollectionPreview: View {
         .frame(width: 220, height: 220)
       VStack(alignment: .leading, spacing: 3) {
         Text(collection.title)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(AM.Font.tileTitle)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(collection.subtitle)
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(AM.Font.tileCaption)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
     }
@@ -1412,8 +1406,8 @@ private struct LibraryCollectionArtwork: View {
           endPoint: .bottomTrailing
         )
         Image(systemName: symbol)
-          .font(.system(size: 30, weight: .semibold))
-          .foregroundColor(.white.opacity(0.85))
+          .font(.title.bold())
+          .foregroundStyle(.white.opacity(0.85))
       }
     }
     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -1459,22 +1453,23 @@ struct LibraryRow: View {
   var subtitle: String? = nil
 
   var body: some View {
-    HStack(spacing: 18) {
+    HStack(spacing: 14) {
       Image(systemName: icon)
-        .font(.system(size: 26, weight: .medium))
-        .foregroundColor(color)
-        .frame(width: 34, height: 34)
+        .font(.title2)
+        .foregroundStyle(color)
+        .frame(width: 30)
         .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
-          .font(.system(size: 20, weight: .regular))
-          .foregroundColor(.primary)
+          .font(AM.Font.rowTitle)
+          .fontWeight(.semibold)
+          .foregroundStyle(.primary)
           .lineLimit(1)
         if let subtitle {
           Text(subtitle)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundColor(.secondary)
+            .font(AM.Font.tileCaption)
+            .foregroundStyle(.secondary)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
         }
@@ -1498,11 +1493,11 @@ struct PlaylistListRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
       VStack(alignment: .leading, spacing: 2) {
         Text(playlist.name)
-          .font(.system(size: 15, weight: .medium))
+          .font(.subheadline)
           .lineLimit(1)
         PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
-          .font(.system(size: 12))
-          .foregroundColor(.secondary)
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       Spacer()
     }
@@ -1595,8 +1590,10 @@ struct PlaylistsGridScreen: View {
             showCreateSheet = true
           } label: {
             Image(systemName: "plus")
-              .font(.system(size: 16, weight: .semibold))
-              .foregroundColor(.appAccent)
+              .font(.headline)
+              .foregroundStyle(Color.appAccent)
+              .frame(width: 44, height: 44)
+              .contentShape(Circle())
           }
           .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.72))
         }
@@ -1606,7 +1603,9 @@ struct PlaylistsGridScreen: View {
     .onChange(of: favorites.favoriteIDs) { _, _ in
       viewModel.fetchFavoriteSongs()
     }
-    .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: displayed.map(\.id))
+    .animation(
+      reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+      value: displayed.map(\.id))
     .sheet(isPresented: $showCreateSheet) {
       CreatePlaylistSheet()
     }
@@ -1623,12 +1622,12 @@ struct PlaylistGridCell: View {
         .amShadow(AM.Shadow.card)
       Text(playlist.name)
         .font(AM.Font.tileTitle)
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
         .lineLimit(1)
       if !playlist.isFavorites {
         PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
           .font(AM.Font.tileCaption)
-          .foregroundColor(.secondary)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
     }
@@ -1657,7 +1656,7 @@ struct RecentlyAddedSection: View {
     VStack(alignment: .leading, spacing: 14) {
       Text("Recently Added")
         .font(AM.Font.sectionHeader)
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, headerHorizontalPadding)
         .padding(.top, 2)
@@ -1682,12 +1681,12 @@ struct PlaylistContextPreview: View {
         .frame(width: 220, height: 220)
       VStack(alignment: .leading, spacing: 3) {
         Text(playlist.name)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(AM.Font.tileTitle)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(AM.Font.tileCaption)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
     }
@@ -1735,7 +1734,7 @@ struct PlaylistsSkeletonView: View {
         pulse = false
         return
       }
-      withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+      withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.82).repeatForever(autoreverses: true)) {
         pulse = true
       }
     }
@@ -1743,7 +1742,7 @@ struct PlaylistsSkeletonView: View {
       if reduceMotion {
         pulse = false
       } else {
-        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+        withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.82).repeatForever(autoreverses: true)) {
           pulse = true
         }
       }

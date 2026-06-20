@@ -514,8 +514,8 @@ private struct SettingsOverviewCard: View {
           RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(Color.appControlActiveFill)
           Image(systemName: isPlaying ? "waveform" : "music.note")
-            .font(.system(size: 26, weight: .bold))
-            .foregroundColor(.appControlActiveForeground)
+            .font(.title2.bold())
+            .foregroundStyle(Color.appControlActiveForeground)
             .scaleEffect(reduceMotion ? 1 : (isPlaying ? 1.06 : 1))
             .opacity(isPlaying ? 1 : 0.88)
             .animation(overviewAnimation, value: isPlaying)
@@ -525,15 +525,15 @@ private struct SettingsOverviewCard: View {
 
         VStack(alignment: .leading, spacing: 4) {
           Text(isPlaying ? "Now Playing" : "Playback")
-            .font(.system(size: 12, weight: .bold))
+            .font(.caption.bold())
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
           Text(title)
-            .font(.system(size: 19, weight: .bold))
-            .foregroundColor(.primary)
+            .font(.headline)
+            .foregroundStyle(.primary)
             .lineLimit(1)
           Text(subtitle)
-            .font(.system(size: 14))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
@@ -570,12 +570,12 @@ private struct SettingsOverviewPill: View {
   var body: some View {
     HStack(spacing: 6) {
       Image(systemName: badge.symbol)
-        .font(.system(size: 12, weight: .semibold))
+        .font(.caption.bold())
       Text(badge.title)
-        .font(.system(size: 13, weight: .semibold))
+        .font(.caption.bold())
         .lineLimit(1)
     }
-    .foregroundColor(.appAccent)
+    .foregroundStyle(Color.appAccent)
     .padding(.horizontal, 10)
     .padding(.vertical, 7)
     .background(Color.appAccent.opacity(0.12), in: Capsule())
@@ -591,20 +591,20 @@ private struct SettingsStorageActionRow: View {
   var body: some View {
     HStack(spacing: 10) {
       Image(systemName: symbol)
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundColor(isDestructive ? .appAccent : .white)
-        .frame(width: 30, height: 30)
+        .font(.headline)
+        .foregroundStyle(isDestructive ? Color.appAccent : Color.white)
+        .frame(width: 44, height: 44)
         .background(
           RoundedRectangle(cornerRadius: 7, style: .continuous)
             .fill(isDestructive ? Color.appAccent.opacity(0.12) : Color.appAccent)
         )
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
-          .font(.system(size: 16))
-          .foregroundColor(isDestructive ? .appAccent : .primary)
+          .font(.body)
+          .foregroundStyle(isDestructive ? Color.appAccent : Color.primary)
         Text(detail)
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       Spacer()
@@ -668,7 +668,7 @@ private struct StrengthSlider: View {
           }
       )
     }
-    .frame(height: 32)
+    .frame(height: 44)
     .accessibilityElement()
     .accessibilityLabel(title)
     .accessibilityValue(accessibilityValueText)
@@ -718,7 +718,7 @@ private struct EqualizerBands: View {
       ForEach(0..<AVEnginePlayback.eqBandCount, id: \.self) { i in
         VStack(spacing: 6) {
           Text(gainLabel(gainsDB[i]))
-            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
             .frame(height: 12)
             .monospacedDigit()
@@ -730,7 +730,7 @@ private struct EqualizerBands: View {
           .frame(maxWidth: .infinity)
           .frame(height: 140)
           Text(frequencyLabel(Double(AVEnginePlayback.bandFrequencies[i])))
-            .font(.system(size: 9, weight: .semibold))
+            .font(.caption.bold())
             .foregroundStyle(.secondary)
             .frame(height: 12)
         }

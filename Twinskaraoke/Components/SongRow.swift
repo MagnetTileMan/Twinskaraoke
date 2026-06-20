@@ -14,7 +14,8 @@ final class PlaybackRowState: ObservableObject {
 
   private var cancellables = Set<AnyCancellable>()
 
-  private init(manager: AudioPlayerManager = .shared) {
+  private init() {
+    let manager = AudioPlayerManager.shared
     manager.$currentSong
       .map(\.?.id)
       .removeDuplicates()
@@ -56,13 +57,13 @@ enum SongRowSize {
   var cornerRadius: CGFloat { AM.Radius.thumb }
   var titleFont: Font {
     switch self {
-    case .compact: return .system(size: 15, weight: .regular)
+    case .compact: return .subheadline
     case .regular: return AM.Font.rowTitle
     }
   }
   var subtitleFont: Font {
     switch self {
-    case .compact: return .system(size: 12)
+    case .compact: return .caption
     case .regular: return AM.Font.rowSubtitle
     }
   }
@@ -108,31 +109,32 @@ struct SongRow: View {
           // playback is active.
           EqualizerBars(isAnimating: false)
             .frame(width: size.indicatorSize, height: size.indicatorSize)
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
         }
       }
       VStack(alignment: .leading, spacing: 2) {
         Text(song.title)
           .font(size.titleFont)
-          .foregroundColor(isCurrentSong ? .appAccent : .primary)
+          .foregroundStyle(isCurrentSong ? Color.appAccent : Color.primary)
           .lineLimit(1)
         Text(song.displayArtist)
           .font(size.subtitleFont)
-          .foregroundColor(.secondary)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       Spacer()
       if downloads.isDownloaded(song.id) {
         Image(systemName: "arrow.down.circle.fill")
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel("Downloaded")
       } else if downloads.isDownloading(song.id) {
         LoadingIndicator(size: 18)
       }
       if !song.durationText.isEmpty {
         Text(song.durationText)
-          .font(.system(size: 13, design: .rounded))
-          .foregroundColor(.secondary)
+          .font(.caption.monospacedDigit())
+          .foregroundStyle(.secondary)
           .monospacedDigit()
       }
       if let trailing {
@@ -142,13 +144,15 @@ struct SongRow: View {
           songActions
         } label: {
           Image(systemName: "ellipsis")
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(.secondary)
-            .frame(width: 32, height: 32)
+            .font(.headline)
+            .foregroundStyle(.secondary)
+            .frame(width: 44, height: 44)
             .background(.primary.opacity(0.055), in: Circle())
             .contentShape(Circle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
+        .accessibilityLabel("More Actions")
+        .accessibilityHint("Shows actions for \(song.title).")
       }
     }
     .padding(.vertical, size == .regular ? 5 : 3)
@@ -240,14 +244,14 @@ enum MusicGridCardSize: Equatable {
   var titleFont: Font {
     switch self {
     case .regular: return AM.Font.tileTitle
-    case .compact: return .system(size: 13, weight: .semibold)
+    case .compact: return .subheadline
     }
   }
 
   var artistFont: Font {
     switch self {
     case .regular: return AM.Font.tileCaption
-    case .compact: return .system(size: 11)
+    case .compact: return .caption
     }
   }
 
@@ -465,12 +469,12 @@ struct SongContextPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
       VStack(alignment: .leading, spacing: 3) {
         Text(song.title)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(song.displayArtist)
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(2)
       }
     }

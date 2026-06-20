@@ -19,8 +19,8 @@ struct PlayerBottomToolbar: View {
           onLyricsToggle()
         } label: {
           Image(systemName: "quote.bubble")
-            .font(.system(size: 22))
-            .foregroundColor(showLyrics ? .primary : .secondary)
+            .font(.title3)
+            .foregroundStyle(showLyrics ? Color.primary : Color.secondary)
             .frame(width: 44, height: 44)
             .frame(maxWidth: .infinity)
         }
@@ -31,8 +31,8 @@ struct PlayerBottomToolbar: View {
       #if canImport(UIKit)
         ZStack {
           Image(systemName: routeSymbolName(audioManager.routeIcon))
-            .font(.system(size: 22))
-            .foregroundColor(.primary)
+            .font(.title3)
+            .foregroundStyle(.primary)
             .accessibilityHidden(true)
           AirPlayRoutePickerView()
             .frame(width: 44, height: 44)
@@ -48,8 +48,8 @@ struct PlayerBottomToolbar: View {
         showingQueue = true
       } label: {
         Image(systemName: "list.bullet")
-          .font(.system(size: 22))
-          .foregroundColor(.primary)
+          .font(.title3)
+          .foregroundStyle(.primary)
           .frame(width: 44, height: 44)
           .frame(maxWidth: audioManager.isRadioMode ? nil : .infinity)
       }

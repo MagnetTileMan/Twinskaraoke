@@ -85,8 +85,8 @@ struct RadioQueueView: View {
           }
           .padding(.horizontal, 20)
           .padding(.bottom, 20)
-          .animation(scheduleAnimation(duration: 0.28), value: currentSong?.displayTitle)
-          .animation(scheduleAnimation(duration: 0.24), value: history.count)
+          .animation(scheduleAnimation(response: 0.28), value: currentSong?.displayTitle)
+          .animation(scheduleAnimation(response: 0.24), value: history.count)
         }
         .smoothScrolling()
         .refreshable { await radio.refresh() }
@@ -98,12 +98,12 @@ struct RadioQueueView: View {
     HStack {
       VStack(alignment: .leading, spacing: 2) {
         Text(radio.nowPlaying?.station.name ?? "Radio")
-          .font(.system(size: 18, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
         if let listeners = radio.nowPlaying?.listeners {
           Text("\(listeners.unique) listening")
-            .font(.system(size: 12))
-            .foregroundColor(.secondary)
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
       }
       Spacer()
@@ -111,10 +111,11 @@ struct RadioQueueView: View {
         AppHaptic.light.play()
         dismiss()
       } label: {
-        Image(systemName: "xmark")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundColor(.appGlassForeground)
-          .frame(width: 36, height: 36)
+        Label("Close", systemImage: "xmark")
+          .labelStyle(.iconOnly)
+          .font(.headline)
+          .foregroundStyle(Color.appGlassForeground)
+          .frame(width: 44, height: 44)
       }
       .modifier(GlassCircle())
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
@@ -167,13 +168,13 @@ struct RadioQueueView: View {
   private func controlLabel(symbol: String, text: String, isPrimary: Bool) -> some View {
     HStack(spacing: 7) {
       Image(systemName: symbol)
-        .font(.system(size: 14, weight: .semibold))
+        .font(.subheadline.bold())
       Text(text)
-        .font(.system(size: 15, weight: .semibold))
+        .font(.subheadline.bold())
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 12)
-    .foregroundColor(isPrimary ? .appControlActiveForeground : .primary)
+    .foregroundStyle(isPrimary ? Color.appControlActiveForeground : Color.primary)
     .background(
       RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous)
         .fill(isPrimary ? Color.appControlActiveFill : Color.appControlInactiveFill)
@@ -186,8 +187,8 @@ struct RadioQueueView: View {
   {
     VStack(alignment: .leading, spacing: 8) {
       Text(title)
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundColor(.secondary)
+        .font(.caption.bold())
+        .foregroundStyle(.secondary)
         .textCase(.uppercase)
       content()
     }
@@ -228,8 +229,8 @@ struct RadioQueueView: View {
     .transition(rowTransition)
   }
 
-  private func scheduleAnimation(duration: Double) -> Animation? {
-    reduceMotion ? nil : .easeInOut(duration: duration)
+  private func scheduleAnimation(response: Double) -> Animation? {
+    reduceMotion ? nil : AppMotion.spring(response: response, dampingFraction: 0.84)
   }
 
   private var reduceMotion: Bool {
@@ -278,18 +279,18 @@ private struct RadioQueueHero: View {
 
       VStack(alignment: .leading, spacing: 4) {
         Text(stationName)
-          .font(.system(size: 10, weight: .bold))
-          .foregroundColor(.appAccent)
+          .font(.caption.bold())
+          .foregroundStyle(Color.appAccent)
           .textCase(.uppercase)
           .lineLimit(1)
         Text(song.displayTitle)
-          .font(.system(size: 17, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
           .lineLimit(2)
           .minimumScaleFactor(0.84)
         Text(song.displayArtist)
-          .font(.system(size: 13, weight: .medium))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
 
         RadioQueueHeroStatusRow(
@@ -305,10 +306,11 @@ private struct RadioQueueHero: View {
         AppHaptic.medium.play()
         onPlayPause()
       } label: {
-        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-          .font(.system(size: 16, weight: .bold))
-          .foregroundColor(.appControlActiveForeground)
-          .frame(width: 40, height: 40)
+        Label(isPlaying ? "Pause live station" : "Play live station", systemImage: isPlaying ? "pause.fill" : "play.fill")
+          .labelStyle(.iconOnly)
+          .font(.headline.bold())
+          .foregroundStyle(Color.appControlActiveForeground)
+          .frame(width: 44, height: 44)
           .background(Color.appControlActiveFill, in: Circle())
           .offset(x: isPlaying ? 0 : 1)
       }
@@ -352,8 +354,8 @@ private struct RadioQueueLivePill: View {
       .frame(width: 11, height: 11)
 
       Text(isPlaying ? "ON AIR" : "LIVE")
-        .font(.system(size: 8, weight: .heavy))
-        .foregroundColor(.white)
+        .font(.caption.bold())
+        .foregroundStyle(.white)
     }
     .padding(.horizontal, 7)
     .padding(.vertical, 4)
@@ -376,8 +378,8 @@ private struct RadioQueueHeroStatusRow: View {
         statusItems
       }
     }
-    .font(.system(size: 10, weight: .semibold))
-    .foregroundColor(.secondary)
+    .font(.caption)
+    .foregroundStyle(.secondary)
     .accessibilityElement(children: .combine)
   }
 
@@ -408,8 +410,8 @@ private struct RadioQueueTrackRow: View {
         .overlay(alignment: .topLeading) {
           if isCurrent {
             Text("LIVE")
-              .font(.system(size: 8, weight: .heavy))
-              .foregroundColor(.white)
+              .font(.caption.bold())
+              .foregroundStyle(.white)
               .padding(.horizontal, 5)
               .padding(.vertical, 2)
               .background(Capsule().fill(Color.appAccent))
@@ -418,17 +420,17 @@ private struct RadioQueueTrackRow: View {
         }
       VStack(alignment: .leading, spacing: 3) {
         Text(song.displayTitle)
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(isCurrent ? .appAccent : .primary)
+          .font(.subheadline.bold())
+          .foregroundStyle(isCurrent ? Color.appAccent : Color.primary)
           .lineLimit(1)
         Text(song.displayArtist)
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
+          .font(.caption)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
         if isCurrent {
           Text(isPlaying ? "On air now" : "Live station")
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.secondary)
+            .font(.caption)
+            .foregroundStyle(.secondary)
             .lineLimit(1)
         }
       }
@@ -438,7 +440,7 @@ private struct RadioQueueTrackRow: View {
         // motion, but context-menu rows should not repaint continuously.
         EqualizerBars(isAnimating: false)
           .frame(width: 18, height: 18)
-          .foregroundColor(.appAccent)
+          .foregroundStyle(Color.appAccent)
       }
     }
     .padding(.vertical, 7)
@@ -457,17 +459,17 @@ private struct RadioQueuePreview: View {
       VStack(alignment: .leading, spacing: 3) {
         if isCurrent {
           Text("Live Now")
-            .font(.system(size: 12, weight: .bold))
-            .foregroundColor(.appAccent)
+            .font(.caption.bold())
+            .foregroundStyle(Color.appAccent)
             .textCase(.uppercase)
         }
         Text(song.displayTitle)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(song.displayArtist)
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(2)
       }
     }
@@ -493,8 +495,8 @@ private struct RadioQueueArtwork: View {
         )
         .overlay {
           Image(systemName: "dot.radiowaves.left.and.right")
-            .font(.system(size: 22, weight: .semibold))
-            .foregroundColor(.white.opacity(0.9))
+            .font(.title3.bold())
+            .foregroundStyle(.white.secondary)
         }
       }
     }

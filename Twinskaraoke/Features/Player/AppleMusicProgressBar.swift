@@ -12,6 +12,12 @@ struct AppleMusicProgressBar: View {
   var accessibilityValueText: String? = nil
   var accessibilityHint: String = "Swipe up or down to adjust."
   var scrubValueText: String? = nil
+  @ScaledMetric(relativeTo: .body) private var scaledIdleHeight: CGFloat = 5
+  @ScaledMetric(relativeTo: .body) private var scaledActiveHeight: CGFloat = 9
+  @ScaledMetric(relativeTo: .body) private var scaledIdleThumbDiameter: CGFloat = 8
+  @ScaledMetric(relativeTo: .body) private var scaledActiveThumbDiameter: CGFloat = 14
+  @ScaledMetric(relativeTo: .caption) private var scaledBubbleWidth: CGFloat = 64
+  @ScaledMetric(relativeTo: .caption) private var scaledBubbleHeight: CGFloat = 22
   @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   @State private var didBeginScrubbing = false
@@ -21,19 +27,21 @@ struct AppleMusicProgressBar: View {
   }
 
   private var controlHeight: CGFloat {
-    scrubValueText == nil ? 24 : 42
+    scrubValueText == nil
+      ? max(24, scaledActiveThumbDiameter + 10)
+      : max(42, scaledBubbleHeight + 20)
   }
 
   var body: some View {
     GeometryReader { geo in
-      let height: CGFloat = isScrubbing ? activeHeight : idleHeight
+      let height = isScrubbing ? max(activeHeight, scaledActiveHeight) : max(idleHeight, scaledIdleHeight)
       let width = max(geo.size.width, 1)
-      let thumbDiameter: CGFloat = isScrubbing ? 14 : 8
+      let thumbDiameter = isScrubbing ? scaledActiveThumbDiameter : scaledIdleThumbDiameter
       let thumbCenterX = min(
         max(width * CGFloat(clampedProgress), thumbDiameter / 2),
         width - thumbDiameter / 2
       )
-      let bubbleWidth: CGFloat = 64
+      let bubbleWidth = scaledBubbleWidth
       let bubbleCenterX = min(max(thumbCenterX, bubbleWidth / 2), width - bubbleWidth / 2)
       let barCenterY = scrubValueText == nil ? controlHeight / 2 : controlHeight - 11
       ZStack(alignment: .topLeading) {
@@ -55,11 +63,12 @@ struct AppleMusicProgressBar: View {
 
         if let scrubValueText, isScrubbing {
           Text(scrubValueText)
-            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-            .foregroundColor(.primary)
+            .font(.caption.monospacedDigit())
+            .bold()
+            .foregroundStyle(.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.78)
-            .frame(width: bubbleWidth, height: 22)
+            .frame(width: bubbleWidth, height: scaledBubbleHeight)
             .background(
               Capsule()
                 .fill(Color.appGlassFillStrong)
@@ -126,7 +135,7 @@ struct AppleMusicProgressBar: View {
   }
 
   private var scrubAnimation: Animation? {
-    reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)
+    reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.85)
   }
 
   private var scrubBubbleTransition: AnyTransition {

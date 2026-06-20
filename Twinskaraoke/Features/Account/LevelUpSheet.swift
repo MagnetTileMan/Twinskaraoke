@@ -19,7 +19,7 @@ struct LevelUpSheet: View {
           Circle()
             .fill(ProfileTheme.gradient.opacity(0.22))
           Image(systemName: "sparkles")
-            .font(.system(size: 40, weight: .semibold))
+            .font(.largeTitle.bold())
             .foregroundStyle(.white)
         }
         .frame(width: 112, height: 112)

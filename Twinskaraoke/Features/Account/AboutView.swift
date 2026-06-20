@@ -41,23 +41,17 @@ struct AboutView: View {
           appIconView
           Text("Twinskaraoke")
             .font(.title2.bold())
-          Text("Version \(appVersion)")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .onTapGesture {
-              versionTapCount += 1
-              if versionTapCount == 10 {
-                showEasterEgg = true
-              } else if versionTapCount >= 20 {
-                versionTapCount = 0
-                let newState = !DeveloperMode.isEnabled
-                DeveloperMode.isEnabled = newState
-              }
-            }
+          Button(action: handleVersionTap) {
+            Text("Version \(appVersion)")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .frame(minHeight: 44)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Version \(appVersion)")
           Text("NEUROKARAOKE.COM • EVILKARAOKE.COM • TWINSKARAOKE.COM")
-            .font(.system(size: 10, weight: .semibold))
+            .font(.caption.bold())
             .foregroundStyle(.secondary)
-            .tracking(0.6)
             .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -67,11 +61,11 @@ struct AboutView: View {
       }
       Section("About Neuro & Evil Karaoke Web Player") {
         Text(AboutContent.intro)
-          .font(.system(size: 14))
+          .font(.body)
           .foregroundStyle(.primary)
           .padding(.vertical, 4)
         Text(AboutContent.unofficialNotice)
-          .font(.system(size: 13))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
           .padding(.vertical, 4)
       }
@@ -155,7 +149,7 @@ struct AboutView: View {
   private func longText(_ title: String, body: String) -> some View {
     ScrollView {
       LinkifiedText(text: body)
-        .font(.system(size: 14))
+        .font(.body)
         .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -181,11 +175,22 @@ struct AboutView: View {
         RoundedRectangle(cornerRadius: 22, style: .continuous)
           .fill(ProfileTheme.radialGradient)
         Image(systemName: "music.mic")
-          .font(.system(size: 42, weight: .semibold))
+          .font(.largeTitle.bold())
           .foregroundStyle(.white)
       }
       .frame(width: 96, height: 96)
       .shadow(color: Color.black.opacity(0.18), radius: 14, y: 6)
+    }
+  }
+
+  private func handleVersionTap() {
+    versionTapCount += 1
+    if versionTapCount == 10 {
+      showEasterEgg = true
+    } else if versionTapCount >= 20 {
+      versionTapCount = 0
+      let newState = !DeveloperMode.isEnabled
+      DeveloperMode.isEnabled = newState
     }
   }
 }
@@ -211,13 +216,24 @@ private struct EasterEggView: View {
           .padding(.horizontal, 24)
           .transaction { $0.animation = nil }
         Text("404 Not Found")
-          .font(.system(size: 28, weight: .bold, design: .monospaced))
-          .foregroundColor(.primary)
+          .font(.title.monospaced().bold())
+          .foregroundStyle(.primary)
         Text("You've reached the empty place")
-          .font(.system(size: 16))
-          .foregroundColor(.secondary)
+          .font(.body)
+          .foregroundStyle(.secondary)
       }
     }
-    .onTapGesture { dismiss() }
+    .overlay(alignment: .topTrailing) {
+      Button("Close", systemImage: "xmark") {
+        dismiss()
+      }
+      .labelStyle(.iconOnly)
+      .font(.headline)
+      .foregroundStyle(.primary)
+      .frame(width: 44, height: 44)
+      .contentShape(Circle())
+      .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.7, haptic: .selection))
+      .padding()
+    }
   }
 }

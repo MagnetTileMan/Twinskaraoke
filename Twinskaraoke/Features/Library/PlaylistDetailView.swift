@@ -10,8 +10,11 @@ struct PlaylistDetailView: View {
   @ObservedObject private var favorites = FavoritesManager.shared
   @ObservedObject private var fallbackArt = FallbackArtProvider.shared
   @State private var scrollOffset: CGFloat = 0
-  private var usesWideOverview: Bool {
-    AM.Layout.usesWideCanvas(horizontalSizeClass: horizontalSizeClass)
+  private func usesWideOverview(availableWidth: CGFloat) -> Bool {
+    AM.Layout.usesWideCanvas(
+      horizontalSizeClass: horizontalSizeClass,
+      availableWidth: availableWidth
+    )
   }
   private var reduceMotion: Bool {
     AppMotion.reduceMotion(
@@ -50,7 +53,9 @@ struct PlaylistDetailView: View {
         )
       }
     }
-    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: scrollOffset < -180)
+    .animation(
+      reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+      value: scrollOffset < -180)
     .animation(
       reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
       value: songs.count)
@@ -75,7 +80,7 @@ struct PlaylistDetailView: View {
 
   @ViewBuilder
   private func playlistOverview(songs: [Song], width: CGFloat) -> some View {
-    if usesWideOverview {
+    if usesWideOverview(availableWidth: width) {
       widePlaylistOverview(songs: songs)
     } else {
       compactPlaylistOverview(songs: songs, width: width)
@@ -119,7 +124,7 @@ struct PlaylistDetailView: View {
       }
       .frame(width: 320, alignment: .topLeading)
 
-      playlistSongsContent(songs: songs, rowHorizontalPadding: 0)
+      playlistSongsContent(songs: songs, isWideOverview: true, rowHorizontalPadding: 0)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
     .frame(maxWidth: 1120, alignment: .topLeading)
@@ -169,7 +174,7 @@ struct PlaylistDetailView: View {
         .multilineTextAlignment(alignment)
       Text(songCountText)
         .font(.subheadline)
-        .foregroundColor(.secondary)
+        .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
     .padding(.horizontal, alignment == .leading ? 0 : AM.Spacing.screenMargin)
@@ -181,26 +186,33 @@ struct PlaylistDetailView: View {
   }
 
   @ViewBuilder
-  private func playlistSongsContent(songs: [Song], rowHorizontalPadding: CGFloat = AM.Spacing.screenMargin) -> some View {
+  private func playlistSongsContent(
+    songs: [Song],
+    isWideOverview: Bool = false,
+    rowHorizontalPadding: CGFloat = AM.Spacing.screenMargin
+  ) -> some View {
     if !songs.isEmpty {
       // On long playlists, thumbnail decoding and cache churn are more expensive than
       // the metadata row itself, so keep the scrolling path text-first.
       let showsRowArtwork = songs.count <= 200
       VStack(spacing: 0) {
-        if !usesWideOverview {
+        if !isWideOverview {
           actionButtons(songs: songs)
         }
         LazyVStack(spacing: 0) {
           ForEach(songs) { song in
-            PlaylistRow(song: song, showsArtwork: showsRowArtwork, horizontalPadding: rowHorizontalPadding)
-              .contentShape(Rectangle())
-              .onTapGesture {
-                play(song, context: songs)
-              }
-              .songRowAccessibility(song: song) {
-                play(song, context: songs)
-              }
-              .accessibilityIdentifier("PlaylistDetail.song.\(song.id)")
+            Button {
+              play(song, context: songs)
+            } label: {
+              PlaylistRow(song: song, showsArtwork: showsRowArtwork, horizontalPadding: rowHorizontalPadding)
+                .contentShape(Rectangle())
+                .songRowAccessibility(song: song) {
+                  play(song, context: songs)
+                }
+            }
+            .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
+            .accessibilityHint("Starts playback.")
+            .accessibilityIdentifier("PlaylistDetail.song.\(song.id)")
             Divider().padding(.leading, rowHorizontalPadding + 60)
           }
         }
@@ -310,16 +322,16 @@ private struct PlaylistDetailContextPreview: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(playlist.isFavorites ? "Favorites" : "Playlist")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(.appAccent)
+          .font(.caption.bold())
+          .foregroundStyle(Color.appAccent)
           .textCase(.uppercase)
         Text(playlist.name)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(AM.Font.tileTitle)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(LibrarySongCountText.songs(songs.isEmpty ? playlist.songCount : songs.count))
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(AM.Font.tileCaption)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
     }
@@ -336,11 +348,12 @@ private struct PlaylistMoreMenu: View {
     Menu {
       PlaylistActionsMenuItems(playlist: playlist, songs: songs)
     } label: {
-      Image(systemName: "ellipsis")
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundColor(.appAccent)
-        .frame(width: 32, height: 32)
-        .contentShape(Rectangle())
+      Label("More Actions", systemImage: "ellipsis")
+        .font(.headline)
+        .foregroundStyle(Color.appAccent)
+        .frame(width: 44, height: 44)
+        .labelStyle(.iconOnly)
+        .contentShape(Circle())
     }
     .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
   }

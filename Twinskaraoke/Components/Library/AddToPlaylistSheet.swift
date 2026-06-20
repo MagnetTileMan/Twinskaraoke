@@ -77,8 +77,8 @@ struct AddToPlaylistSheet: View {
             showCreatePlaylist = true
           } label: {
             Label("New Playlist", systemImage: "plus")
-              .font(.system(size: 16, weight: .semibold))
-              .foregroundColor(.appControlActiveForeground)
+              .font(.headline)
+              .foregroundStyle(Color.appControlActiveForeground)
               .frame(maxWidth: .infinity)
               .padding(.vertical, 14)
               .background(Color.appControlActiveFill, in: Capsule())
@@ -117,11 +117,11 @@ struct AddToPlaylistSheet: View {
         CreatePlaylistSheet()
       }
       .animation(
-        reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
+        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
         value: manager.playlists.map(\.id))
-      .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: inFlight)
-      .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.82), value: added)
-      .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: failed)
+      .animation(reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9), value: inFlight)
+      .animation(reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.82), value: added)
+      .animation(reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9), value: failed)
     }
   }
 
@@ -136,8 +136,8 @@ struct AddToPlaylistSheet: View {
         showCreatePlaylist = true
       } label: {
         Label("New Playlist", systemImage: "plus")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundColor(.appControlActiveForeground)
+          .font(.headline)
+          .foregroundStyle(Color.appControlActiveForeground)
           .padding(.horizontal, 22)
           .padding(.vertical, 12)
           .background(Color.appControlActiveFill, in: Capsule())
@@ -195,15 +195,15 @@ private struct AddToPlaylistSongPreview: View {
 
       VStack(alignment: .leading, spacing: 4) {
         Text("Add Song")
-          .font(.system(size: 12, weight: .bold))
+          .font(.caption.bold())
           .foregroundStyle(.secondary)
           .textCase(.uppercase)
         Text(song.title)
-          .font(.system(size: 19, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(song.displayArtist)
-          .font(.system(size: 14))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(1)
       }
@@ -229,19 +229,19 @@ private struct AddToPlaylistRow: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(playlist.name)
-          .font(.system(size: 16, weight: .medium))
-          .foregroundColor(.primary)
+          .font(.body)
+          .foregroundStyle(.primary)
           .lineLimit(1)
         Text(subtitle)
-          .font(.system(size: 13))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
       }
 
       Spacer(minLength: 12)
 
       statusView
-        .frame(width: 28, height: 28)
+        .frame(width: 44, height: 44)
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
@@ -273,17 +273,17 @@ private struct AddToPlaylistRow: View {
     switch state {
     case .idle:
       Image(systemName: "plus.circle")
-        .font(.system(size: 22, weight: .semibold))
+        .font(.title3.bold())
         .foregroundStyle(Color.appAccent)
     case .adding:
       LoadingIndicator(size: 22)
     case .added:
       Image(systemName: "checkmark.circle.fill")
-        .font(.system(size: 22, weight: .semibold))
+        .font(.title3.bold())
         .foregroundStyle(.green)
     case .failed:
       Image(systemName: "exclamationmark.circle.fill")
-        .font(.system(size: 22, weight: .semibold))
+        .font(.title3.bold())
         .foregroundStyle(Color.appAccent)
     }
   }
@@ -369,16 +369,16 @@ private struct AddToPlaylistPreview: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(playlist.isPublic ? "Public Playlist" : "Private Playlist")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(.appAccent)
+          .font(.caption.bold())
+          .foregroundStyle(Color.appAccent)
           .textCase(.uppercase)
         Text(playlist.name)
-          .font(.system(size: 17, weight: .semibold))
-          .foregroundColor(.primary)
+          .font(.headline)
+          .foregroundStyle(.primary)
           .lineLimit(2)
         Text(LibrarySongCountText.songs(playlist.songCount))
-          .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
       }
     }
     .padding(16)

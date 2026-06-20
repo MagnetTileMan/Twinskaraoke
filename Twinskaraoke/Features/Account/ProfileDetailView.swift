@@ -99,13 +99,13 @@ struct ProfileDetailView: View {
       selected = badge
       return
     }
-    withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+    withOptionalAnimation(profileAnimation) {
       selected = badge
     }
   }
 
   private var profileAnimation: Animation? {
-    reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.82)
+    reduceMotion ? nil : AppMotion.spring(response: 0.36, dampingFraction: 0.82)
   }
 
   private var bottomTransition: AnyTransition {
@@ -178,7 +178,7 @@ private struct ProfileAvatar: View {
       Circle().fill(Color.appPlaceholderSecondary)
       if let first = displayName.first {
         Text(String(first).uppercased())
-          .font(.system(size: size * 0.42, weight: .bold))
+          .font(.largeTitle.bold())
           .foregroundStyle(.secondary)
       } else {
         MusicCircularPlaceholder()
@@ -252,9 +252,9 @@ private struct ProfileStatsCard: View {
   private func stat(value: String, label: String) -> some View {
     VStack(spacing: 2) {
       Text(value)
-        .font(.system(size: 18, weight: .bold))
+        .font(.headline)
       Text(label)
-        .font(.caption2)
+        .font(.caption)
         .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity)
@@ -281,7 +281,7 @@ private struct ProfileAchievementStrip: View {
           .frame(width: 74, height: 74)
         VStack(alignment: .leading, spacing: 5) {
           Text("Achievements")
-            .font(.system(size: 18, weight: .bold))
+            .font(.headline)
             .foregroundStyle(.primary)
           Text("\(completionText) badges unlocked")
             .font(.subheadline)
@@ -338,10 +338,10 @@ private struct AchievementMeter: View {
         .rotationEffect(.degrees(-90))
       VStack(spacing: 1) {
         Text("\(Int((animatedProgress * 100).rounded()))%")
-          .font(.system(size: 16, weight: .bold))
+          .font(.headline)
           .monospacedDigit()
         Text("done")
-          .font(.system(size: 9, weight: .semibold))
+          .font(.caption)
           .foregroundStyle(.secondary)
       }
     }
@@ -361,7 +361,7 @@ private struct AchievementMeter: View {
       animatedProgress = newValue
       return
     }
-    withAnimation(.spring(response: 0.7, dampingFraction: 0.86)) {
+    withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.86)) {
       animatedProgress = newValue
     }
   }
@@ -398,7 +398,7 @@ private struct NextBadgeCallout: View {
             .monospacedDigit()
         }
         Text(badge.name)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.body.bold())
           .foregroundStyle(.primary)
           .lineLimit(1)
         if badge.conditionValue > 0 {
@@ -406,7 +406,7 @@ private struct NextBadgeCallout: View {
         }
       }
       Image(systemName: "chevron.right")
-        .font(.system(size: 12, weight: .semibold))
+        .font(.caption.bold())
         .foregroundStyle(.tertiary)
     }
     .padding(12)
@@ -442,7 +442,7 @@ private struct BadgeMiniIcon: View {
     .overlay(alignment: .bottomTrailing) {
       if !badge.unlocked {
         Image(systemName: "lock.fill")
-          .font(.system(size: 8, weight: .bold))
+          .font(.caption.bold())
           .foregroundStyle(.white)
           .frame(width: 17, height: 17)
           .background(Color.primary.opacity(0.76), in: Circle())
@@ -468,10 +468,10 @@ private struct BadgeGridSection: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         Text(title)
-          .font(.system(size: 17, weight: .bold))
+          .font(.headline)
         Spacer()
         Text("\(headerCount ?? items.count)")
-          .font(.system(size: 14, weight: .medium))
+          .font(.subheadline)
           .foregroundStyle(.secondary)
       }
       LazyVGrid(columns: cols, spacing: 18) {
@@ -547,7 +547,7 @@ struct BadgeGridCell: View {
       .overlay(alignment: .bottomTrailing) {
         if !badge.unlocked {
           Image(systemName: "lock.fill")
-            .font(.system(size: 9, weight: .bold))
+            .font(.caption.bold())
             .foregroundStyle(.white)
             .frame(width: 19, height: 19)
             .background(Color.primary.opacity(0.72), in: Circle())
@@ -556,7 +556,7 @@ struct BadgeGridCell: View {
       }
       .shadow(color: ringColor.opacity(badge.unlocked ? 0.22 : 0.08), radius: 8, y: 4)
       Text(badge.name)
-        .font(.system(size: 11, weight: .semibold))
+        .font(.caption.bold())
         .foregroundStyle(badge.unlocked ? .primary : .secondary)
         .multilineTextAlignment(.center)
         .lineLimit(2)
@@ -564,11 +564,11 @@ struct BadgeGridCell: View {
       Group {
         if !badge.unlocked && badge.conditionValue > 0 {
           Text("\(badge.currentProgress) / \(badge.conditionValue)")
-            .font(.system(size: 10, weight: .medium))
+            .font(.caption)
             .foregroundStyle(.secondary)
         } else if badge.unlocked {
           Text("Unlocked")
-            .font(.system(size: 10, weight: .medium))
+            .font(.caption)
             .foregroundStyle(ringColor)
         }
       }
@@ -605,9 +605,9 @@ struct BadgeDetailSheet: View {
         dismiss()
       } label: {
         Image(systemName: "xmark")
-          .font(.system(size: 13, weight: .bold))
+          .font(.headline)
           .foregroundStyle(.secondary)
-          .frame(width: 30, height: 30)
+          .frame(width: 44, height: 44)
           .background(Color(.tertiarySystemBackground), in: Circle())
       }
       .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.72))
@@ -644,9 +644,9 @@ private struct BadgeDetailIcon: View {
     .overlay(alignment: .bottomTrailing) {
       if !badge.unlocked {
         Image(systemName: "lock.fill")
-          .font(.system(size: 13, weight: .bold))
+          .font(.headline)
           .foregroundStyle(.white)
-          .frame(width: 30, height: 30)
+          .frame(width: 44, height: 44)
           .background(Color.primary.opacity(0.76), in: Circle())
           .overlay(Circle().strokeBorder(Color.appBackground, lineWidth: 3))
       }
