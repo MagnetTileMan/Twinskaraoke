@@ -10,7 +10,7 @@ struct GlassXButton: View {
     Button(action: action) {
       icon
         .frame(width: size, height: size)
-        .modifier(GlassCircle())
+        .background { GlassIconButtonDisc() }
         .contentShape(Circle())
     }
     .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
@@ -22,6 +22,56 @@ struct GlassXButton: View {
       .labelStyle(.iconOnly)
       .font(.system(size: iconSize, weight: .semibold))
       .foregroundStyle(Color.appGlassForeground)
+  }
+}
+
+private struct GlassIconButtonDisc: View {
+  @Environment(\.colorScheme) private var colorScheme
+
+  var body: some View {
+    Circle()
+      .fill(.regularMaterial)
+      .overlay {
+        Circle()
+          .fill(
+            LinearGradient(
+              stops: [
+                .init(color: sheenColor, location: 0),
+                .init(color: .clear, location: 0.56),
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
+      }
+      .overlay {
+        Circle()
+          .strokeBorder(
+            LinearGradient(
+              colors: [rimHighlight, rimShadow],
+              startPoint: .top,
+              endPoint: .bottom
+            ),
+            lineWidth: 0.8
+          )
+      }
+      .shadow(color: shadowColor, radius: 3, x: 0, y: 1)
+  }
+
+  private var sheenColor: Color {
+    colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.55)
+  }
+
+  private var rimHighlight: Color {
+    colorScheme == .dark ? Color.white.opacity(0.24) : Color.white.opacity(0.90)
+  }
+
+  private var rimShadow: Color {
+    colorScheme == .dark ? Color.white.opacity(0.04) : Color.black.opacity(0.06)
+  }
+
+  private var shadowColor: Color {
+    colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
   }
 }
 

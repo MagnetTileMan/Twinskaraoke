@@ -1968,6 +1968,7 @@ class AudioPlayerManager: ObservableObject {
     }
     cancelPendingTransitionWork()
     avEngine.stop()
+    stopStreamPlayer()
     instrumentalTask?.cancel()
     instrumentalTask = nil
     preparedStemSongID = nil

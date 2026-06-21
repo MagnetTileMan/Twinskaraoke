@@ -258,10 +258,10 @@ struct PlayerView: View {
         crownVolume = audioManager.volume
         lastVolumeFeedbackStep = Int((crownVolume * 20).rounded())
       }
-      .onChange(of: crownVolume) { newValue in
+      .compatibleOnChange(of: crownVolume) { newValue in
         setVolume(newValue, feedback: true)
       }
-      .onChange(of: audioManager.volume) { newValue in
+      .compatibleOnChange(of: audioManager.volume) { newValue in
         if abs(newValue - crownVolume) > 0.01 {
           crownVolume = newValue
           lastVolumeFeedbackStep = Int((newValue * 20).rounded())

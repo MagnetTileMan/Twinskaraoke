@@ -57,7 +57,7 @@ struct AccountView: View {
 
       Section("Motion") {
         Toggle("Respect Reduce Motion", isOn: $respectReducedMotion)
-          .onChange(of: respectReducedMotion) { _ in
+          .compatibleOnChange(of: respectReducedMotion) { _ in
             WatchHaptic.play(.click)
           }
       }

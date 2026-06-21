@@ -4,6 +4,24 @@ import SwiftUI
   import UIKit
 #endif
 
+extension View {
+  @ViewBuilder
+  func compatibleOnChange<T: Equatable>(
+    of value: T,
+    action: @escaping (T) -> Void
+  ) -> some View {
+    #if os(watchOS)
+    if #available(watchOS 10.0, *) {
+      self.onChange(of: value) { _, newValue in action(newValue) }
+    } else {
+      self.onChange(of: value, perform: action)
+    }
+    #else
+    self.onChange(of: value) { _, newValue in action(newValue) }
+    #endif
+  }
+}
+
 enum AppHaptic {
   case light
   case medium
@@ -91,15 +109,9 @@ private struct PressableButtonBody: View {
       .scaleEffect(reduceMotion ? 1.0 : (configuration.isPressed ? scale : 1.0))
       .opacity(currentOpacity)
       .animation(reduceMotion ? nil : animation, value: configuration.isPressed)
-      #if os(watchOS)
-      .onChange(of: configuration.isPressed) { isPressed in
+      .compatibleOnChange(of: configuration.isPressed) { isPressed in
         updatePressState(isPressed)
       }
-      #else
-      .onChange(of: configuration.isPressed) { _, isPressed in
-        updatePressState(isPressed)
-      }
-      #endif
   }
 
   private var currentOpacity: Double {

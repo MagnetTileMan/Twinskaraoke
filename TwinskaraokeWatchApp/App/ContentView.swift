@@ -120,10 +120,10 @@ struct WatchNowPlayingGlyph: View {
     }
     .frame(width: 12, height: 12)
     .onAppear(perform: syncAnimation)
-    .onChange(of: isPlaying) { _ in
+    .compatibleOnChange(of: isPlaying) { _ in
       syncAnimation()
     }
-    .onChange(of: reduceMotion) { _ in
+    .compatibleOnChange(of: reduceMotion) { _ in
       syncAnimation()
     }
   }

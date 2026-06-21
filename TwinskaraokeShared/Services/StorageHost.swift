@@ -22,12 +22,7 @@ nonisolated enum StorageHost {
       return override == "cn"
     }
 
-    let region: String
-    if #available(iOS 16.0, watchOS 9.0, macOS 13.0, *) {
-      region = Locale.current.region?.identifier ?? Locale.current.identifier
-    } else {
-      region = Locale.current.regionCode ?? Locale.current.identifier
-    }
+    let region = Locale.current.region?.identifier ?? Locale.current.identifier
     return region.uppercased() == "CN"
   }
 }
