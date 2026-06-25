@@ -1514,6 +1514,7 @@
       }
     },
     "A native SwiftUI client for the Neuro & Evil Karaoke Web Player. Built around the public Neurokaraoke API, with offline downloads, karaoke vocal removal, beat-aware crossfade, and Live Radio playback." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1564,6 +1565,9 @@
           }
         }
       }
+    },
+    "A native SwiftUI client for the Neuro & Evil Karaoke Web Player. Built around the public Neurokaraoke API, with offline downloads, vocal removal, beat-aware crossfade, and Live Radio playback." : {
+
     },
     "About" : {
       "localizations" : {
@@ -8178,6 +8182,7 @@
       }
     },
     "Karaoke" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8230,6 +8235,7 @@
       }
     },
     "Karaoke controls" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8282,6 +8288,7 @@
       }
     },
     "Karaoke effects use on-device AI to separate vocals and instrumentals in real time. For best results, use headphones or external speakers." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8334,6 +8341,7 @@
       }
     },
     "Karaoke Playlists" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12104,6 +12112,7 @@
       }
     },
     "Opens curated karaoke playlists." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12154,6 +12163,9 @@
           }
         }
       }
+    },
+    "Opens curated playlists." : {
+
     },
     "Opens Discord sign-in." : {
       "localizations" : {
@@ -12260,6 +12272,7 @@
       }
     },
     "Opens karaoke search." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12312,6 +12325,7 @@
       }
     },
     "Opens public karaoke playlists" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12362,6 +12376,12 @@
           }
         }
       }
+    },
+    "Opens public playlists" : {
+
+    },
+    "Opens search." : {
+
     },
     "Opens the full song catalog." : {
       "localizations" : {
@@ -13927,6 +13947,7 @@
       }
     },
     "Preparing karaoke" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13977,6 +13998,9 @@
           }
         }
       }
+    },
+    "Preparing vocal removal" : {
+
     },
     "Preset" : {
       "localizations" : {
@@ -16769,6 +16793,7 @@
       }
     },
     "Save karaoke tracks from any song menu and they will appear here for offline playback." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16819,6 +16844,9 @@
           }
         }
       }
+    },
+    "Save songs from any song menu and they will appear here for offline playback." : {
+
     },
     "Saved" : {
       "localizations" : {
@@ -17397,6 +17425,7 @@
       }
     },
     "Share artwork" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19220,6 +19249,7 @@
       }
     },
     "Songs per playlist" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19271,7 +19301,14 @@
         }
       }
     },
+    "Songs per Playlist" : {
+
+    },
+    "Songs will be analyzed in the background so audio effects can switch instantly during playback.\n\nThis uses more battery and processing power. Separated stems count toward the 4 GB music cache limit." : {
+
+    },
     "Songs will be analyzed in the background so karaoke modes can switch instantly during playback.\n\nThis uses more battery and processing power. Separated stems count toward the 4 GB music cache limit." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19790,6 +19827,9 @@
           }
         }
       }
+    },
+    "Storage & Limits" : {
+
     },
     "Strength" : {
       "localizations" : {
@@ -21221,6 +21261,7 @@
       }
     },
     "up to %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22062,6 +22103,9 @@
           }
         }
       }
+    },
+    "Vocal removal controls" : {
+
     },
     "Vocal removal level" : {
       "localizations" : {
