@@ -2321,6 +2321,9 @@ class AudioPlayerManager: ObservableObject {
             guard let self else { return .commandFailed }
             return performOnMain {
                 DebugLogger.log("Remote pause command received", category: .playback)
+                if !self.isPlaybackRequested {
+                    return self.resumeCurrentPlayback(source: "remote.pauseAsPlay") ? .success : .commandFailed
+                }
                 return self.pauseCurrentPlayback(source: "remote.pause") ? .success : .commandFailed
             }
         }
@@ -2390,24 +2393,14 @@ class AudioPlayerManager: ObservableObject {
             updateRemoteCommandAvailability()
             return
         }
-        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        info[MPMediaItemPropertyTitle] = song.title
-        info[MPMediaItemPropertyArtist] = song.originalArtists?.joined(separator: ", ") ?? ""
-        info[MPMediaItemPropertyMediaType] = MPMediaType.music.rawValue
-        if isRadioMode {
-            info[MPNowPlayingInfoPropertyIsLiveStream] = true
-            info[MPMediaItemPropertyPlaybackDuration] = nil
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = nil
-        } else {
-            info[MPNowPlayingInfoPropertyIsLiveStream] = false
-            info[MPMediaItemPropertyPlaybackDuration] = playbackDuration
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = playbackTime
-        }
-        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
-        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
         let targetArt = isRadioMode ? radioArtworkURL : song.imageURL
-        if reloadArtwork || artworkURL != targetArt {
-            info[MPMediaItemPropertyArtwork] = nil
+        let shouldReloadArtwork = reloadArtwork || artworkURL != targetArt
+        let info = makeNowPlayingInfo(
+            for: song,
+            elapsed: isRadioMode ? nil : playbackTime,
+            includeExistingArtwork: !shouldReloadArtwork
+        )
+        if shouldReloadArtwork {
             artworkURL = targetArt
             #if canImport(UIKit)
                 if reloadArtwork { nowPlayingArtwork = nil }
@@ -2416,8 +2409,8 @@ class AudioPlayerManager: ObservableObject {
                 loadArtworkAsync(from: targetArt)
             }
         }
-        updateRemoteCommandAvailability()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        updateRemoteCommandAvailability()
         DebugLogger.log(
             "Now Playing updated: rate=\(isPlaying ? 1.0 : 0.0), playing=\(isPlaying), buffering=\(isBuffering)",
             category: .playback
@@ -2436,10 +2429,15 @@ class AudioPlayerManager: ObservableObject {
         let playbackRate = isPlaying ? 1.0 : 0.0
         guard roundedSecond != lastNowPlayingElapsedSecond
             || playbackRate != lastNowPlayingPlaybackRate else { return }
-        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
-        info[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate
-        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+        guard let song = currentSong else {
+            updateNowPlayingInfo(reloadArtwork: false)
+            return
+        }
+        let info = makeNowPlayingInfo(
+            for: song,
+            elapsed: isRadioMode ? nil : elapsed,
+            includeExistingArtwork: true
+        )
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         if lastLoggedNowPlayingElapsedSecond == nil
             || roundedSecond - (lastLoggedNowPlayingElapsedSecond ?? 0) >= 15
@@ -2452,6 +2450,34 @@ class AudioPlayerManager: ObservableObject {
         }
         lastNowPlayingElapsedSecond = roundedSecond
         lastNowPlayingPlaybackRate = playbackRate
+    }
+
+    private func makeNowPlayingInfo(
+        for song: Song,
+        elapsed: TimeInterval?,
+        includeExistingArtwork: Bool
+    ) -> [String: Any] {
+        let currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: song.title,
+            MPMediaItemPropertyArtist: song.originalArtists?.joined(separator: ", ") ?? "",
+            MPMediaItemPropertyMediaType: MPMediaType.music.rawValue,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
+        ]
+        if includeExistingArtwork,
+           let artwork = currentInfo?[MPMediaItemPropertyArtwork]
+        {
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
+        if isRadioMode {
+            info[MPNowPlayingInfoPropertyIsLiveStream] = true
+        } else {
+            info[MPNowPlayingInfoPropertyIsLiveStream] = false
+            info[MPMediaItemPropertyPlaybackDuration] = playbackDuration
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed ?? playbackTime
+        }
+        return info
     }
 
     private func loadArtworkAsync(from url: URL) {
@@ -2499,11 +2525,18 @@ class AudioPlayerManager: ObservableObject {
         private func applyArtwork(_ image: UIImage, for songID: String?) {
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
             DispatchQueue.main.async { [weak self] in
-                guard let self, currentSong?.id == songID else { return }
-                var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+                guard let self,
+                      let song = self.currentSong,
+                      song.id == songID
+                else { return }
+                var info = self.makeNowPlayingInfo(
+                    for: song,
+                    elapsed: self.isRadioMode ? nil : self.playbackTime,
+                    includeExistingArtwork: false
+                )
                 info[MPMediaItemPropertyArtwork] = artwork
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = info
-                nowPlayingArtwork = image
+                self.nowPlayingArtwork = image
             }
         }
     #endif
