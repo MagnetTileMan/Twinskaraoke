@@ -348,6 +348,8 @@ class AudioPlayerManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var artworkURL: URL?
     private var artworkTask: (any SDWebImageOperation)?
+    private var playerArtworkWarmupTasks: [String: any SDWebImageOperation] = [:]
+    private var warmedPlayerArtworkAt: [String: Date] = [:]
     private var currentPlaybackURL: URL?
     private var instrumentalTask: Task<Void, Never>?
     private var backgroundAnalysisRetryTask: Task<Void, Never>?
@@ -579,6 +581,8 @@ class AudioPlayerManager: ObservableObject {
             existing.player.removeTimeObserver(existing.token)
         }
         artworkTask?.cancel()
+        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+        playerArtworkWarmupTasks.removeAll()
         cacheCompressionTask?.cancel()
         radioPlayer?.pause()
         #if canImport(UIKit)
@@ -972,6 +976,7 @@ class AudioPlayerManager: ObservableObject {
             category: .playback
         )
         cancelPendingTransitionWork()
+        cancelPlayerArtworkWarmups()
         instrumentalTask?.cancel()
         instrumentalTask = nil
         cancelBackgroundAnalysisRetry()
@@ -1162,6 +1167,7 @@ class AudioPlayerManager: ObservableObject {
         } else {
             currentSong = song
         }
+        warmPlayerArtwork(for: song)
         if !context.isEmpty {
             queue = context
             if isShuffled {
@@ -1285,6 +1291,39 @@ class AudioPlayerManager: ObservableObject {
             triggerBackgroundAnalysis(for: song)
             prepareBackgroundStemPlaybackIfPossible(for: song)
         }
+    }
+
+    private func warmPlayerArtwork(for song: Song) {
+        let urls = [
+            displayImageURL(for: song, variant: .thumbnail),
+            displayImageURL(for: song, variant: .card),
+        ].compactMap { $0 }
+        warmPlayerArtworkURLs(urls)
+    }
+
+    private func warmPlayerArtworkURLs(_ urls: [URL]) {
+        let now = Date()
+        warmedPlayerArtworkAt = warmedPlayerArtworkAt.filter { now.timeIntervalSince($0.value) < 60 }
+        for url in urls {
+            let key = url.absoluteString
+            guard warmedPlayerArtworkAt[key] == nil, playerArtworkWarmupTasks[key] == nil else { continue }
+            warmedPlayerArtworkAt[key] = now
+            playerArtworkWarmupTasks[key] = SDWebImageManager.shared.loadImage(
+                with: url,
+                options: [.highPriority],
+                context: ImageCacheConfig.visibleImageContext,
+                progress: nil
+            ) { [weak self] _, _, _, _, _, _ in
+                Task { @MainActor in
+                    self?.playerArtworkWarmupTasks.removeValue(forKey: key)
+                }
+            }
+        }
+    }
+
+    private func cancelPlayerArtworkWarmups() {
+        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+        playerArtworkWarmupTasks.removeAll()
     }
 
     private func fallBackToMainPlayback(for song: Song, startAt: TimeInterval) {
@@ -1944,16 +1983,29 @@ class AudioPlayerManager: ObservableObject {
         updateNowPlayingInfo(reloadArtwork: true)
     }
 
-    func displayImageURL(for song: Song) -> URL? {
+    func displayImageURL(for song: Song, variant: ArtworkImageVariant = .card) -> URL? {
         if isRadioMode, currentSong?.id == song.id, let art = radioArtworkURL {
-            return art
+            return ArtworkURLBuilder.variantURL(from: art, variant: variant) ?? art
         }
-        return song.imageURL
+        switch variant {
+        case .row:
+            return song.rowImageURL
+        case .thumbnail:
+            return song.thumbnailURL
+        case .hero:
+            return song.heroImageURL
+        case .fullHD:
+            return song.fullHDImageURL
+        default:
+            return song.imageURL
+        }
     }
 
     func clearCache() {
         DebugLogger.log("Clearing all cache", category: .cache)
         cancelPendingTransitionWork()
+        cancelPlayerArtworkWarmups()
+        warmedPlayerArtworkAt.removeAll()
         cacheCompressionTask?.cancel()
         instrumentalTask?.cancel()
         instrumentalTask = nil
@@ -2419,6 +2471,7 @@ class AudioPlayerManager: ObservableObject {
             #if canImport(UIKit)
                 if reloadArtwork { nowPlayingArtwork = nil }
             #endif
+            warmPlayerArtwork(for: song)
             if let targetArt {
                 loadArtworkAsync(from: targetArt)
             }
@@ -2520,21 +2573,10 @@ class AudioPlayerManager: ObservableObject {
                 applyArtwork(cached, for: songID, artworkURL: url)
                 return
             }
-            let pixelSize = NSValue(
-                cgSize: CGSize(
-                    width: AudioPlayerManager.artworkMaxPixel,
-                    height: AudioPlayerManager.artworkMaxPixel
-                )
-            )
             artworkTask = SDWebImageManager.shared.loadImage(
                 with: url,
-                options: [.scaleDownLargeImages],
-                context: [
-                    .imageThumbnailPixelSize: pixelSize,
-                    .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                    .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                    .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                ],
+                options: [],
+                context: ImageCacheConfig.memoryAndDiskCacheContext,
                 progress: nil
             ) { [weak self] image, _, _, _, _, _ in
                 guard let self, currentSong?.id == songID else { return }

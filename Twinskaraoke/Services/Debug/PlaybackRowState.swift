@@ -36,10 +36,21 @@ final class PlaybackRowState: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func displayImageURL(for song: Song) -> URL? {
+    func displayImageURL(for song: Song, variant: ArtworkImageVariant = .card) -> URL? {
         if isRadioMode, currentSongID == song.id, let radioArtworkURL {
-            return radioArtworkURL
+            return ArtworkURLBuilder.variantURL(from: radioArtworkURL, variant: variant) ?? radioArtworkURL
         }
-        return song.imageURL
+        switch variant {
+        case .row:
+            return song.rowImageURL
+        case .thumbnail:
+            return song.thumbnailURL
+        case .hero:
+            return song.heroImageURL
+        case .fullHD:
+            return song.fullHDImageURL
+        default:
+            return song.imageURL
+        }
     }
 }

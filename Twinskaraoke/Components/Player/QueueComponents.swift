@@ -14,7 +14,11 @@ struct QueueRow: View {
             Button(action: onPlay) {
                 HStack(spacing: 12) {
                     ZStack(alignment: .topLeading) {
-                        RemoteArtworkImage(url: audioManager.displayImageURL(for: song), cornerRadius: 7)
+                        RemoteArtworkImage(
+                            url: audioManager.displayImageURL(for: song, variant: .row),
+                            cornerRadius: 7,
+                            lowResURL: song.thumbnailURL
+                        )
                             .frame(width: 50, height: 50)
                             .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                         if isPlayingNext {

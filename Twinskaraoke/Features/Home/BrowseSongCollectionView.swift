@@ -134,8 +134,9 @@ struct BrowseSongCollectionView: View {
 
     @ViewBuilder
     private var heroArtwork: some View {
-        let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? FallbackArtProvider.shared.randomURL
-        RemoteArtworkImage(url: artURL, cornerRadius: 0, contentMode: .fill)
+        let heroSong = songs.first(where: { $0.hasOwnArtwork })
+        let artURL = heroSong?.imageURL ?? FallbackArtProvider.shared.randomURL
+        RemoteArtworkImage(url: artURL, cornerRadius: 0, contentMode: .fill, lowResURL: heroSong?.thumbnailURL)
     }
 
     @ViewBuilder

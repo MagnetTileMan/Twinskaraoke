@@ -11,35 +11,62 @@ final class ArtworkPrefetcher {
     private let reuseWindow: TimeInterval = 45
 
     private init() {
-        prefetcher.maxConcurrentPrefetchCount = 1
+        prefetcher.maxConcurrentPrefetchCount = 3
     }
 
-    func prefetchSongs(_ songs: [Song], limit: Int = 18, reason: String) {
-        prefetch(urls: songs.compactMap(\.imageURL), limit: min(limit, 8), reason: reason)
+    func prefetchSongs(
+        _ songs: [Song],
+        limit: Int = 18,
+        reason: String,
+        variant: ArtworkImageVariant = .card
+    ) {
+        let urls = songs.compactMap { song -> URL? in
+            switch variant {
+            case .row:
+                song.rowImageURL
+            case .thumbnail:
+                song.thumbnailURL
+            case .hero:
+                song.heroImageURL
+            case .fullHD:
+                song.fullHDImageURL
+            default:
+                song.imageURL
+            }
+        }
+        prefetch(urls: urls, limit: limit, reason: reason, variant: variant)
     }
 
-    func prefetchPlaylists(_ playlists: [Playlist], limit: Int = 12, reason: String) {
+    func prefetchPlaylists(
+        _ playlists: [Playlist],
+        limit: Int = 12,
+        reason: String,
+        variant: ArtworkImageVariant = .card
+    ) {
         let urls = playlists.flatMap { playlist -> [URL] in
             var values: [URL] = []
-            if let imageURL = playlist.imageURL {
+            if let imageURL = playlist.imageURL(variant: variant) {
                 values.append(imageURL)
             }
-            values.append(contentsOf: playlist.initialMosaicArtworkURLs)
+            values.append(contentsOf: playlist.initialMosaicArtworkURLs.compactMap {
+                ArtworkURLBuilder.variantURL(from: $0, variant: variant)
+            })
             return values
         }
-        prefetch(urls: urls, limit: min(limit, 6), reason: reason)
+        prefetch(urls: urls, limit: limit, reason: reason, variant: variant)
     }
 
-    func prefetch(urls: [URL], limit: Int = 18, reason: String) {
-        let selected = freshUniqueURLs(from: urls, limit: adjustedLimit(limit, reason: reason))
+    func prefetch(
+        urls: [URL],
+        limit: Int = 18,
+        reason: String,
+        variant: ArtworkImageVariant = .card
+    ) {
+        let variantURLs = urls.map { url in
+            ArtworkURLBuilder.variantURL(from: url, variant: variant) ?? url
+        }
+        let selected = freshUniqueURLs(from: variantURLs, limit: adjustedLimit(limit, reason: reason))
         guard !selected.isEmpty else { return }
-
-        let context: [SDWebImageContextOption: Any] = [
-            .imageThumbnailPixelSize: NSValue(cgSize: ImageCacheConfig.thumbnailPixelSize),
-            .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-            .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-            .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-        ]
 
         DebugLogger.log(
             "Prefetching \(selected.count) artwork images for \(reason)",
@@ -48,8 +75,8 @@ final class ArtworkPrefetcher {
 
         prefetcher.prefetchURLs(
             selected,
-            options: [.lowPriority, .scaleDownLargeImages],
-            context: context,
+            options: [.avoidDecodeImage],
+            context: ImageCacheConfig.memoryAndDiskCacheContext,
             progress: nil
         ) { finished, skipped in
             DebugLogger.log(
@@ -65,9 +92,9 @@ final class ArtworkPrefetcher {
             return min(limit, reason == "radio metadata" ? 3 : 2)
         }
         if AudioPlayerManager.shared.isPlaying {
-            return min(limit, reason == "radio metadata" ? 5 : 4)
+            return min(limit, reason == "radio metadata" ? 4 : 4)
         }
-        return limit
+        return min(limit, reason == "radio metadata" ? 6 : 8)
     }
 
     private func freshUniqueURLs(from urls: [URL], limit: Int) -> [URL] {

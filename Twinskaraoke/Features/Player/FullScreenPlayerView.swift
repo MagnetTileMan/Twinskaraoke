@@ -204,8 +204,8 @@ struct FullScreenPlayerView: View {
         .fullScreenCover(isPresented: $showCoverArt) {
             if let song {
                 let isEasterEgg = easterEggImageURL != nil
-                let hdURL = easterEggImageURL ?? song.fullHDImageURL ?? audioManager.displayImageURL(for: song)
-                let thumbURL = isEasterEgg ? nil : audioManager.displayImageURL(for: song)
+                let hdURL = easterEggImageURL ?? audioManager.displayImageURL(for: song, variant: .fullHD) ?? song.fullHDImageURL
+                let thumbURL = isEasterEgg ? nil : audioManager.displayImageURL(for: song, variant: .thumbnail)
                 ZoomableImageViewer(
                     url: hdURL,
                     lowResURL: thumbURL,
@@ -528,7 +528,10 @@ struct FullScreenPlayerView: View {
             } label: {
                 HStack(spacing: 12) {
                     RemoteArtworkImage(
-                        url: audioManager.displayImageURL(for: song), cornerRadius: 8, contentMode: .fill
+                        url: audioManager.displayImageURL(for: song, variant: .thumbnail),
+                        cornerRadius: 8,
+                        contentMode: .fill,
+                        lowResURL: song.thumbnailURL
                     )
                     .frame(width: metrics.lyricsArtworkSize, height: metrics.lyricsArtworkSize)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -860,7 +863,7 @@ struct FullScreenPlayerView: View {
 
     private func backgroundView(song: Song) -> some View {
         PlayerAmbientBackground(
-            artworkURL: audioManager.displayImageURL(for: song),
+            artworkURL: audioManager.displayImageURL(for: song, variant: .card),
             isPlaying: audioManager.isPlaying
         )
         .id(song.id)
@@ -1034,11 +1037,12 @@ struct FullScreenPlayerView: View {
             DispatchQueue.main.async {
                 guard let data,
                       let item = try? JSONDecoder().decode(RandomYuriArtItem.self, from: data),
-                      let imageURL = URL(string: "\(item.url)/quality=95")
+                      let baseURL = URL(string: item.url)
                 else {
                     showCoverArt = true
                     return
                 }
+                let imageURL = ArtworkURLBuilder.variantURL(from: baseURL, variant: .hero) ?? baseURL
                 easterEggImageURL = imageURL
                 easterEggArtistName = item.artistCredit
                 easterEggArtistLink = nil

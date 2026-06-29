@@ -211,7 +211,11 @@ struct QueueView: View {
             dismiss()
         } label: {
             HStack(spacing: 12) {
-                RemoteArtworkImage(url: audioManager.displayImageURL(for: current), cornerRadius: 6)
+                RemoteArtworkImage(
+                    url: audioManager.displayImageURL(for: current, variant: .row),
+                    cornerRadius: 6,
+                    lowResURL: current.thumbnailURL
+                )
                     .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {

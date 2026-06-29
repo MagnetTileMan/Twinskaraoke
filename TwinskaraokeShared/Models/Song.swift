@@ -90,27 +90,40 @@ nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
   var cloudflareId: String? { cloudflareID }
 
   var imageURL: URL? {
-    imageURL(width: 480, quality: 85)
+    imageURL(variant: .card)
   }
 
   var fullHDImageURL: URL? {
-    imageURL(width: 1920, quality: 90)
+    imageURL(variant: .fullHD)
   }
 
   var thumbnailURL: URL? {
-    imageURL(width: 240, quality: 80)
+    imageURL(variant: .thumbnail)
   }
 
-  private func imageURL(width: Int, quality: Int) -> URL? {
-    if let identifier = cloudflareID, !identifier.isEmpty {
-      let urlString = "\(StorageHost.images)/\(identifier)/width=\(width),quality=\(quality),format=auto"
-      guard let url = URL(string: urlString) else { return neuroFallbackImageURL }
-      return url
-    }
-    guard let path = coverArt?.absolutePath, !path.isEmpty else { return neuroFallbackImageURL }
-    let urlString = StorageHost.images + normalizedImagePath(path) + "/width=\(width),quality=\(quality),format=auto"
-    guard let url = URL(string: urlString) else { return neuroFallbackImageURL }
-    return url
+  var rowImageURL: URL? {
+    imageURL(variant: .row)
+  }
+
+  var heroImageURL: URL? {
+    imageURL(variant: .hero)
+  }
+
+  var downloadCoverImageURL: URL? {
+    guard hasOwnArtwork else { return nil }
+    return ArtworkURLBuilder.imageURL(
+      cloudflareID: cloudflareID,
+      path: coverArt?.absolutePath,
+      variant: .download
+    )
+  }
+
+  private func imageURL(variant: ArtworkImageVariant) -> URL? {
+    ArtworkURLBuilder.imageURL(
+      cloudflareID: cloudflareID,
+      path: coverArt?.absolutePath,
+      variant: variant
+    ) ?? neuroFallbackImageURL
   }
 
   var hasOwnArtwork: Bool {
@@ -192,9 +205,6 @@ nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
 
   static func == (lhs: Song, rhs: Song) -> Bool { lhs.id == rhs.id }
 
-  private func normalizedImagePath(_ rawPath: String) -> String {
-    rawPath.hasPrefix("/") ? rawPath : "/\(rawPath)"
-  }
 }
 
 nonisolated struct Playlist: Codable, Identifiable, Hashable, Sendable {
@@ -263,16 +273,47 @@ nonisolated struct Playlist: Codable, Identifiable, Hashable, Sendable {
   }
 
   var imageURL: URL? {
-    if let cfId = media?.cloudflareId, !cfId.isEmpty {
-      return URL(string: "\(StorageHost.images)/\(cfId)/width=480,quality=85,format=auto")
+    imageURL(variant: .card)
+  }
+
+  var thumbnailURL: URL? {
+    imageURL(variant: .thumbnail)
+  }
+
+  var rowImageURL: URL? {
+    imageURL(variant: .row)
+  }
+
+  func imageURL(variant: ArtworkImageVariant) -> URL? {
+    if let url = ArtworkURLBuilder.imageURL(
+      cloudflareID: media?.cloudflareId,
+      path: media?.absolutePath,
+      variant: variant
+    ) {
+      return url
     }
-    if let path = media?.absolutePath, !path.isEmpty {
-      return URL(string: StorageHost.images + normalizedImagePath(path) + "/width=480,quality=85,format=auto")
+    if let media = mosaicMedia?.first,
+      let url = ArtworkURLBuilder.imageURL(
+        cloudflareID: media.cloudflareId,
+        path: media.absolutePath,
+        variant: variant
+      )
+    {
+      return url
     }
-    if let path = mosaicMedia?.first?.absolutePath {
-      return URL(string: StorageHost.images + normalizedImagePath(path) + "/width=480,quality=85,format=auto")
+    guard let song = songListDTOs?.first else { return nil }
+    switch variant {
+    case .row:
+      return song.rowImageURL
+    case .thumbnail:
+      return song.thumbnailURL
+    case .hero:
+      return song.heroImageURL
+    case .fullHD:
+      return song.fullHDImageURL
+    default:
+      return song.imageURL
     }
-    return songListDTOs?.first?.imageURL
   }
 
   var isFavorites: Bool { id == Self.favoritesID }
@@ -285,10 +326,6 @@ nonisolated struct Playlist: Codable, Identifiable, Hashable, Sendable {
 
   func hash(into hasher: inout Hasher) {
     hasher.combine(id)
-  }
-
-  private func normalizedImagePath(_ rawPath: String) -> String {
-    rawPath.hasPrefix("/") ? rawPath : "/\(rawPath)"
   }
 
   private static func decodeSongs(
@@ -386,6 +423,32 @@ nonisolated struct PlaylistMedia: Codable, Sendable {
 
 nonisolated struct Media: Codable, Sendable {
   let absolutePath: String?
+  let cloudflareId: String?
+
+  private enum CodingKeys: String, CodingKey {
+    case absolutePath
+    case cloudflareId
+    case cloudflareID
+  }
+
+  init(absolutePath: String?, cloudflareId: String? = nil) {
+    self.absolutePath = absolutePath
+    self.cloudflareId = cloudflareId
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    absolutePath = try? container.decodeIfPresent(String.self, forKey: .absolutePath)
+    cloudflareId =
+      (try? container.decodeIfPresent(String.self, forKey: .cloudflareId))
+      ?? (try? container.decodeIfPresent(String.self, forKey: .cloudflareID))
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(absolutePath, forKey: .absolutePath)
+    try container.encodeIfPresent(cloudflareId, forKey: .cloudflareId)
+  }
 }
 
 typealias SongMedia = Media
@@ -411,11 +474,23 @@ nonisolated struct SearchSongItem: Codable, Identifiable, Sendable {
   let cloudflareId: String?
 
   var imageURL: URL? {
-    if let cfId = cloudflareId, !cfId.isEmpty {
-      return URL(string: "\(StorageHost.images)/\(cfId)/width=480,quality=85,format=auto")
-    }
-    guard let path = coverArt?.absolutePath else { return nil }
-    return URL(string: StorageHost.images + normalizedImagePath(path) + "/width=480,quality=85,format=auto")
+    imageURL(variant: .card)
+  }
+
+  var thumbnailURL: URL? {
+    imageURL(variant: .thumbnail)
+  }
+
+  var rowImageURL: URL? {
+    imageURL(variant: .row)
+  }
+
+  func imageURL(variant: ArtworkImageVariant) -> URL? {
+    ArtworkURLBuilder.imageURL(
+      cloudflareID: cloudflareId,
+      path: coverArt?.absolutePath,
+      variant: variant
+    )
   }
 
   var originalArtistDisplay: String {
@@ -437,9 +512,6 @@ nonisolated struct SearchSongItem: Codable, Identifiable, Sendable {
     )
   }
 
-  private func normalizedImagePath(_ rawPath: String) -> String {
-    rawPath.hasPrefix("/") ? rawPath : "/\(rawPath)"
-  }
 }
 
 nonisolated struct SearchMedia: Codable, Sendable {

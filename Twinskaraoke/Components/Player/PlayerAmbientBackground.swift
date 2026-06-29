@@ -62,16 +62,10 @@ struct PlayerAmbientBackground: View {
     private var blurredArtworkLayer: some View {
         if let artworkURL {
             GeometryReader { geo in
-                let pixelSize = NSValue(cgSize: backgroundPixelSize(for: geo.size))
                 WebImage(
                     url: artworkURL,
                     options: ImageCacheConfig.defaultOptions,
-                    context: [
-                        .imageThumbnailPixelSize: pixelSize,
-                        .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                        .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                        .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                    ]
+                    context: ImageCacheConfig.visibleImageContext
                 ) { image in
                     image
                         .resizable()
@@ -151,33 +145,16 @@ struct PlayerAmbientBackground: View {
         )
     }
 
-    private func backgroundPixelSize(for displaySize: CGSize) -> CGSize {
-        #if canImport(UIKit)
-            let scale = UIScreen.main.scale
-        #else
-            let scale: CGFloat = 2
-        #endif
-        let width = max(displaySize.width, 1) * scale
-        let height = max(displaySize.height, 1) * scale
-        return CGSize(width: min(width, 900), height: min(height, 900))
-    }
-
     private func loadPalette() {
         guard let url = artworkURL else {
             palette = .placeholder
             return
         }
         #if canImport(UIKit)
-            let pixelSize = NSValue(cgSize: CGSize(width: 96, height: 96))
             SDWebImageManager.shared.loadImage(
                 with: url,
-                options: [.scaleDownLargeImages],
-                context: [
-                    .imageThumbnailPixelSize: pixelSize,
-                    .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                    .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                    .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                ],
+                options: [],
+                context: ImageCacheConfig.visibleImageContext,
                 progress: nil
             ) { image, _, _, _, _, _ in
                 guard let image else { return }

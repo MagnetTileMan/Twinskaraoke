@@ -34,9 +34,7 @@ struct UserPlaylist: Codable, Identifiable, Hashable {
     func asPlaylist() -> Playlist {
         var mediaArray: [Media]? = mosaicMedia
         if mediaArray == nil || mediaArray?.isEmpty == true {
-            if let cfId = media?.cloudflareId, !cfId.isEmpty {
-                mediaArray = [Media(absolutePath: "/\(cfId)")]
-            } else if let path = media?.absolutePath, !path.isEmpty {
+            if let path = media?.absolutePath, !path.isEmpty {
                 mediaArray = [Media(absolutePath: path)]
             }
         }

@@ -213,7 +213,10 @@ final nonisolated class FallbackArtProvider: ObservableObject, @unchecked Sendab
                       let baseURL = URL(string: item.url)
                 else { return }
 
-                let urlWithQuality = URL(string: "\(item.url)/width=480,quality=85,format=auto") ?? baseURL
+                let urlWithQuality =
+                    ArtworkURLBuilder.variantURL(from: baseURL, variant: .card)
+                    ?? URL(string: "\(item.url)/width=480,quality=85,format=webp")
+                    ?? baseURL
 
                 group.enter()
                 var headRequest = URLRequest(url: urlWithQuality)

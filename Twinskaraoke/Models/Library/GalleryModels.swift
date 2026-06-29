@@ -18,24 +18,27 @@ struct GalleryArt: Codable, Identifiable, Equatable {
     let absolutePath: String?
     let upvotes: Int?
     var imageURL: URL? {
-        if let identifier = cloudflareId {
-            return URL(string: "\(StorageHost.images)/\(identifier)/public")
-        }
-        guard let path = absolutePath else { return nil }
-        return URL(string: StorageHost.images + path + "/quality=95")
+        imageURL(variant: .card)
     }
 
     var fullHDImageURL: URL? {
-        if let identifier = cloudflareId {
-            return URL(string: "\(StorageHost.images)/\(identifier)/quality=95")
-        }
-        guard let path = absolutePath else { return imageURL }
-        return URL(string: StorageHost.images + path + "/quality=95")
+        imageURL(variant: .fullHD) ?? imageURL
+    }
+
+    var heroImageURL: URL? {
+        imageURL(variant: .hero)
     }
 
     var blurPreviewURL: URL? {
-        guard let path = absolutePath else { return nil }
-        return URL(string: StorageHost.images + path + "/width=20,quality=30,blur=30")
+        imageURL(variant: .blur)
+    }
+
+    func imageURL(variant: ArtworkImageVariant) -> URL? {
+        ArtworkURLBuilder.imageURL(
+            cloudflareID: cloudflareId,
+            path: absolutePath,
+            variant: variant
+        )
     }
 }
 

@@ -6,7 +6,7 @@ struct ArtistCircleCard: View {
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                if let art = artist.arts?.first, let url = art.imageURL {
+                if let art = artist.arts?.first, let url = art.imageURL(variant: .thumbnail) {
                     RemoteArtworkImage(
                         url: url, cornerRadius: 100, showsLoading: false, lowResURL: art.blurPreviewURL,
                         transparentBackground: true

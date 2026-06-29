@@ -179,7 +179,7 @@ private struct AddToPlaylistSongPreview: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RemoteArtworkImage(url: song.imageURL, cornerRadius: 10)
+            RemoteArtworkImage(url: song.thumbnailURL ?? song.imageURL, cornerRadius: 10)
                 .frame(width: 74, height: 74)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .shadow(color: Color.appShadow, radius: 10, y: 6)

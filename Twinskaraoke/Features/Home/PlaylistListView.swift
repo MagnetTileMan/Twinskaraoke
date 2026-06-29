@@ -91,8 +91,8 @@ struct PlaylistListView: View {
         ArtworkPrefetcher.shared.prefetchPlaylists(
             Array(displayedPlaylists.prefix(12)),
             limit: 12,
-            reason: "playlist list"
+            reason: "playlist list",
+            variant: .thumbnail
         )
     }
 }
-

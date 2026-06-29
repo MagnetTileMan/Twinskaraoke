@@ -23,7 +23,11 @@ struct WatchSongModelTests {
         #expect(song.audioURL?.absoluteString == "https://storage.neurokaraoke.com/watch/audio.mp3")
         #expect(
             song.imageURL?.absoluteString
-                == "https://images.neurokaraoke.com/covers/watch.jpg/width=480,quality=85,format=auto"
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=480,quality=85,format=webp/covers/watch.jpg/public"
+        )
+        #expect(
+            song.rowImageURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=180,quality=78,format=webp/covers/watch.jpg/public"
         )
         #expect(song.artistName == "Original Artist")
         #expect(song.durationText == "2:05")

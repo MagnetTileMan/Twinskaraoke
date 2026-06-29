@@ -8,9 +8,17 @@ nonisolated struct Artist: Codable, Identifiable, Equatable {
     let songCount: Int?
     let songListDTOs: [Song]?
     var imageURL: URL? {
+        artistImageURL(variant: .thumbnail)
+    }
+
+    var rowImageURL: URL? {
+        artistImageURL(variant: .row)
+    }
+
+    private func artistImageURL(variant: ArtworkImageVariant) -> URL? {
         guard let path = imagePath, !path.isEmpty else { return nil }
-        let cleanPath = path.hasPrefix("/") ? path : "/" + path
-        return URL(string: StorageHost.base + cleanPath)
+        return ArtworkURLBuilder.storageResizedURL(path: path, variant: variant)
+            ?? URL(string: StorageHost.base + ArtworkURLBuilder.normalizedPath(path))
     }
 
     static func == (lhs: Artist, rhs: Artist) -> Bool {

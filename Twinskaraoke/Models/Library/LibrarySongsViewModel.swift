@@ -159,7 +159,8 @@ final class LibrarySongsViewModel: ObservableObject {
         ArtworkPrefetcher.shared.prefetchSongs(
             Array(pageSongs.prefix(18)),
             limit: 18,
-            reason: replace ? "library songs initial" : "library songs page"
+            reason: replace ? "library songs initial" : "library songs page",
+            variant: .row
         )
     }
 

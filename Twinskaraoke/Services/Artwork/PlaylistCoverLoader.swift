@@ -60,8 +60,7 @@ final class PlaylistCoverLoader: ObservableObject {
 
     private static func extractMosaicURLs(from playlist: Playlist) -> [URL] {
         let mediaURLs = playlist.mosaicMedia?.compactMap { media -> URL? in
-            guard let path = media.absolutePath, !path.isEmpty else { return nil }
-            return Playlist.mediaURL(from: path)
+            Playlist.mediaURL(from: media, variant: .card)
         } ?? []
         if !mediaURLs.isEmpty { return Playlist.uniqueURLs(mediaURLs, limit: 4) }
         return extractArtworkURLs(fromSongs: playlist.songListDTOs ?? [])

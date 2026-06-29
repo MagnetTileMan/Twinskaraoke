@@ -271,7 +271,7 @@ struct RadioView: View {
                     HStack(spacing: 12) {
                         if let art = next.art, let url = URL(string: art) {
                             RemoteArtworkImage(
-                                url: url,
+                                url: ArtworkURLBuilder.variantURL(from: url, variant: .row) ?? url,
                                 cornerRadius: 6,
                                 fixedDisplaySize: CGSize(width: 48, height: 48)
                             )
@@ -339,9 +339,10 @@ struct RadioView: View {
             Group {
                 if let art = song?.art, let url = URL(string: art) {
                     RemoteArtworkImage(
-                        url: url,
+                        url: ArtworkURLBuilder.variantURL(from: url, variant: .card) ?? url,
                         cornerRadius: AM.Radius.hero,
-                        contentMode: .fill
+                        contentMode: .fill,
+                        lowResURL: ArtworkURLBuilder.variantURL(from: url, variant: .thumbnail)
                     )
                 } else {
                     artPlaceholder
@@ -620,7 +621,11 @@ private struct RadioStationContextPreview: View {
         ContextPreviewCard {
             Group {
                 if let artworkURL {
-                    RemoteArtworkImage(url: artworkURL, cornerRadius: 10)
+                    RemoteArtworkImage(
+                        url: ArtworkURLBuilder.variantURL(from: artworkURL, variant: .card) ?? artworkURL,
+                        cornerRadius: 10,
+                        lowResURL: ArtworkURLBuilder.variantURL(from: artworkURL, variant: .thumbnail)
+                    )
                 } else {
                     MusicArtworkPlaceholder(cornerRadius: 10)
                 }
@@ -664,7 +669,7 @@ private struct RadioHistoryRow: View {
         HStack(spacing: 12) {
             if let art = song.art, let url = URL(string: art) {
                 RemoteArtworkImage(
-                    url: url,
+                    url: ArtworkURLBuilder.variantURL(from: url, variant: .row) ?? url,
                     cornerRadius: 6,
                     fixedDisplaySize: CGSize(width: 48, height: 48)
                 )

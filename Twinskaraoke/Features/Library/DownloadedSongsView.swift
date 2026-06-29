@@ -194,7 +194,8 @@ struct DownloadedSongsView: View {
         ArtworkPrefetcher.shared.prefetchSongs(
             Array(songs.prefix(18)),
             limit: 18,
-            reason: "downloaded songs"
+            reason: "downloaded songs",
+            variant: .row
         )
         if reduceMotion {
             localSongs = songs

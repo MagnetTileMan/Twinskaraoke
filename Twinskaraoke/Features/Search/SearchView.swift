@@ -115,7 +115,8 @@ struct SearchView: View {
                 ArtworkPrefetcher.shared.prefetchSongs(
                     Array(viewModel.results.prefix(18)),
                     limit: 18,
-                    reason: "search results"
+                    reason: "search results",
+                    variant: .row
                 )
             }
             .onDisappear {
@@ -882,6 +883,11 @@ private struct SearchFeaturedShortcutTile: View {
         horizontalSizeClass == .compact
     }
 
+    private var optimizedArtworkURL: URL? {
+        guard let artworkURL else { return nil }
+        return ArtworkURLBuilder.variantURL(from: artworkURL, variant: .card) ?? artworkURL
+    }
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             background
@@ -917,7 +923,7 @@ private struct SearchFeaturedShortcutTile: View {
 
     @ViewBuilder
     private var background: some View {
-        if let artworkURL {
+        if let artworkURL = optimizedArtworkURL {
             RemoteArtworkImage(url: artworkURL, cornerRadius: 0, contentMode: .fill)
                 .allowsHitTesting(false)
             LinearGradient(
@@ -943,9 +949,14 @@ private struct CategoryTile: View {
         horizontalSizeClass == .compact
     }
 
+    private var optimizedArtworkURL: URL? {
+        guard let artworkURL else { return nil }
+        return ArtworkURLBuilder.variantURL(from: artworkURL, variant: .thumbnail) ?? artworkURL
+    }
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            if let artworkURL {
+            if let artworkURL = optimizedArtworkURL {
                 RemoteArtworkImage(url: artworkURL, cornerRadius: 0, contentMode: .fill)
                     .allowsHitTesting(false)
                 LinearGradient(

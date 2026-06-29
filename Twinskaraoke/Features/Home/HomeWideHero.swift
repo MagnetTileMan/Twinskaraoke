@@ -175,7 +175,12 @@ private struct WideSongHeroCard: View {
     @ViewBuilder
     private var heroArtwork: some View {
         if let song {
-            RemoteArtworkImage(url: song.fullHDImageURL ?? song.imageURL, cornerRadius: 0, contentMode: .fill)
+            RemoteArtworkImage(
+                url: song.imageURL,
+                cornerRadius: 0,
+                contentMode: .fill,
+                lowResURL: song.thumbnailURL
+            )
                 .allowsHitTesting(false)
         } else if let playlist {
             PlaylistArtwork(playlist: playlist, cornerRadius: 0)
