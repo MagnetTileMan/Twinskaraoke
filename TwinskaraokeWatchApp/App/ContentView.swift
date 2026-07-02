@@ -164,7 +164,7 @@ struct WatchSongRow: View {
     var body: some View {
         HStack(spacing: 10) {
             WatchSongArtwork(
-                url: song.imageURL,
+                url: song.rowImageURL,
                 size: artworkSize,
                 isCurrent: isCurrent,
                 isPlaying: isPlaying

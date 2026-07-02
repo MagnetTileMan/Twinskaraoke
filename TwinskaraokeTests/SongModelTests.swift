@@ -21,15 +21,27 @@ struct SongModelTests {
 
         #expect(
             song.imageURL?.absoluteString
-                == "https://images.neurokaraoke.com/image-id/width=480,quality=85,format=auto"
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=480,quality=85,format=webp/image-id/public"
+        )
+        #expect(
+            song.rowImageURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=180,quality=78,format=webp/image-id/public"
+        )
+        #expect(
+            song.thumbnailURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=240,quality=80,format=webp/image-id/public"
+        )
+        #expect(
+            song.heroImageURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=960,quality=88,format=webp/image-id/public"
         )
         #expect(
             song.fullHDImageURL?.absoluteString
-                == "https://images.neurokaraoke.com/image-id/width=1920,quality=90,format=auto"
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=1920,quality=90,format=webp/image-id/public"
         )
     }
 
-    @Test("downloadCoverImageURL produces a JPEG URL for songs with artwork")
+    @Test("downloadCoverImageURL produces a WebP URL for songs with artwork")
     func downloadCoverImageURLWithArtwork() {
         UserDefaults.standard.set("global", forKey: "nk.storageRegion")
         let song = Song(
@@ -46,8 +58,44 @@ struct SongModelTests {
 
         #expect(
             song.downloadCoverImageURL?.absoluteString
-                == "https://images.neurokaraoke.com/image-id/width=1920,quality=90,format=jpeg"
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=1920,quality=90,format=webp/image-id/public"
         )
+    }
+
+    @Test("ArtworkURLBuilder upgrades Cloudflare delivery URLs to the resize route")
+    func artworkVariantURLUsesCloudflareResizeRoute() throws {
+        let legacyURL = try #require(
+            URL(string: "https://images.neurokaraoke.com/account-hash/image-id/width=180,quality=78,format=webp")
+        )
+        let resizedURL = ArtworkURLBuilder.variantURL(from: legacyURL, variant: .card)
+
+        #expect(
+            resizedURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=480,quality=85,format=webp/account-hash/image-id/public"
+        )
+    }
+
+    @Test("ArtworkURLBuilder keeps storage artwork on the storage resize route")
+    func artworkVariantURLKeepsStorageResizeRoute() throws {
+        let storageURL = try #require(
+            URL(string: "https://storage.neurokaraoke.com/cdn-cgi/image/width=180,quality=78,format=webp/media/artist/example.png")
+        )
+        let resizedURL = ArtworkURLBuilder.variantURL(from: storageURL, variant: .card)
+
+        #expect(
+            resizedURL?.absoluteString
+                == "https://storage.neurokaraoke.com/cdn-cgi/image/width=480,quality=85,format=webp/media/artist/example.png"
+        )
+    }
+
+    @Test("ArtworkURLBuilder leaves unsupported artwork hosts unchanged")
+    func artworkVariantURLLeavesUnsupportedHostsUnchanged() throws {
+        let externalURL = try #require(
+            URL(string: "https://cdn.example.com/artwork/image.jpg")
+        )
+        let resizedURL = ArtworkURLBuilder.variantURL(from: externalURL, variant: .thumbnail)
+
+        #expect(resizedURL == externalURL)
     }
 
     @Test("downloadCoverImageURL is nil for songs without their own artwork")

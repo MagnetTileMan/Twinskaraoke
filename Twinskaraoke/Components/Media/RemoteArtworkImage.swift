@@ -37,17 +37,7 @@ struct RemoteArtworkImage: View {
     @ViewBuilder
     private func imageContent(size: CGSize) -> some View {
         let displaySize = sanitizedDisplaySize(size)
-        let pixelSize = NSValue(cgSize: thumbnailPixelSize(for: displaySize))
-        let context: [SDWebImageContextOption: Any] =
-            fullResolution
-                ? [:] : [
-                    .imageThumbnailPixelSize: pixelSize,
-                    .imageDecodeOptions: [SDImageCoderOption.decodeScaleFactor: 1.0],
-
-                    .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                    .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                    .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                ]
+        let context = fullResolution ? ImageCacheConfig.memoryAndDiskCacheContext : ImageCacheConfig.visibleImageContext
         ZStack {
             if !transparentBackground {
                 MusicArtworkPlaceholder(cornerRadius: cornerRadius)
@@ -55,11 +45,8 @@ struct RemoteArtworkImage: View {
             if let lowResURL, !fullLoaded {
                 WebImage(
                     url: lowResURL,
-                    options: [.scaleDownLargeImages, .fromCacheOnly],
-                    context: [
-                        .imageThumbnailPixelSize: NSValue(cgSize: CGSize(width: 120, height: 120)),
-                        .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                    ]
+                    options: [.fromCacheOnly],
+                    context: context
                 ) { image in
                     image
                         .resizable()
@@ -155,17 +142,6 @@ struct RemoteArtworkImage: View {
         return CGSize(width: width, height: height)
     }
 
-    private func thumbnailPixelSize(for displaySize: CGSize) -> CGSize {
-        #if canImport(UIKit)
-            let scale = UIScreen.main.scale
-        #else
-            let scale: CGFloat = 2
-        #endif
-        let w = max(displaySize.width, 1) * scale
-        let h = max(displaySize.height, 1) * scale
-        let cap = ImageCacheConfig.thumbnailPixelSize
-        return CGSize(width: min(w, cap.width), height: min(h, cap.height))
-    }
 }
 
 final class ArtworkFailureBackoff {

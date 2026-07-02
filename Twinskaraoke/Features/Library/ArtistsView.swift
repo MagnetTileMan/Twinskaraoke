@@ -83,7 +83,7 @@ private struct ArtistRow: View {
     let artist: Artist
     var body: some View {
         HStack(spacing: 12) {
-            ArtistAvatar(url: artist.imageURL)
+            ArtistAvatar(url: artist.rowImageURL)
                 .frame(width: 52, height: 52)
                 .clipShape(Circle())
             VStack(alignment: .leading, spacing: 2) {

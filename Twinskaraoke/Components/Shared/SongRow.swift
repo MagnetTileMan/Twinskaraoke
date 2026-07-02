@@ -54,8 +54,9 @@ struct SongRow: View {
             ZStack {
                 if showsArtwork {
                     RemoteArtworkImage(
-                        url: playback.displayImageURL(for: song),
+                        url: playback.displayImageURL(for: song, variant: .row),
                         cornerRadius: size.cornerRadius,
+                        lowResURL: song.thumbnailURL,
                         fixedDisplaySize: CGSize(width: size.artSize, height: size.artSize)
                     )
                     .frame(width: size.artSize, height: size.artSize)
@@ -258,10 +259,11 @@ struct MusicGridCard: View {
 
     @ViewBuilder
     private var artworkContent: some View {
-        if let imageURL = playback.displayImageURL(for: song) {
+        if let imageURL = playback.displayImageURL(for: song, variant: .card) {
             RemoteArtworkImage(
                 url: imageURL,
                 cornerRadius: AM.Radius.card,
+                lowResURL: playback.displayImageURL(for: song, variant: .thumbnail),
                 fixedDisplaySize: width.map { CGSize(width: $0, height: $0) }
             )
         } else {
@@ -364,6 +366,7 @@ struct SongContextPreview: View {
             RemoteArtworkImage(
                 url: song.imageURL,
                 cornerRadius: 10,
+                lowResURL: song.thumbnailURL,
                 fixedDisplaySize: CGSize(width: 220, height: 220)
             )
             .aspectRatio(1, contentMode: .fill)

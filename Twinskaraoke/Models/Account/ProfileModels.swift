@@ -28,8 +28,11 @@ struct Badge: Decodable, Identifiable {
     let conditionValue: Int
     let media: BadgeMedia?
     var iconURL: URL? {
-        guard let cf = media?.cloudflareId, !cf.isEmpty else { return nil }
-        return URL(string: "\(StorageHost.images)/\(cf)/public")
+        ArtworkURLBuilder.imageURL(
+            cloudflareID: media?.cloudflareId,
+            path: nil,
+            variant: .thumbnail
+        )
     }
 }
 

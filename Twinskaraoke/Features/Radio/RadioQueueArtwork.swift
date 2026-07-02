@@ -7,7 +7,10 @@ struct RadioQueueArtwork: View {
     var body: some View {
         Group {
             if let url = song.artworkURL {
-                RemoteArtworkImage(url: url, cornerRadius: cornerRadius)
+                RemoteArtworkImage(
+                    url: ArtworkURLBuilder.variantURL(from: url, variant: .thumbnail) ?? url,
+                    cornerRadius: cornerRadius
+                )
             } else {
                 LinearGradient(
                     colors: [Color.appAccent.opacity(0.85), Color.purple.opacity(0.85)],

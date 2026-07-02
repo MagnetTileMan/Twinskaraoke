@@ -148,7 +148,11 @@ struct LatestSingleSection: View {
                 play()
             } label: {
                 HStack(spacing: AM.Spacing.m) {
-                    RemoteArtworkImage(url: song.imageURL, cornerRadius: AM.Radius.card)
+                    RemoteArtworkImage(
+                        url: song.thumbnailURL ?? song.imageURL,
+                        cornerRadius: AM.Radius.card,
+                        lowResURL: song.rowImageURL
+                    )
                         .frame(width: 92, height: 92)
                         .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
                         .amShadow(AM.Shadow.card)

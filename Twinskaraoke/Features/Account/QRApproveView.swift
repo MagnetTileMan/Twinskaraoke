@@ -864,7 +864,7 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
 
     private func observeRuntimeErrors() {
         runtimeErrorObserver = NotificationCenter.default.addObserver(
-            forName: .AVCaptureSessionRuntimeError,
+            forName: AVCaptureSession.runtimeErrorNotification,
             object: session,
             queue: .main
         ) { [weak self] _ in

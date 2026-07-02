@@ -115,7 +115,14 @@ struct PlaylistMosaicArtwork: View {
             ) {
                 ForEach(0 ..< 4, id: \.self) { index in
                     if let url = artworkURL(at: index) {
-                        RemoteArtworkImage(url: url, cornerRadius: 0, showsLoading: showsLoading)
+                        let variant: ArtworkImageVariant = cell <= 80 ? .row : .thumbnail
+                        let optimizedURL = ArtworkURLBuilder.variantURL(from: url, variant: variant) ?? url
+                        RemoteArtworkImage(
+                            url: optimizedURL,
+                            cornerRadius: 0,
+                            showsLoading: showsLoading,
+                            fixedDisplaySize: CGSize(width: cell, height: cell)
+                        )
                             .frame(width: cell, height: cell)
                     } else {
                         PlaylistPlaceholderArtwork(seed: "\(index)-\(urls.count)")
@@ -148,19 +155,16 @@ struct PlaylistPlaceholderArtwork: View {
 
 extension Playlist {
     var explicitCoverURL: URL? {
-        if let cfId = media?.cloudflareId, !cfId.isEmpty {
-            return URL(string: "\(StorageHost.images)/\(cfId)/width=480,quality=85,format=auto")
-        }
-        if let path = media?.absolutePath, !path.isEmpty {
-            return Playlist.mediaURL(from: path)
-        }
-        return nil
+        imageURL(variant: .card)
+    }
+
+    var explicitCoverThumbnailURL: URL? {
+        imageURL(variant: .thumbnail)
     }
 
     var initialMosaicArtworkURLs: [URL] {
         let mosaicURLs = mosaicMedia?.compactMap { media -> URL? in
-            guard let path = media.absolutePath, !path.isEmpty else { return nil }
-            return Playlist.mediaURL(from: path)
+            Playlist.mediaURL(from: media, variant: .card)
         } ?? []
         if !mosaicURLs.isEmpty {
             return Playlist.uniqueURLs(mosaicURLs, limit: 4)
@@ -169,8 +173,19 @@ extension Playlist {
     }
 
     static func mediaURL(from path: String) -> URL? {
-        let normalized = path.hasPrefix("/") ? path : "/\(path)"
-        return URL(string: "\(StorageHost.images)\(normalized)/width=480,quality=85,format=auto")
+        ArtworkURLBuilder.imageURL(cloudflareID: nil, path: path, variant: .card)
+    }
+
+    static func mediaURL(from path: String, variant: ArtworkImageVariant) -> URL? {
+        ArtworkURLBuilder.imageURL(cloudflareID: nil, path: path, variant: variant)
+    }
+
+    static func mediaURL(from media: Media, variant: ArtworkImageVariant) -> URL? {
+        ArtworkURLBuilder.imageURL(
+            cloudflareID: media.cloudflareId,
+            path: media.absolutePath,
+            variant: variant
+        )
     }
 
     static func uniqueURLs(_ urls: [URL], limit: Int) -> [URL] {

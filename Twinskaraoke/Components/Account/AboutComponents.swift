@@ -146,25 +146,29 @@ struct AboutBulletList: View {
 struct LinkifiedText: View {
     let text: String
     var body: some View {
-        let parts = LinkifiedText.split(text)
-        parts.reduce(Text("")) { acc, part in
+        Text(LinkifiedText.attributedString(from: text))
+    }
+
+    private static func attributedString(from text: String) -> AttributedString {
+        var result = AttributedString()
+        for part in split(text) {
             switch part {
             case let .text(s):
-                acc + Text(s)
+                result.append(AttributedString(s))
             case let .url(s, url):
-                acc
-                    + Text(
-                        AttributedString(
-                            s,
-                            attributes: AttributeContainer([
-                                .link: url,
-                                .foregroundColor: UIColor.systemBlue,
-                                .underlineStyle: NSUnderlineStyle.single.rawValue,
-                            ])
-                        )
+                result.append(
+                    AttributedString(
+                        s,
+                        attributes: AttributeContainer([
+                            .link: url,
+                            .foregroundColor: UIColor.systemBlue,
+                            .underlineStyle: NSUnderlineStyle.single.rawValue,
+                        ])
                     )
+                )
             }
         }
+        return result
     }
 
     private enum Part {

@@ -9,7 +9,13 @@ nonisolated struct GalleryVideo: Codable, Identifiable, Equatable {
     let createdBy: String?
     let createdDate: String?
     var thumbnailURL: URL? {
-        thumbnailUrl.flatMap(URL.init(string:))
+        guard let raw = thumbnailUrl, let baseURL = URL(string: raw) else { return nil }
+        return ArtworkURLBuilder.variantURL(from: baseURL, variant: .card) ?? baseURL
+    }
+
+    var rowThumbnailURL: URL? {
+        guard let raw = thumbnailUrl, let baseURL = URL(string: raw) else { return nil }
+        return ArtworkURLBuilder.variantURL(from: baseURL, variant: .thumbnail) ?? thumbnailURL
     }
 
     var embedURL: URL? {

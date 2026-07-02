@@ -104,7 +104,7 @@ struct SearchView: View {
                                 )
                             } else {
                                 HStack(spacing: 10) {
-                                    WatchSongArtwork(url: item.imageURL, size: 38)
+                                    WatchSongArtwork(url: item.rowImageURL, size: 38)
                                         .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.title)

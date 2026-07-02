@@ -81,11 +81,17 @@ struct PlaylistDetailView: View {
     }
 
     private func prefetchArtwork(songs: [Song]) {
-        ArtworkPrefetcher.shared.prefetchPlaylists([playlist], limit: 6, reason: "playlist cover")
+        ArtworkPrefetcher.shared.prefetchPlaylists(
+            [playlist],
+            limit: 6,
+            reason: "playlist cover",
+            variant: .thumbnail
+        )
         ArtworkPrefetcher.shared.prefetchSongs(
             Array(songs.prefix(18)),
             limit: 18,
-            reason: "playlist songs"
+            reason: "playlist songs",
+            variant: .row
         )
     }
 

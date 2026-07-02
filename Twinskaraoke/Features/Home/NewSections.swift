@@ -74,7 +74,12 @@ private struct NewFeatureCard: View {
                         .lineLimit(1)
                 }
                 ZStack(alignment: .bottomLeading) {
-                    RemoteArtworkImage(url: song.imageURL, cornerRadius: AM.Radius.card, contentMode: .fill)
+                    RemoteArtworkImage(
+                        url: song.imageURL,
+                        cornerRadius: AM.Radius.card,
+                        contentMode: .fill,
+                        lowResURL: song.thumbnailURL
+                    )
                     LinearGradient(
                         colors: [.clear, .black.opacity(0.38)],
                         startPoint: .center,

@@ -32,8 +32,10 @@ struct PlayerArtworkView: View {
     private var artwork: some View {
         ZStack {
             RemoteArtworkImage(
-                url: audioManager.displayImageURL(for: song), cornerRadius: AM.Radius.hero,
-                contentMode: .fill
+                url: audioManager.displayImageURL(for: song, variant: .card),
+                cornerRadius: AM.Radius.hero,
+                contentMode: .fill,
+                lowResURL: audioManager.displayImageURL(for: song, variant: .thumbnail)
             )
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))

@@ -77,7 +77,7 @@ struct ArtworkDetailHero: View {
 
     @ViewBuilder
     private var heroArtwork: some View {
-        if let url = fullResURL {
+        if let url = art.heroImageURL ?? fullResURL ?? art.imageURL {
             RemoteArtworkImage(
                 url: url,
                 cornerRadius: 20,

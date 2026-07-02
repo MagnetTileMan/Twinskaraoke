@@ -451,7 +451,8 @@ struct LibrarySongsView: View {
             ArtworkPrefetcher.shared.prefetchSongs(
                 Array(songs.prefix(18)),
                 limit: 18,
-                reason: "library visible songs"
+                reason: "library visible songs",
+                variant: .row
             )
         }
         .animation(listAnimation, value: songs.map(\.id))

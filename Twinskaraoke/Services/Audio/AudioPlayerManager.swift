@@ -338,6 +338,8 @@ class AudioPlayerManager: ObservableObject {
     private var streamPlayerCancellables = Set<AnyCancellable>()
     private var radioPlaybackRequested = false
     private var streamPlaybackRequested = false
+    private var remotePlaybackCacheTask: Task<Void, Never>?
+    private var remotePlaybackCacheToken: UUID?
     private var lastKnownPlaybackTime: TimeInterval = 0
     private var pollTimer: Timer?
     private var streamFadeTimer: Timer?
@@ -348,6 +350,8 @@ class AudioPlayerManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var artworkURL: URL?
     private var artworkTask: (any SDWebImageOperation)?
+    private var playerArtworkWarmupTasks: [String: any SDWebImageOperation] = [:]
+    private var warmedPlayerArtworkAt: [String: Date] = [:]
     private var currentPlaybackURL: URL?
     private var instrumentalTask: Task<Void, Never>?
     private var backgroundAnalysisRetryTask: Task<Void, Never>?
@@ -394,10 +398,19 @@ class AudioPlayerManager: ObservableObject {
         return !isKaraokePreparedForCurrentSong
     }
 
+    private var isRemotePlaybackCaching: Bool {
+        remotePlaybackCacheTask != nil
+    }
+
     private var isPlaybackRequested: Bool {
         if isRadioMode { return radioPlaybackRequested }
+        if isRemotePlaybackCaching { return streamPlaybackRequested }
         if isStreamMode { return streamPlaybackRequested }
         return isPlaying
+    }
+
+    private var nowPlayingPlaybackRate: Double {
+        isPlaybackRequested ? 1.0 : 0.0
     }
 
     var isBackgroundKaraokeLocked: Bool {
@@ -575,10 +588,13 @@ class AudioPlayerManager: ObservableObject {
         streamFadeTimer?.invalidate()
         instrumentalTask?.cancel()
         backgroundAnalysisRetryTask?.cancel()
+        remotePlaybackCacheTask?.cancel()
         if let existing = radioTimeObserver {
             existing.player.removeTimeObserver(existing.token)
         }
         artworkTask?.cancel()
+        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+        playerArtworkWarmupTasks.removeAll()
         cacheCompressionTask?.cancel()
         radioPlayer?.pause()
         #if canImport(UIKit)
@@ -603,6 +619,22 @@ class AudioPlayerManager: ObservableObject {
         }
         let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
         return AudioCacheStore.playableMainURL(for: song.id, expectedRemoteURL: song.audioURL, expectedDuration: expectedDuration)
+    }
+
+    /// Local file lookup for the tap-to-play path: never decompresses on the
+    /// main thread. Compressed-only cache entries return nil here and are
+    /// recovered off-main by the remote playback cache task (which hits the
+    /// same cache and decompresses before playing, without re-downloading).
+    private func immediateLocalPlaybackFileURL(for song: Song) -> URL? {
+        if let downloaded = DownloadManager.shared.playableURL(for: song) {
+            return downloaded
+        }
+        let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
+        return AudioCacheStore.immediatelyPlayableMainURL(
+            for: song.id,
+            expectedRemoteURL: song.audioURL,
+            expectedDuration: expectedDuration
+        )
     }
 
     private func cachedStems(for song: Song, sourceURL: URL? = nil) -> CachedStems? {
@@ -684,6 +716,13 @@ class AudioPlayerManager: ObservableObject {
                 return progress * fallbackDuration
             }
             return 0
+        }
+        if isRemotePlaybackCaching, let preferredResume = preferredStreamResumeTime(for: song) {
+            let fallbackDuration = Double(song?.duration ?? currentSong?.duration ?? 0)
+            if fallbackDuration > 0 {
+                return min(max(0, preferredResume), fallbackDuration)
+            }
+            return max(0, preferredResume)
         }
         let currentTime = avEngine.currentTime
         if currentTime.isFinite, currentTime >= 0 {
@@ -803,9 +842,11 @@ class AudioPlayerManager: ObservableObject {
 
         if let remoteURL = song.audioURL {
             avEngine.stop()
+            let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
             startStreamPlayback(
                 url: remoteURL,
                 songID: song.id,
+                expectedDuration: expectedDuration,
                 startAt: max(0, elapsed),
                 autoplay: isPlaybackRequested
             )
@@ -972,6 +1013,7 @@ class AudioPlayerManager: ObservableObject {
             category: .playback
         )
         cancelPendingTransitionWork()
+        cancelPlayerArtworkWarmups()
         instrumentalTask?.cancel()
         instrumentalTask = nil
         cancelBackgroundAnalysisRetry()
@@ -1162,6 +1204,7 @@ class AudioPlayerManager: ObservableObject {
         } else {
             currentSong = song
         }
+        warmPlayerArtwork(for: song)
         if !context.isEmpty {
             queue = context
             if isShuffled {
@@ -1173,7 +1216,12 @@ class AudioPlayerManager: ObservableObject {
                 originalQueue = []
             }
         }
-        let fileURL = localPlaybackFileURL(for: song)
+        // Songs with a remote source use the non-decompressing lookup; a
+        // compressed-only cache falls through to startStreamPlayback, whose
+        // cache-hit path decompresses off the main thread.
+        let fileURL = song.audioURL != nil
+            ? immediateLocalPlaybackFileURL(for: song)
+            : localPlaybackFileURL(for: song)
         if let fileURL, let stems = stemsForCachedAIMode(song: song) {
             instrumentalTask?.cancel()
             instrumentalTask = nil
@@ -1215,7 +1263,8 @@ class AudioPlayerManager: ObservableObject {
             #endif
             return
         }
-        startStreamPlayback(url: remoteURL, songID: song.id)
+        let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
+        startStreamPlayback(url: remoteURL, songID: song.id, expectedDuration: expectedDuration)
         if aiEnabled {
             if anyAIEffectActive {
                 applyMLSeparationIfNeeded()
@@ -1287,6 +1336,39 @@ class AudioPlayerManager: ObservableObject {
         }
     }
 
+    private func warmPlayerArtwork(for song: Song) {
+        let urls = [
+            displayImageURL(for: song, variant: .thumbnail),
+            displayImageURL(for: song, variant: .card),
+        ].compactMap { $0 }
+        warmPlayerArtworkURLs(urls)
+    }
+
+    private func warmPlayerArtworkURLs(_ urls: [URL]) {
+        let now = Date()
+        warmedPlayerArtworkAt = warmedPlayerArtworkAt.filter { now.timeIntervalSince($0.value) < 60 }
+        for url in urls {
+            let key = url.absoluteString
+            guard warmedPlayerArtworkAt[key] == nil, playerArtworkWarmupTasks[key] == nil else { continue }
+            warmedPlayerArtworkAt[key] = now
+            playerArtworkWarmupTasks[key] = SDWebImageManager.shared.loadImage(
+                with: url,
+                options: [.highPriority],
+                context: ImageCacheConfig.visibleImageContext,
+                progress: nil
+            ) { [weak self] _, _, _, _, _, _ in
+                Task { @MainActor in
+                    self?.playerArtworkWarmupTasks.removeValue(forKey: key)
+                }
+            }
+        }
+    }
+
+    private func cancelPlayerArtworkWarmups() {
+        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+        playerArtworkWarmupTasks.removeAll()
+    }
+
     private func fallBackToMainPlayback(for song: Song, startAt: TimeInterval) {
         suppressPlaybackEndedCallbacks()
         stopRadioPlayer()
@@ -1312,7 +1394,8 @@ class AudioPlayerManager: ObservableObject {
             )
             return
         }
-        startStreamPlayback(url: remoteURL, songID: song.id, startAt: resumeAt)
+        let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
+        startStreamPlayback(url: remoteURL, songID: song.id, expectedDuration: expectedDuration, startAt: resumeAt)
     }
 
     /// Returns true when a pause request matched an active or resumable playback path.
@@ -1347,6 +1430,20 @@ class AudioPlayerManager: ObservableObject {
             player.pause()
             setPlaybackState(playing: false, buffering: false, reason: "pause.radio.\(source)")
             return true
+        }
+        if isRemotePlaybackCaching {
+            let wasActive = streamPlaybackRequested || isBuffering
+            streamPlaybackRequested = false
+            if let preferredResume = preferredStreamResumeTime(for: currentSong) {
+                lastKnownPlaybackTime = preferredResume
+            }
+            setPlaybackState(
+                playing: false,
+                buffering: false,
+                forceNowPlayingUpdate: true,
+                reason: "pause.cachedRemote.\(source)"
+            )
+            return wasActive
         }
         if isStreamMode {
             let wasActive = streamPlaybackRequested || isPlaying || isBuffering
@@ -1416,8 +1513,30 @@ class AudioPlayerManager: ObservableObject {
             NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
             radioPlaybackRequested = true
             setPlaybackState(playing: false, buffering: true, reason: "resume.radio.buffering.\(source)")
-            player.play()
+            player.playImmediately(atRate: 1.0)
             refreshManagedPlayerState(player, kind: .radio)
+            return true
+        }
+        if isRemotePlaybackCaching {
+            guard !streamPlaybackRequested || !isBuffering else {
+                setPlaybackState(
+                    playing: false,
+                    buffering: true,
+                    forceNowPlayingUpdate: true,
+                    reason: "resume.cachedRemote.alreadyPreparing.\(source)"
+                )
+                return true
+            }
+            configureAudioSessionCategory()
+            activateAudioSession()
+            NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
+            streamPlaybackRequested = true
+            setPlaybackState(
+                playing: false,
+                buffering: true,
+                forceNowPlayingUpdate: true,
+                reason: "resume.cachedRemote.buffering.\(source)"
+            )
             return true
         }
         if isStreamMode {
@@ -1440,11 +1559,19 @@ class AudioPlayerManager: ObservableObject {
             NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
             streamPlaybackRequested = true
             setPlaybackState(playing: false, buffering: true, reason: "resume.stream.buffering.\(source)")
-            player.play()
+            player.playImmediately(atRate: 1.0)
             refreshManagedPlayerState(player, kind: .stream)
             return true
         }
         guard currentSong != nil else { return false }
+        if !isPlaying, avEngine.currentURL == nil, let song = currentSong,
+           let fileURL = localPlaybackFileURL(for: song)
+        {
+            let resumeAt = preferredStreamResumeTime(for: song) ?? lastKnownPlaybackTime
+            clearPreferredStreamResumeTime()
+            startPlayingFile(fileURL, startAt: resumeAt)
+            return true
+        }
         guard !isPlaying else {
             setPlaybackState(
                 playing: true,
@@ -1491,6 +1618,14 @@ class AudioPlayerManager: ObservableObject {
             if anyAIEffectActive {
                 applyMLSeparationIfNeeded()
             }
+            updateNowPlayingInfo(reloadArtwork: false)
+            return
+        }
+        if isRemotePlaybackCaching, let song = currentSong, song.duration > 0 {
+            let totalDur = Double(song.duration)
+            let targetSeconds = min(totalDur * fraction, totalDur - 1.5)
+            guard targetSeconds >= 0 else { return }
+            setPreferredStreamResumeTime(targetSeconds, for: song.id)
             updateNowPlayingInfo(reloadArtwork: false)
             return
         }
@@ -1810,7 +1945,7 @@ class AudioPlayerManager: ObservableObject {
         )
         observeManagedPlayer(player, item: item, kind: .radio)
         NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
-        player.play()
+        player.playImmediately(atRate: 1.0)
     }
 
     private func stopRadioPlayer() {
@@ -1828,6 +1963,7 @@ class AudioPlayerManager: ObservableObject {
     private func startStreamPlayback(
         url: URL,
         songID: String,
+        expectedDuration: TimeInterval? = nil,
         startAt: TimeInterval = 0,
         autoplay: Bool = true
     ) {
@@ -1836,19 +1972,11 @@ class AudioPlayerManager: ObservableObject {
         avEngine.stop()
         currentPlaybackURL = url
         DebugLogger.log(
-            "Starting stream playback for \(songID): source=\(playbackSourceDescription(url)), startAt=\(startAt), autoplay=\(autoplay)",
+            "Starting cached remote playback for \(songID): source=\(playbackSourceDescription(url)), startAt=\(startAt), autoplay=\(autoplay)",
             category: .playback
         )
         configureAudioSessionCategory()
         activateAudioSession()
-        let item = AVPlayerItem(url: url)
-        let player = AVPlayer(playerItem: item)
-        if #available(iOS 15.0, *) {
-            player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
-        }
-        player.automaticallyWaitsToMinimizeStalling = true
-        player.volume = 1.0
-        streamPlayer = player
         streamStartedAt = Date()
         streamPlaybackRequested = autoplay
         setPlaybackState(
@@ -1857,50 +1985,155 @@ class AudioPlayerManager: ObservableObject {
             reloadArtwork: true,
             reason: "startStreamPlayback"
         )
-        observeManagedPlayer(player, item: item, kind: .stream)
         if startAt > 0 {
             setPreferredStreamResumeTime(startAt, for: songID)
         } else {
             clearPreferredStreamResumeTime()
         }
-        streamEndObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, isStreamMode, !self.isRadioMode else { return }
-                guard isPlaying else { return }
-                guard !avEngine.isCrossfading, !avEngine.isCrossfadePending else { return }
-                guard quickCutTimer == nil else { return }
-                guard !suppressTransitionAfterSeek else { return }
-                guard !isPlaybackEndedCallbackSuppressed else { return }
-                if handlePrematurePlaybackEndIfNeeded(source: "Stream AVPlayer") { return }
-                playNextOrRandom()
-            }
-        }
         if autoplay {
             NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
         }
-        if startAt > 0 {
-            let target = CMTime(seconds: startAt, preferredTimescale: 600)
-            player.pause()
-            player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) {
-                [weak self, weak player] _ in
-                Task { @MainActor [weak self, weak player] in
-                    guard let self, let player, streamPlayer === player else { return }
-                    guard streamPlaybackRequested else {
-                        refreshManagedPlayerState(player, kind: .stream)
-                        return
+
+        remotePlaybackCacheTask?.cancel()
+        // Token guard: replaying the same URL cancels the old task, whose
+        // cancellation handler must not reset state owned by the new request.
+        let requestToken = UUID()
+        remotePlaybackCacheToken = requestToken
+        remotePlaybackCacheTask = Task { [weak self] in
+            do {
+                let cachedURL = try await Self.cacheRemoteAudio(
+                    from: url,
+                    songID: songID,
+                    expectedDuration: expectedDuration
+                )
+                await MainActor.run { [weak self] in
+                    guard let self, remotePlaybackCacheToken == requestToken else { return }
+                    guard currentSong?.id == songID, currentPlaybackURL == url else { return }
+                    remotePlaybackCacheTask = nil
+                    if streamPlaybackRequested {
+                        let resumeAt = preferredStreamResumeTime(for: currentSong) ?? startAt
+                        clearPreferredStreamResumeTime()
+                        startPlayingFile(cachedURL, startAt: resumeAt)
+                    } else {
+                        currentPlaybackURL = cachedURL
+                        setPlaybackState(
+                            playing: false,
+                            buffering: false,
+                            forceNowPlayingUpdate: true,
+                            reason: "startStreamPlayback.cachedPaused"
+                        )
                     }
-                    player.play()
-                    refreshManagedPlayerState(player, kind: .stream)
+                }
+            } catch is CancellationError {
+                await MainActor.run { [weak self] in
+                    guard let self, remotePlaybackCacheToken == requestToken else { return }
+                    guard currentSong?.id == songID else { return }
+                    guard currentPlaybackURL == url else { return }
+                    remotePlaybackCacheTask = nil
+                    streamPlaybackRequested = false
+                    setPlaybackState(
+                        playing: false,
+                        buffering: false,
+                        forceNowPlayingUpdate: true,
+                        reason: "startStreamPlayback.cancelled"
+                    )
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self, remotePlaybackCacheToken == requestToken else { return }
+                    guard currentSong?.id == songID else { return }
+                    guard currentPlaybackURL == url else { return }
+                    remotePlaybackCacheTask = nil
+                    streamPlaybackRequested = false
+                    DebugLogger.log(
+                        "Remote playback cache failed for \(songID): \(error.localizedDescription)",
+                        category: .playback
+                    )
+                    setPlaybackState(
+                        playing: false,
+                        buffering: false,
+                        forceNowPlayingUpdate: true,
+                        reason: "startStreamPlayback.cacheFailed"
+                    )
                 }
             }
-        } else if autoplay {
-            player.play()
+        }
+    }
+
+    // nonisolated: cache validation, file moves, and possible decompression
+    // are blocking file I/O that must stay off the main actor.
+    private nonisolated static func cacheRemoteAudio(
+        from remoteURL: URL,
+        songID: String,
+        expectedDuration: TimeInterval?
+    ) async throws -> URL {
+        if let cachedURL = AudioCacheStore.playableMainURL(
+            for: songID,
+            expectedRemoteURL: remoteURL,
+            expectedDuration: expectedDuration
+        ) {
+            DebugLogger.log("Remote playback cache hit for \(songID)", category: .cache)
+            return cachedURL
+        }
+
+        let songFiles = AudioCacheStore.files(for: songID)
+        DebugLogger.log("Remote playback cache start for \(songID)", category: .cache)
+        try? FileManager.default.removeItem(at: songFiles.mainPartial)
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 180
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+
+        let (temporaryURL, response) = try await session.download(from: remoteURL)
+        try Task.checkCancellation()
+        guard AudioCacheStore.acceptsAudioResponse(response) else {
+            throw RemotePlaybackCacheError.invalidResponse
+        }
+
+        try? FileManager.default.removeItem(at: songFiles.mainPartial)
+        do {
+            try FileManager.default.moveItem(at: temporaryURL, to: songFiles.mainPartial)
+        } catch {
+            try FileManager.default.copyItem(at: temporaryURL, to: songFiles.mainPartial)
+            try? FileManager.default.removeItem(at: temporaryURL)
+        }
+        try Task.checkCancellation()
+
+        guard AudioCacheStore.isPlayableAudioFile(at: songFiles.mainPartial) else {
+            try? FileManager.default.removeItem(at: songFiles.mainPartial)
+            throw RemotePlaybackCacheError.invalidAudio
+        }
+
+        try? FileManager.default.removeItem(at: songFiles.main)
+        try FileManager.default.moveItem(at: songFiles.mainPartial, to: songFiles.main)
+        AudioCacheStore.writeMainSourceURL(remoteURL, for: songID)
+        DebugLogger.log("Remote playback cache complete for \(songID)", category: .cache)
+        return songFiles.main
+    }
+
+    private enum RemotePlaybackCacheError: LocalizedError {
+        case invalidResponse
+        case invalidAudio
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidResponse:
+                "Remote audio response was not playable"
+            case .invalidAudio:
+                "Downloaded remote audio was not playable"
+            }
         }
     }
 
     private func stopStreamPlayer() {
+        remotePlaybackCacheTask?.cancel()
+        remotePlaybackCacheTask = nil
+        remotePlaybackCacheToken = nil
         streamPlayerCancellables.removeAll()
         streamPlaybackRequested = false
         if let observer = streamEndObserver {
@@ -1944,17 +2177,31 @@ class AudioPlayerManager: ObservableObject {
         updateNowPlayingInfo(reloadArtwork: true)
     }
 
-    func displayImageURL(for song: Song) -> URL? {
+    func displayImageURL(for song: Song, variant: ArtworkImageVariant = .card) -> URL? {
         if isRadioMode, currentSong?.id == song.id, let art = radioArtworkURL {
-            return art
+            return ArtworkURLBuilder.variantURL(from: art, variant: variant) ?? art
         }
-        return song.imageURL
+        switch variant {
+        case .row:
+            return song.rowImageURL
+        case .thumbnail:
+            return song.thumbnailURL
+        case .hero:
+            return song.heroImageURL
+        case .fullHD:
+            return song.fullHDImageURL
+        default:
+            return song.imageURL
+        }
     }
 
     func clearCache() {
         DebugLogger.log("Clearing all cache", category: .cache)
         cancelPendingTransitionWork()
+        cancelPlayerArtworkWarmups()
+        warmedPlayerArtworkAt.removeAll()
         cacheCompressionTask?.cancel()
+        remotePlaybackCacheTask?.cancel()
         instrumentalTask?.cancel()
         instrumentalTask = nil
         preparedStemSongID = nil
@@ -2419,19 +2666,29 @@ class AudioPlayerManager: ObservableObject {
             #if canImport(UIKit)
                 if reloadArtwork { nowPlayingArtwork = nil }
             #endif
+            warmPlayerArtwork(for: song)
             if let targetArt {
                 loadArtworkAsync(from: targetArt)
             }
         }
+        if shouldResetNowPlayingIdentity {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         updateRemoteCommandAvailability()
         DebugLogger.log(
-            "Now Playing updated: rate=\(isPlaying ? 1.0 : 0.0), playing=\(isPlaying), buffering=\(isBuffering)",
+            "Now Playing updated: rate=\(nowPlayingPlaybackRate), playing=\(isPlaying), buffering=\(isBuffering)",
             category: .playback
         )
         lastNowPlayingElapsedSecond = isRadioMode ? nil : Int(playbackTime.rounded(.down))
-        lastNowPlayingPlaybackRate = isPlaying ? 1.0 : 0.0
+        lastNowPlayingPlaybackRate = nowPlayingPlaybackRate
         lastLoggedNowPlayingElapsedSecond = nil
+    }
+
+    private var shouldResetNowPlayingIdentity: Bool {
+        guard isStreamMode || isRadioMode else { return false }
+        guard let lastNowPlayingPlaybackRate else { return false }
+        return lastNowPlayingPlaybackRate != nowPlayingPlaybackRate
     }
 
     private func updateNowPlayingElapsed(_ elapsed: Double) {
@@ -2440,7 +2697,7 @@ class AudioPlayerManager: ObservableObject {
             return
         }
         let roundedSecond = Int(elapsed.rounded(.down))
-        let playbackRate = isPlaying ? 1.0 : 0.0
+        let playbackRate = nowPlayingPlaybackRate
         guard roundedSecond != lastNowPlayingElapsedSecond
             || playbackRate != lastNowPlayingPlaybackRate else { return }
         guard let song = currentSong else {
@@ -2472,13 +2729,8 @@ class AudioPlayerManager: ObservableObject {
         includeExistingArtwork: Bool
     ) -> [String: Any] {
         let currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo
-        // Keep the system surfaces driven by the public Now Playing contract:
-        // metadata, elapsed time, duration, and playback rate. Do not use
-        // MPNowPlayingInfoCenter.playbackState here; on iOS it logs an ignored
-        // MediaRemote private-entitlement warning for third-party apps. The audio
-        // media type matches public Swift player integrations such as Expo's
-        // MediaController:
-        // https://github.com/expo/expo/blob/main/packages/expo-audio/ios/MediaController.swift
+        // Keep system surfaces driven by the public Now Playing contract:
+        // metadata, elapsed time, duration, and playback rate.
         let originalArtists = song.originalArtists?
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
@@ -2493,7 +2745,7 @@ class AudioPlayerManager: ObservableObject {
             MPMediaItemPropertyArtist: artist,
             MPMediaItemPropertyMediaType: MPMediaType.music.rawValue,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: nowPlayingPlaybackRate,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
         ]
         if includeExistingArtwork,
@@ -2520,21 +2772,10 @@ class AudioPlayerManager: ObservableObject {
                 applyArtwork(cached, for: songID, artworkURL: url)
                 return
             }
-            let pixelSize = NSValue(
-                cgSize: CGSize(
-                    width: AudioPlayerManager.artworkMaxPixel,
-                    height: AudioPlayerManager.artworkMaxPixel
-                )
-            )
             artworkTask = SDWebImageManager.shared.loadImage(
                 with: url,
-                options: [.scaleDownLargeImages],
-                context: [
-                    .imageThumbnailPixelSize: pixelSize,
-                    .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
-                    .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                    .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
-                ],
+                options: [],
+                context: ImageCacheConfig.memoryAndDiskCacheContext,
                 progress: nil
             ) { [weak self] image, _, _, _, _, _ in
                 guard let self, currentSong?.id == songID else { return }
@@ -2568,6 +2809,14 @@ class AudioPlayerManager: ObservableObject {
                 )
                 info[MPMediaItemPropertyArtwork] = artwork
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+                self.updateRemoteCommandAvailability()
+                if self.isRadioMode {
+                    self.lastNowPlayingElapsedSecond = nil
+                } else {
+                    self.lastNowPlayingElapsedSecond = Int(self.playbackTime.rounded(.down))
+                }
+                self.lastNowPlayingPlaybackRate = self.nowPlayingPlaybackRate
+                self.lastLoggedNowPlayingElapsedSecond = nil
                 self.nowPlayingArtwork = image
             }
         }

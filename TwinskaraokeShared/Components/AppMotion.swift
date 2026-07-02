@@ -8,9 +8,12 @@ enum DisplayRefreshRate {
 
   static var maximumFramesPerSecond: Int {
     #if os(iOS)
-      max(UIScreen.main.maximumFramesPerSecond, 60)
+      let sceneMaximum = UIApplication.shared.connectedScenes
+        .compactMap { ($0 as? UIWindowScene)?.screen.maximumFramesPerSecond }
+        .max()
+      return max(sceneMaximum ?? 60, 60)
     #else
-      60
+      return 60
     #endif
   }
 

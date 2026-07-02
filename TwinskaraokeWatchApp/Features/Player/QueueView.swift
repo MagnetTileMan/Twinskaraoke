@@ -157,7 +157,7 @@ private struct WatchQueuedSongRow: View {
         HStack(spacing: 10) {
             ZStack(alignment: .bottomTrailing) {
                 WatchSongArtwork(
-                    url: song.imageURL,
+                    url: song.rowImageURL,
                     size: 36,
                     cornerRadius: 8
                 )
@@ -241,7 +241,7 @@ private struct WatchQueueSummaryCard: View {
             HStack(spacing: 10) {
                 ZStack {
                     WatchSongArtwork(
-                        url: song.imageURL,
+                        url: song.thumbnailURL,
                         size: 48,
                         cornerRadius: 10,
                         isCurrent: true,

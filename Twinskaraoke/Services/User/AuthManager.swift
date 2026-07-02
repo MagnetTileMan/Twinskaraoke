@@ -304,10 +304,17 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
     }
 
     func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
+        let scenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        let windows = scenes.flatMap(\.windows)
+        if let window = windows.first(where: \.isKeyWindow) ?? windows.first {
+            return window
+        }
+        guard let scene = scenes.first else {
+            // Auth UI is only requested while a scene is connected.
+            preconditionFailure("presentationAnchor requested with no connected window scene")
+        }
+        return ASPresentationAnchor(windowScene: scene)
     }
 
     enum AuthError: Error {
