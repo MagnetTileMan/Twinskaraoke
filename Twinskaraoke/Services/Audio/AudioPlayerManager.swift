@@ -588,30 +588,34 @@ class AudioPlayerManager: ObservableObject {
         #endif
     }
 
-    isolated deinit {
-        pollTimer?.invalidate()
-        quickCutTimer?.invalidate()
-        streamFadeTimer?.invalidate()
-        instrumentalTask?.cancel()
-        backgroundAnalysisRetryTask?.cancel()
-        remotePlaybackCacheTask?.cancel()
-        if let existing = radioTimeObserver {
-            existing.player.removeTimeObserver(existing.token)
-        }
-        artworkTask?.cancel()
-        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
-        playerArtworkWarmupTasks.removeAll()
-        cacheCompressionTask?.cancel()
-        radioPlayer?.pause()
-        #if canImport(UIKit)
-            let transitionTaskID = trackTransitionTaskID
-            trackTransitionTaskID = .invalid
-            if transitionTaskID != .invalid {
-                Task { @MainActor in
-                    UIApplication.shared.endBackgroundTask(transitionTaskID)
-                }
+    deinit {
+        // AudioPlayerManager is a main-actor singleton; if it is ever torn
+        // down, the last reference is released on the main thread.
+        MainActor.assumeIsolated {
+            pollTimer?.invalidate()
+            quickCutTimer?.invalidate()
+            streamFadeTimer?.invalidate()
+            instrumentalTask?.cancel()
+            backgroundAnalysisRetryTask?.cancel()
+            remotePlaybackCacheTask?.cancel()
+            if let existing = radioTimeObserver {
+                existing.player.removeTimeObserver(existing.token)
             }
-        #endif
+            artworkTask?.cancel()
+            playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+            playerArtworkWarmupTasks.removeAll()
+            cacheCompressionTask?.cancel()
+            radioPlayer?.pause()
+            #if canImport(UIKit)
+                let transitionTaskID = trackTransitionTaskID
+                trackTransitionTaskID = .invalid
+                if transitionTaskID != .invalid {
+                    Task { @MainActor in
+                        UIApplication.shared.endBackgroundTask(transitionTaskID)
+                    }
+                }
+            #endif
+        }
     }
 
     private func cancelBackgroundAnalysisRetry() {

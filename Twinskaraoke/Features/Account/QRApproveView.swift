@@ -762,10 +762,13 @@ private protocol QRCameraControllerDelegate: AnyObject {
 
 private final class QRCameraController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     weak var delegate: QRCameraControllerDelegate?
-    private let session = AVCaptureSession()
+    // Configured on the main actor, started/stopped on sessionQueue, and
+    // stopped from deinit; AVCaptureSession start/stop must run off-main.
+    private nonisolated(unsafe) let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "org.evilneuro.Twinskaraoke.qr-camera-session", qos: .userInitiated)
     private var previewLayer: AVCaptureVideoPreviewLayer?
-    private var runtimeErrorObserver: NSObjectProtocol?
+    // Set once on the main actor; removal (deinit) is thread-safe.
+    private nonisolated(unsafe) var runtimeErrorObserver: NSObjectProtocol?
     private var hasReported = false
     private var isSessionConfigured = false
     private var hasReportedFailure = false
@@ -787,11 +790,15 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
         stopSession()
     }
 
-    isolated deinit {
+    deinit {
         if let runtimeErrorObserver {
             NotificationCenter.default.removeObserver(runtimeErrorObserver)
         }
-        stopSession()
+        nonisolated(unsafe) let capturedSession = session
+        sessionQueue.async {
+            guard capturedSession.isRunning else { return }
+            capturedSession.stopRunning()
+        }
     }
 
     private func stopSession() {
