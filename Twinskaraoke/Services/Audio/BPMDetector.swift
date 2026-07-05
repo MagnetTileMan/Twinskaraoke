@@ -2,7 +2,7 @@ import Accelerate
 @preconcurrency import AVFoundation
 import Foundation
 
-enum BPMDetector {
+nonisolated enum BPMDetector {
     static func detect(url: URL) async -> Double? {
         let asset = AVURLAsset(url: url)
         guard let track = try? await asset.loadTracks(withMediaType: .audio).first else { return nil }

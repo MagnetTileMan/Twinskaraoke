@@ -30,7 +30,8 @@ nonisolated enum DebugLogger {
     }
 
     private static let logQueue = DispatchQueue(label: "nk.debugLogger", qos: .utility)
-    private static var recentLogs: [String] = []
+    // Only accessed on logQueue.
+    private nonisolated(unsafe) static var recentLogs: [String] = []
     private static let maxStoredLogs = 500
 
     static func log(

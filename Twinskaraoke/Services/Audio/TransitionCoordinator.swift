@@ -353,7 +353,8 @@ final class TransitionCoordinator {
     }
 }
 
-private final class PredownloadSession: NSObject, URLSessionDataDelegate {
+// URLSession delegates must be Sendable; cross-thread state is guarded by stateLock.
+private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let songID: String
     private let expectedDuration: TimeInterval?
     private let partialURL: URL

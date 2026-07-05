@@ -188,9 +188,14 @@ final nonisolated class FallbackArtProvider: ObservableObject, @unchecked Sendab
         UserDefaults.standard.set(dict, forKey: persistKey)
     }
 
+    // Collects results from concurrent fetch callbacks; guarded by syncQueue.
+    private final class ItemCollector: @unchecked Sendable {
+        var items: [FallbackArtItem] = []
+    }
+
     private func fetch() {
         let fetchCount = 48
-        var fetchedItems: [FallbackArtItem] = []
+        let fetchedItems = ItemCollector()
         let group = DispatchGroup()
         let syncQueue = DispatchQueue(label: "com.twinskaraoke.fallbackart.sync")
 
@@ -232,7 +237,7 @@ final nonisolated class FallbackArtProvider: ObservableObject, @unchecked Sendab
 
                     let fallbackItem = FallbackArtItem(url: urlWithQuality, artistName: item.artistCredit, artistLink: nil)
                     syncQueue.sync {
-                        fetchedItems.append(fallbackItem)
+                        fetchedItems.items.append(fallbackItem)
                     }
                 }
             }
@@ -240,7 +245,7 @@ final nonisolated class FallbackArtProvider: ObservableObject, @unchecked Sendab
 
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
-            let uniqueItems = fetchedItems.reduce(into: [FallbackArtItem]()) { result, item in
+            let uniqueItems = fetchedItems.items.reduce(into: [FallbackArtItem]()) { result, item in
                 guard !result.contains(where: { $0.url == item.url }) else { return }
                 result.append(item)
             }
@@ -257,7 +262,7 @@ final nonisolated class FallbackArtProvider: ObservableObject, @unchecked Sendab
         with request: URLRequest,
         maxAttempts: Int,
         attempt: Int = 1,
-        completion: @escaping (Data?, URLResponse?, Error?) -> Void
+        completion: @escaping @Sendable (Data?, URLResponse?, Error?) -> Void
     ) {
         URLSession.shared.dataTask(with: request) { data, response, error in
             let shouldRetry = error != nil || (response as? HTTPURLResponse).map { !((200 ... 299).contains($0.statusCode)) } ?? true

@@ -9,6 +9,12 @@ import SwiftUI
     import UIKit
 #endif
 
+/// Tick counter for fade timers; only mutated on the main run loop, but lives
+/// in a @Sendable timer closure so it needs an unchecked-Sendable box.
+private final class TimerStepCounter: @unchecked Sendable {
+    var step = 0
+}
+
 enum RepeatMode {
     case off, all, one
     var symbol: String {
@@ -586,30 +592,34 @@ class AudioPlayerManager: ObservableObject {
     }
 
     deinit {
-        pollTimer?.invalidate()
-        quickCutTimer?.invalidate()
-        streamFadeTimer?.invalidate()
-        instrumentalTask?.cancel()
-        backgroundAnalysisRetryTask?.cancel()
-        remotePlaybackCacheTask?.cancel()
-        if let existing = radioTimeObserver {
-            existing.player.removeTimeObserver(existing.token)
-        }
-        artworkTask?.cancel()
-        artworkProcessingTask?.cancel()
-        playerArtworkWarmupTasks.values.forEach { $0.cancel() }
-        playerArtworkWarmupTasks.removeAll()
-        cacheCompressionTask?.cancel()
-        radioPlayer?.pause()
-        #if canImport(UIKit)
-            let transitionTaskID = trackTransitionTaskID
-            trackTransitionTaskID = .invalid
-            if transitionTaskID != .invalid {
-                Task { @MainActor in
-                    UIApplication.shared.endBackgroundTask(transitionTaskID)
-                }
+        // AudioPlayerManager is a main-actor singleton; if it is ever torn
+        // down, the last reference is released on the main thread.
+        MainActor.assumeIsolated {
+            pollTimer?.invalidate()
+            quickCutTimer?.invalidate()
+            streamFadeTimer?.invalidate()
+            instrumentalTask?.cancel()
+            backgroundAnalysisRetryTask?.cancel()
+            remotePlaybackCacheTask?.cancel()
+            if let existing = radioTimeObserver {
+                existing.player.removeTimeObserver(existing.token)
             }
-        #endif
+            artworkTask?.cancel()
+            artworkProcessingTask?.cancel()
+            playerArtworkWarmupTasks.values.forEach { $0.cancel() }
+            playerArtworkWarmupTasks.removeAll()
+            cacheCompressionTask?.cancel()
+            radioPlayer?.pause()
+            #if canImport(UIKit)
+                let transitionTaskID = trackTransitionTaskID
+                trackTransitionTaskID = .invalid
+                if transitionTaskID != .invalid {
+                    Task { @MainActor in
+                        UIApplication.shared.endBackgroundTask(transitionTaskID)
+                    }
+                }
+            #endif
+        }
     }
 
     private func cancelBackgroundAnalysisRetry() {
@@ -1362,7 +1372,7 @@ class AudioPlayerManager: ObservableObject {
                 progress: nil
             ) { [weak self] _, _, _, _, _, _ in
                 Task { @MainActor in
-                    self?.playerArtworkWarmupTasks.removeValue(forKey: key)
+                    _ = self?.playerArtworkWarmupTasks.removeValue(forKey: key)
                 }
             }
         }
@@ -2153,22 +2163,25 @@ class AudioPlayerManager: ObservableObject {
     }
 
     private func fadeOutStreamPlayer(duration: TimeInterval) {
-        guard let player = streamPlayer else { return }
+        guard streamPlayer != nil else { return }
         streamFadeTimer?.invalidate()
         let interval = AVEnginePlayback.transitionTimerInterval
         let steps = max(1, Int((duration / interval).rounded(.up)))
-        var step = 0
+        let counter = TimerStepCounter()
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] timer in
             guard self != nil else { timer.invalidate(); return }
-            MainActor.assumeIsolated {
-                step += 1
-                let t = Float(step) / Float(max(1, steps))
-                player.volume = max(0, 1.0 - t)
+            let finished = MainActor.assumeIsolated { () -> Bool in
+                guard let self else { return true }
+                counter.step += 1
+                let t = Float(counter.step) / Float(max(1, steps))
+                self.streamPlayer?.volume = max(0, 1.0 - t)
                 if t >= 1.0 {
-                    timer.invalidate()
-                    self?.streamFadeTimer = nil
+                    self.streamFadeTimer = nil
+                    return true
                 }
+                return false
             }
+            if finished { timer.invalidate() }
         }
         streamFadeTimer = timer
         RunLoop.main.add(timer, forMode: .common)
@@ -2811,7 +2824,9 @@ class AudioPlayerManager: ObservableObject {
 
     #if canImport(UIKit)
         private func applyArtwork(_ image: UIImage, for songID: String?, artworkURL requestedURL: URL) {
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            // The system may call the artwork request handler off the main
+            // thread; @Sendable keeps it from inheriting main-actor isolation.
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { @Sendable _ in image }
             DispatchQueue.main.async { [weak self] in
                 guard let self,
                       let song = self.currentSong,
@@ -2990,24 +3005,23 @@ class AudioPlayerManager: ObservableObject {
         let song = plan.nextSong
         let interval = AVEnginePlayback.transitionTimerInterval
         let steps = max(1, Int((fadeDuration / interval).rounded(.up)))
-        var step = 0
+        let counter = TimerStepCounter()
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] timer in
             guard self != nil else {
                 timer.invalidate()
                 return
             }
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                guard self.quickCutGeneration == gen else { return }
+            let finished = MainActor.assumeIsolated { () -> Bool in
+                guard let self else { return true }
+                guard self.quickCutGeneration == gen else { return false }
                 guard self.transitionCoordinator.state.isCrossfading, !self.isRadioMode else {
                     self.cancelPendingTransitionWork()
-                    return
+                    return false
                 }
-                step += 1
-                let t = Float(step) / Float(max(1, steps))
+                counter.step += 1
+                let t = Float(counter.step) / Float(max(1, steps))
                 self.avEngine.setMasterVolume(1.0 - t)
                 if t >= 1.0 {
-                    timer.invalidate()
                     self.quickCutTimer = nil
                     DebugLogger.log("Quick cut transition complete -> play(\(song.id))", category: .playback)
                     self.activeCrossfadePlan = nil
@@ -3015,8 +3029,11 @@ class AudioPlayerManager: ObservableObject {
                     self.avEngine.setMasterVolume(0)
                     self.play(song: song, resetTransitionVolume: false)
                     self.avEngine.setMasterVolume(1.0)
+                    return true
                 }
+                return false
             }
+            if finished { timer.invalidate() }
         }
         quickCutTimer = timer
         RunLoop.main.add(timer, forMode: .common)

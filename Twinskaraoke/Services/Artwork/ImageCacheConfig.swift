@@ -38,14 +38,17 @@ enum ImageCacheConfig {
         let dl = SDWebImageDownloader.shared
 
         dl.config.maxConcurrentDownloads = 6
-        dl.requestModifier = SDWebImageDownloaderRequestModifier { request in
+        // Modifier blocks run on SDWebImage's download queue; they must be
+        // @Sendable so they don't inherit main-actor isolation (which would
+        // trap at runtime when invoked off the main thread).
+        dl.requestModifier = SDWebImageDownloaderRequestModifier { @Sendable request in
             var r = request
             r.cachePolicy = .returnCacheDataElseLoad
             r.timeoutInterval = 15
             r.setValue("image/webp,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
             return r
         }
-        dl.responseModifier = SDWebImageDownloaderResponseModifier { response in
+        dl.responseModifier = SDWebImageDownloaderResponseModifier { @Sendable response in
             guard let httpResponse = response as? HTTPURLResponse,
                   let url = httpResponse.url,
                   shouldInspectArtworkResponse(url),
@@ -71,13 +74,13 @@ enum ImageCacheConfig {
 
     static let defaultOptions: SDWebImageOptions = []
 
-    private static func shouldInspectArtworkResponse(_ url: URL) -> Bool {
+    private nonisolated static func shouldInspectArtworkResponse(_ url: URL) -> Bool {
         guard let host = url.host else { return false }
         return host.contains("images.neurokaraoke.com")
             || (host.contains("storage.neurokaraoke.com") && url.path.contains("/cdn-cgi/image/"))
     }
 
-    private static func redactedURLString(_ url: URL) -> String {
+    private nonisolated static func redactedURLString(_ url: URL) -> String {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         components?.query = nil
         components?.fragment = nil

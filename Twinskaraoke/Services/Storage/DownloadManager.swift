@@ -3,7 +3,8 @@ import Foundation
 import Network
 import SwiftUI
 
-private final class DownloadTaskRegistry: @unchecked Sendable {
+// Called from URLSession completion handlers off the main actor; NSLock-guarded.
+private nonisolated final class DownloadTaskRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private var activeTokens: [String: UUID] = [:]
 
