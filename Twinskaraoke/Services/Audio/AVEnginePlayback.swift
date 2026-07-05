@@ -3,6 +3,13 @@ import Foundation
 
 enum AVEnginePlaybackMode { case single, aiStems }
 
+/// Moves freshly loaded, uniquely referenced audio media out of a background
+/// loading task; AVAudioFile/AVAudioPCMBuffer are not Sendable but the loader
+/// hands over its only reference.
+private nonisolated struct LoadedMediaTransfer<Value>: @unchecked Sendable {
+    let value: Value
+}
+
 enum AVEnginePlaybackRampStyle {
     case equalPower
     case linear
@@ -21,7 +28,9 @@ extension AVAudioTime {
 
 final class SimpleAudioPlayer {
     let playerNode = AVAudioPlayerNode()
-    var completionHandler: (() -> Void)?
+    // Invoked from the audio render callback thread, hence @Sendable and
+    // accessible off the main actor.
+    nonisolated(unsafe) var completionHandler: (@Sendable () -> Void)?
 
     private var loadedFile: AVAudioFile?
     private var loadedBuffer: AVAudioPCMBuffer?
@@ -203,18 +212,20 @@ final class AVEnginePlayback {
     private(set) var currentURL: URL?
     private(set) var aiStartOffset: TimeInterval = 0
 
-    private var suppressionToken: UInt64 = 0
+    // Read from audio-thread completion callbacks to detect stale completions;
+    // written only on the main actor.
+    private nonisolated(unsafe) var suppressionToken: UInt64 = 0
     private var _paused: Bool = false
 
     private(set) var isCrossfading = false
 
     private var crossfadeTimer: Timer?
     private var handoffBlendTimer: Timer?
-    private var singleLoadTask: Task<LoadedMedia, Error>?
-    private var stemsLoadTask: Task<LoadedStemTriple, Error>?
-    private var switchToStemsLoadTask: Task<LoadedStemPair, Error>?
-    private var crossfadePreloadTask: Task<LoadedMedia, Error>?
-    private var crossfadeFinalizeTask: Task<LoadedMedia, Error>?
+    private var singleLoadTask: Task<LoadedMediaTransfer<LoadedMedia>, Error>?
+    private var stemsLoadTask: Task<LoadedMediaTransfer<LoadedStemTriple>, Error>?
+    private var switchToStemsLoadTask: Task<LoadedMediaTransfer<LoadedStemPair>, Error>?
+    private var crossfadePreloadTask: Task<LoadedMediaTransfer<LoadedMedia>, Error>?
+    private var crossfadeFinalizeTask: Task<LoadedMediaTransfer<LoadedMedia>, Error>?
     private var primaryLoadGeneration: UInt64 = 0
     private var crossfadeLoadGeneration: UInt64 = 0
     private var preparedCrossfadeMedia: LoadedMedia?
@@ -298,16 +309,16 @@ final class AVEnginePlayback {
 
         mainPlayer.completionHandler = { [weak self] in
             guard let self else { return }
-            let token = suppressionToken
-            DispatchQueue.main.async {
+            let token = self.suppressionToken
+            Task { @MainActor in
                 guard self.suppressionToken == token else { return }
                 if self.mode == .single { self.onPlaybackEnded?() }
             }
         }
         stemInstrumental.completionHandler = { [weak self] in
             guard let self else { return }
-            let token = suppressionToken
-            DispatchQueue.main.async {
+            let token = self.suppressionToken
+            Task { @MainActor in
                 guard self.suppressionToken == token else { return }
                 if self.mode == .aiStems { self.onPlaybackEnded?() }
             }
@@ -686,12 +697,12 @@ final class AVEnginePlayback {
         stopAllStems(releasingMedia: true)
         releasePlayerMedia(mainPlayer, resetVolumeTo: 1)
         let loadTask = Task.detached(priority: .userInitiated) {
-            try Self.loadMedia(url: url, intent: .immediatePlayback)
+            LoadedMediaTransfer(value: try Self.loadMedia(url: url, intent: .immediatePlayback))
         }
         singleLoadTask = loadTask
         Task {
             do {
-                let media = try await loadTask.value
+                let media = try await loadTask.value.value
                 guard self.suppressionToken == token, self.primaryLoadGeneration == loadGeneration else {
                     return
                 }
@@ -741,12 +752,12 @@ final class AVEnginePlayback {
             let v = try Self.loadMedia(url: vocalsURL, intent: .immediatePlayback)
             try Task.checkCancellation()
             let i = try Self.loadMedia(url: instrumentsURL, intent: .immediatePlayback)
-            return (m, v, i)
+            return LoadedMediaTransfer(value: (m, v, i))
         }
         stemsLoadTask = loadTask
         Task {
             do {
-                let media = try await loadTask.value
+                let media = try await loadTask.value.value
                 guard self.suppressionToken == token, self.primaryLoadGeneration == loadGeneration else {
                     return
                 }
@@ -808,12 +819,12 @@ final class AVEnginePlayback {
             let v = try Self.loadMedia(url: vocalsURL, intent: .immediatePlayback)
             try Task.checkCancellation()
             let i = try Self.loadMedia(url: instrumentsURL, intent: .immediatePlayback)
-            return (v, i)
+            return LoadedMediaTransfer(value: (v, i))
         }
         switchToStemsLoadTask = loadTask
         Task {
             do {
-                let media = try await loadTask.value
+                let media = try await loadTask.value.value
                 guard self.suppressionToken == token, self.primaryLoadGeneration == loadGeneration else {
                     return
                 }
@@ -1035,12 +1046,12 @@ final class AVEnginePlayback {
         let loadGeneration = crossfadeLoadGeneration
         crossfadePreloadURL = url
         let loadTask = Task.detached(priority: .utility) {
-            try Self.loadMedia(url: url, intent: .prefetch)
+            LoadedMediaTransfer(value: try Self.loadMedia(url: url, intent: .prefetch))
         }
         crossfadePreloadTask = loadTask
         Task {
             do {
-                let media = try await loadTask.value
+                let media = try await loadTask.value.value
                 guard self.crossfadeLoadGeneration == loadGeneration else { return }
                 try self.applyMedia(media, to: self.crossfadePlayer)
                 self.preparedCrossfadeMedia = media
@@ -1260,12 +1271,12 @@ final class AVEnginePlayback {
                     crossfadeLoadGeneration &+= 1
                     let loadGeneration = crossfadeLoadGeneration
                     let loadTask = Task.detached(priority: .utility) {
-                        try Self.loadMedia(url: url, intent: .immediatePlayback)
+                        LoadedMediaTransfer(value: try Self.loadMedia(url: url, intent: .immediatePlayback))
                     }
                     crossfadeFinalizeTask = loadTask
                     Task {
                         do {
-                            let media = try await loadTask.value
+                            let media = try await loadTask.value.value
                             guard self.suppressionToken == token,
                                   self.crossfadeLoadGeneration == loadGeneration
                             else { return }
@@ -1360,7 +1371,7 @@ final class AVEnginePlayback {
             DebugLogger.log(
                 "Awaiting in-flight crossfade preload for \(url.lastPathComponent)", category: .playback
             )
-            let media = try await existingTask.value
+            let media = try await existingTask.value.value
             guard suppressionToken == token, crossfadeLoadGeneration == loadGeneration else { return }
             try applyMedia(media, to: crossfadePlayer)
             preparedCrossfadeMedia = media
@@ -1381,10 +1392,10 @@ final class AVEnginePlayback {
             "Loading crossfade media on demand for \(url.lastPathComponent)", category: .playback
         )
         let loadTask = Task.detached(priority: .userInitiated) {
-            try Self.loadMedia(url: url, intent: .prefetch)
+            LoadedMediaTransfer(value: try Self.loadMedia(url: url, intent: .prefetch))
         }
         crossfadePreloadTask = loadTask
-        let media = try await loadTask.value
+        let media = try await loadTask.value.value
         guard suppressionToken == token, crossfadeLoadGeneration == loadGeneration else { return }
         try applyMedia(media, to: crossfadePlayer)
         preparedCrossfadeMedia = media
@@ -1453,7 +1464,7 @@ final class AVEnginePlayback {
         pendingCrossfadeURL = nil
     }
 
-    private func beginCrossfadeHandoffBlend(after delay: TimeInterval, completion: @escaping () -> Void) {
+    private func beginCrossfadeHandoffBlend(after delay: TimeInterval, completion: @escaping @MainActor @Sendable () -> Void) {
         handoffBlendTimer?.invalidate()
         let duration: TimeInterval = 0.35
         let startTime = Date()
@@ -1462,25 +1473,29 @@ final class AVEnginePlayback {
                 timer.invalidate()
                 return
             }
-            MainActor.assumeIsolated {
-                guard let self else { return }
+            // The timer itself must not be touched inside the isolated closure,
+            // so it reports completion and invalidation happens out here.
+            let finished = MainActor.assumeIsolated { () -> Bool in
+                guard let self else { return true }
                 let elapsed = Date().timeIntervalSince(startTime) - delay
                 guard elapsed >= 0 else {
                     self.mainPlayer.volume = 0
                     self.crossfadePlayer.volume = 1.0
-                    return
+                    return false
                 }
                 let t = Float(min(1.0, max(0.0, elapsed / duration)))
                 self.mainPlayer.volume = t
                 self.crossfadePlayer.volume = 1.0 - t
                 if t >= 1.0 {
-                    timer.invalidate()
                     self.handoffBlendTimer = nil
                     self.mainPlayer.volume = 1.0
                     self.releasePlayerMedia(self.crossfadePlayer)
                     completion()
+                    return true
                 }
+                return false
             }
+            if finished { timer.invalidate() }
         }
         handoffBlendTimer = timer
         RunLoop.main.add(timer, forMode: .common)

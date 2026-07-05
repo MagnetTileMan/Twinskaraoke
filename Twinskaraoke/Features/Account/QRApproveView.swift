@@ -787,7 +787,7 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
         stopSession()
     }
 
-    deinit {
+    isolated deinit {
         if let runtimeErrorObserver {
             NotificationCenter.default.removeObserver(runtimeErrorObserver)
         }
@@ -795,7 +795,9 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
     }
 
     private func stopSession() {
-        let capturedSession = session
+        // AVCaptureSession start/stop must run off the main thread; the session
+        // is only ever touched from sessionQueue after configuration.
+        nonisolated(unsafe) let capturedSession = session
         sessionQueue.async {
             guard capturedSession.isRunning else { return }
             capturedSession.stopRunning()
@@ -855,7 +857,7 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
 
     private func startSession() {
         guard isSessionConfigured else { return }
-        let capturedSession = session
+        nonisolated(unsafe) let capturedSession = session
         sessionQueue.async {
             guard !capturedSession.isRunning else { return }
             capturedSession.startRunning()
@@ -868,7 +870,10 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
             object: session,
             queue: .main
         ) { [weak self] _ in
-            self?.reportFailure("The camera stopped unexpectedly. Check that it is working, then try again.")
+            // Delivered on the main queue (queue: .main above).
+            MainActor.assumeIsolated {
+                self?.reportFailure("The camera stopped unexpectedly. Check that it is working, then try again.")
+            }
         }
     }
 

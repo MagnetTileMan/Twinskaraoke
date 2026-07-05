@@ -13,9 +13,10 @@ nonisolated enum AudioCacheStore {
         let offset: URL
     }
 
-    private static let fm = FileManager.default
+    // FileManager.default is thread-safe; Algorithm is an immutable enum value.
+    private nonisolated(unsafe) static let fm = FileManager.default
     private static let compressionExtension = "nkz"
-    private static let compressionAlgorithm: Algorithm = .lzfse
+    private nonisolated(unsafe) static let compressionAlgorithm: Algorithm = .lzfse
     private static let chunkSize = 64 * 1024
     private static let maximumPlayableFileSize: Int64 = 256 * 1024 * 1024
     private static let cacheDirectory: URL = {
