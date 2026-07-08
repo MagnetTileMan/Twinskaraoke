@@ -118,6 +118,61 @@ nonisolated enum KaraokeAPIClient {
     return Array((filtered.isEmpty ? decoded : filtered).prefix(take))
   }
 
+  static func fetchSong(id: String) async throws -> Song {
+    let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+    let request = try request(path: "/api/songs/\(encoded)")
+    let data = try await data(for: request)
+    if let song = try? decode(Song.self, from: data) { return song }
+    if let envelope = try? decode(FavoriteSongEnvelope.self, from: data), let song = envelope.song { return song }
+    if let response = try? decode(SearchResponse.self, from: data), let song = response.items.first { return song }
+    if let songs = SongPayloadDecoder.decodeSongs(from: data), let song = songs.first { return song }
+    if let songs = try? decode([Song].self, from: data), let song = songs.first { return song }
+    if let song = songFromJSONObject(data) { return song }
+    throw APIError.decodeFailed
+  }
+
+  private static func songFromJSONObject(_ data: Data) -> Song? {
+    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+    let candidate: [String: Any]?
+    if let song = json["song"] as? [String: Any] { candidate = song }
+    else if let song = json["songData"] as? [String: Any] { candidate = song }
+    else if let song = json["songDTO"] as? [String: Any] { candidate = song }
+    else if let song = json["data"] as? [String: Any] { candidate = song }
+    else if let song = json["item"] as? [String: Any] { candidate = song }
+    else { candidate = json }
+    guard let dict = candidate else { return nil }
+    guard let id = dict["id"] as? String,
+          let title = dict["title"] as? String
+    else { return nil }
+    let duration: Int
+    if let d = dict["duration"] as? Int { duration = d }
+    else if let d = dict["duration"] as? Double { duration = Int(d) }
+    else if let d = dict["duration"] as? String, let parsed = Int(d) { duration = parsed }
+    else { duration = 0 }
+    let absolutePath = dict["absolutePath"] as? String
+    let cloudflareID = dict["cloudflareId"] as? String ?? dict["cloudflareID"] as? String
+    let coverArt: Media? = {
+      if let media = dict["coverArt"] as? [String: Any] {
+        return Media(absolutePath: media["absolutePath"] as? String)
+      }
+      return nil
+    }()
+    let originalArtists = dict["originalArtists"] as? [String]
+    let coverArtists = dict["coverArtists"] as? [String]
+    let userUploaded = dict["userUploaded"] as? Bool
+    return Song(
+      id: id,
+      title: title,
+      duration: duration,
+      absolutePath: absolutePath,
+      cloudflareID: cloudflareID,
+      coverArt: coverArt,
+      originalArtists: originalArtists,
+      coverArtists: coverArtists,
+      userUploaded: userUploaded
+    )
+  }
+
   static func randomSongs() async throws -> [Song] {
     var request = try request(
       path: "/api/songs/random",

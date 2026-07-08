@@ -4,9 +4,13 @@ import Testing
 
 @Suite("Song model")
 struct SongModelTests {
+    private func useGlobalStorageRegion() {
+        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+    }
+
     @Test("Cloudflare artwork URLs use the image CDN")
     func songImageURLWithCloudflareId() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let song = Song(
             id: "song-1",
             title: "Test Song",
@@ -43,7 +47,7 @@ struct SongModelTests {
 
     @Test("downloadCoverImageURL produces a WebP URL for songs with artwork")
     func downloadCoverImageURLWithArtwork() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let song = Song(
             id: "song-1",
             title: "Test Song",
@@ -64,6 +68,7 @@ struct SongModelTests {
 
     @Test("ArtworkURLBuilder upgrades Cloudflare delivery URLs to the resize route")
     func artworkVariantURLUsesCloudflareResizeRoute() throws {
+        useGlobalStorageRegion()
         let legacyURL = try #require(
             URL(string: "https://images.neurokaraoke.com/account-hash/image-id/width=180,quality=78,format=webp")
         )
@@ -77,6 +82,7 @@ struct SongModelTests {
 
     @Test("ArtworkURLBuilder keeps storage artwork on the storage resize route")
     func artworkVariantURLKeepsStorageResizeRoute() throws {
+        useGlobalStorageRegion()
         let storageURL = try #require(
             URL(string: "https://storage.neurokaraoke.com/cdn-cgi/image/width=180,quality=78,format=webp/media/artist/example.png")
         )
@@ -100,7 +106,7 @@ struct SongModelTests {
 
     @Test("downloadCoverImageURL is nil for songs without their own artwork")
     func downloadCoverImageURLWithoutArtwork() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let song = Song(
             id: "song-2",
             title: "Test Song",
@@ -118,7 +124,7 @@ struct SongModelTests {
 
     @Test("Audio URLs trim leading slashes")
     func songAudioURLNormalizesAbsolutePath() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let song = Song(
             id: "song-2",
             title: "Test Song",
@@ -137,7 +143,7 @@ struct SongModelTests {
 
     @Test("audioURL falls back to oss when absolutePath is nil")
     func songAudioURLFallsBackToOss() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let song = Song(
             id: "song-oss",
             title: "Uploaded Song",
@@ -177,7 +183,7 @@ struct SongModelTests {
 
     @Test("Song decodes oss field from JSON")
     func songDecodesOssField() {
-        UserDefaults.standard.set("global", forKey: "nk.storageRegion")
+        useGlobalStorageRegion()
         let json = """
         {"id":"s1","title":"T","duration":5,"absolutePath":null,"oss":"audio/test.mp3","userUploaded":true}
         """.data(using: .utf8)!

@@ -373,6 +373,11 @@ class AudioPlayerManager: ObservableObject {
     private var wasPlayingBeforeInterruption = false
     private var handlingAudioSessionInterruption = false
 
+    private let easterEggSongID = "73376790-47d2-4c17-a7fc-88d11dccd2f0"
+    private var easterEggQueuedForCurrentSong = false
+    private var easterEggLyricsTask: Task<Void, Never>?
+    private var easterEggSongTask: Task<Void, Never>?
+
     #if canImport(UIKit)
         private var trackTransitionTaskID: UIBackgroundTaskIdentifier = .invalid
     #endif
@@ -601,6 +606,8 @@ class AudioPlayerManager: ObservableObject {
             instrumentalTask?.cancel()
             backgroundAnalysisRetryTask?.cancel()
             remotePlaybackCacheTask?.cancel()
+            easterEggLyricsTask?.cancel()
+            easterEggSongTask?.cancel()
             if let existing = radioTimeObserver {
                 existing.player.removeTimeObserver(existing.token)
             }
@@ -1030,6 +1037,7 @@ class AudioPlayerManager: ObservableObject {
         cancelPlayerArtworkWarmups()
         instrumentalTask?.cancel()
         instrumentalTask = nil
+        resetEasterEggWork()
         cancelBackgroundAnalysisRetry()
         VocalSeparator.shared.cancel()
         VocalSeparator.shared.cancelBackgroundAnalysis()
@@ -1230,6 +1238,7 @@ class AudioPlayerManager: ObservableObject {
                 originalQueue = []
             }
         }
+        checkEasterEgg(for: song)
         // Songs with a remote source use the non-decompressing lookup; a
         // compressed-only cache falls through to startStreamPlayback, whose
         // cache-hit path decompresses off the main thread.
@@ -1315,6 +1324,8 @@ class AudioPlayerManager: ObservableObject {
         if !originalQueue.isEmpty {
             originalQueue = inserting(song, into: originalQueue, after: current)
         }
+        transitionCoordinator.reset()
+        upcomingSong = nil
     }
 
     private func startPlayingFile(_ url: URL, startAt: TimeInterval = 0) {
@@ -1910,6 +1921,7 @@ class AudioPlayerManager: ObservableObject {
     }
 
     func playRadio(streamURL: URL, song: Song, artworkURL: URL?) {
+        resetEasterEggWork()
         let alreadyOnSameStation = isRadioMode && currentSong?.id == song.id
         if alreadyOnSameStation {
             currentSong = song
@@ -2221,6 +2233,7 @@ class AudioPlayerManager: ObservableObject {
         remotePlaybackCacheTask?.cancel()
         instrumentalTask?.cancel()
         instrumentalTask = nil
+        resetEasterEggWork()
         preparedStemSongID = nil
         deferredAIEffect = nil
         VocalSeparator.shared.cancel()
@@ -2874,6 +2887,126 @@ class AudioPlayerManager: ObservableObject {
         }
     #endif
 
+    private func checkEasterEgg(for song: Song) {
+        resetEasterEggWork()
+
+        guard isEasterEggEnabled, !isRadioMode else { return }
+        if song.id == easterEggSongID { return }
+
+        if containsChinese(song.title) {
+            queueEasterEggSong()
+            return
+        }
+
+        easterEggLyricsTask = Task { [weak self] in
+            guard let self else { return }
+            let lyrics = await self.fetchLyricsForEasterEgg(songID: song.id)
+            guard !Task.isCancelled, let lyrics else { return }
+            let hasChinese = lyrics.contains { self.containsChinese($0.text) }
+            if hasChinese, Bool.random() {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    guard self.currentSong?.id == song.id else { return }
+                    self.queueEasterEggSong()
+                }
+            }
+        }
+    }
+
+    private var isEasterEggEnabled: Bool {
+        #if DEBUG
+            UserDefaults.standard.bool(forKey: "nk.easterEggEnabled")
+        #else
+            false
+        #endif
+    }
+
+    private func resetEasterEggWork() {
+        easterEggQueuedForCurrentSong = false
+        easterEggLyricsTask?.cancel()
+        easterEggLyricsTask = nil
+        easterEggSongTask?.cancel()
+        easterEggSongTask = nil
+    }
+
+    private func containsChinese(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            (0x3400...0x4DBF).contains(scalar.value) ||
+            (0x4E00...0x9FFF).contains(scalar.value) ||
+            (0xF900...0xFAFF).contains(scalar.value) ||
+            (0x20000...0x2A6DF).contains(scalar.value) ||
+            (0x2A700...0x2B73F).contains(scalar.value) ||
+            (0x2B740...0x2B81F).contains(scalar.value) ||
+            (0x2B820...0x2CEAF).contains(scalar.value) ||
+            (0x2F800...0x2FA1F).contains(scalar.value) ||
+            (0x3100...0x312F).contains(scalar.value)
+        }
+    }
+
+    private func fetchLyricsForEasterEgg(songID: String) async -> [LyricLine]? {
+        if let cached = LyricsCacheStore.load(songID: songID, variant: .translated) {
+            return cached
+        }
+        if let cached = LyricsCacheStore.load(songID: songID, variant: .original) {
+            return cached
+        }
+        let encoded = songID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? songID
+        guard let url = URL(string: "\(StorageHost.api)/api/songs/\(encoded)/lyrics") else { return nil }
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 15
+        GuestIdentity.applyIfNeeded(to: &request)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard !Task.isCancelled else { return nil }
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else { return nil }
+            guard let raw = try? JSONDecoder().decode([RawLyricLine].self, from: data) else { return nil }
+            let parsed = raw.compactMap { line -> LyricLine? in
+                guard let time = TimeSpanParser.parse(line.time) else { return nil }
+                return LyricLine(time: time, text: line.text)
+            }
+            if !parsed.isEmpty {
+                LyricsCacheStore.save(parsed, songID: songID, variant: .original)
+            }
+            return parsed
+        } catch {
+            return nil
+        }
+    }
+
+    private func queueEasterEggSong() {
+        guard isEasterEggEnabled else { return }
+        guard !easterEggQueuedForCurrentSong else { return }
+        easterEggQueuedForCurrentSong = true
+        let triggeringSongID = currentSong?.id
+        DebugLogger.log("Easter egg triggered — fetching song \(easterEggSongID)", category: .playback)
+        easterEggSongTask?.cancel()
+        easterEggSongTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let song = try await KaraokeAPIClient.fetchSong(id: self.easterEggSongID)
+                guard !Task.isCancelled else { return }
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.easterEggSongTask = nil
+                    guard self.currentSong?.id == triggeringSongID else { return }
+                    guard self.currentSong?.id != song.id else { return }
+                    self.playNext(song: song)
+                    DebugLogger.log("Easter egg song queued as next: \(song.title)", category: .playback)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                DebugLogger.log("Easter egg: failed to fetch song — \(error)", category: .playback)
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.easterEggQueuedForCurrentSong = false
+                    self.easterEggSongTask = nil
+                }
+            }
+        }
+    }
+
     private func fetchRandomTrending() {
         Task {
             guard let songs = try? await KaraokeAPIClient.trendingSongs(days: 7, take: 50),
@@ -3084,6 +3217,7 @@ class AudioPlayerManager: ObservableObject {
             }
         }
         upcomingSong = nil
+        checkEasterEgg(for: song)
         setPlaybackState(
             playing: true,
             buffering: false,

@@ -249,7 +249,7 @@ struct FullScreenPlayerView: View {
             if let id = newId {
                 fetchCoverArtArtist(songID: id)
             }
-            if showLyrics, !audioManager.isRadioMode, let id = newId {
+            if !audioManager.isRadioMode, let id = newId {
                 if upcomingLyricsViewModel.loadedSongID == id,
                    !upcomingLyricsViewModel.didFail,
                    !upcomingLyricsViewModel.isLoading,
@@ -266,7 +266,7 @@ struct FullScreenPlayerView: View {
             }
         }
         .onChange(of: audioManager.upcomingSong?.id) { _, upcomingId in
-            if showLyrics, !audioManager.isRadioMode, let id = upcomingId {
+            if !audioManager.isRadioMode, let id = upcomingId {
                 upcomingLyricsViewModel.fetch(songID: id)
             }
         }
@@ -285,6 +285,9 @@ struct FullScreenPlayerView: View {
             favorites.loadIfNeeded()
             if let id = audioManager.currentSong?.id {
                 fetchCoverArtArtist(songID: id)
+                if !audioManager.isRadioMode {
+                    lyricsViewModel.fetch(songID: id)
+                }
             }
         }
     }
