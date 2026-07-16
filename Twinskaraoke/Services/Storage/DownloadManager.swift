@@ -20,9 +20,19 @@ private nonisolated final class DownloadTaskRegistry: @unchecked Sendable {
         lock.unlock()
     }
 
-    func clear() {
+    func suspendAll() -> [String: UUID] {
         lock.lock()
+        defer { lock.unlock() }
+        let tokens = activeTokens
         activeTokens.removeAll()
+        return tokens
+    }
+
+    func restore(_ tokens: [String: UUID]) {
+        lock.lock()
+        for (songID, token) in tokens where activeTokens[songID] == nil {
+            activeTokens[songID] = token
+        }
         lock.unlock()
     }
 
@@ -500,10 +510,42 @@ final class DownloadManager: ObservableObject {
     }
 
     func removeAll() {
+        let fm = FileManager.default
+        let deletionDirectory = cacheDir.deletingLastPathComponent().appendingPathComponent(
+            "\(Self.pendingDeletionPrefix)\(UUID().uuidString)",
+            isDirectory: true
+        )
+        let suspendedTokens = taskRegistry.suspendAll()
+        var stagedDirectory: URL?
+        if fm.fileExists(atPath: cacheDir.path) {
+            do {
+                try fm.moveItem(at: cacheDir, to: deletionDirectory)
+                stagedDirectory = deletionDirectory
+            } catch let stagingError {
+                do {
+                    try fm.removeItem(at: cacheDir)
+                } catch let deletionError {
+                    taskRegistry.restore(suspendedTokens)
+                    DebugLogger.log(
+                        "Could not remove downloads: staging failed (\(stagingError)); deletion failed (\(deletionError))",
+                        category: .network
+                    )
+                    return
+                }
+            }
+        }
+
+        do {
+            try fm.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        } catch {
+            // Song-directory creation also recreates missing parents, so a
+            // failed empty-directory recreation does not invalidate removal.
+            DebugLogger.log("Could not recreate downloads directory: \(error)", category: .cache)
+        }
+
         for task in tasks.values {
             task.cancel()
         }
-        taskRegistry.clear()
         tasks.removeAll()
         queuedDownloads.removeAll()
         queuedDownloadOrder.removeAll()
@@ -514,22 +556,12 @@ final class DownloadManager: ObservableObject {
         validDownloadCache.removeAll()
         downloadedMetadata.removeAll()
 
-        let fm = FileManager.default
-        let deletionDirectory = cacheDir.deletingLastPathComponent().appendingPathComponent(
-            "\(Self.pendingDeletionPrefix)\(UUID().uuidString)",
-            isDirectory: true
-        )
-        do {
-            if fm.fileExists(atPath: cacheDir.path) {
-                try fm.moveItem(at: cacheDir, to: deletionDirectory)
-            }
-            try fm.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        if let stagedDirectory {
             Self.deletionQueue.async {
-                try? FileManager.default.removeItem(at: deletionDirectory)
+                try? FileManager.default.removeItem(at: stagedDirectory)
             }
-        } catch {
+        } else if !fm.fileExists(atPath: cacheDir.path) {
             try? fm.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            DebugLogger.log("Could not stage downloads for deletion: \(error)", category: .cache)
         }
         updatePublishedState { state in
             state.downloadedIDs.removeAll()

@@ -142,10 +142,20 @@ final class CacheManager: ObservableObject {
         Self.maintenanceQueue.async { [weak self] in
             guard let self else { return }
             removeAllFiles(in: dir)
+            let remainingSize = measuredDirectorySize(at: dir)
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                musicCacheSize = 0
-                DebugLogger.log("Music cache cleared", category: .cache)
+                guard let remainingSize else {
+                    DebugLogger.log("Could not verify music cache deletion", category: .cache)
+                    return
+                }
+                musicCacheSize = remainingSize
+                DebugLogger.log(
+                    remainingSize == 0
+                        ? "Music cache cleared"
+                        : "Music cache clear incomplete: \(formatBytes(remainingSize)) remains",
+                    category: .cache
+                )
             }
         }
     }
@@ -154,10 +164,20 @@ final class CacheManager: ObservableObject {
         Self.maintenanceQueue.async { [weak self] in
             guard let self else { return }
             LyricsCacheStore.clear()
+            let remainingSize = measuredDirectorySize(at: LyricsCacheStore.cacheDirectory)
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                lyricsCacheSize = 0
-                DebugLogger.log("Lyrics cache cleared", category: .cache)
+                guard let remainingSize else {
+                    DebugLogger.log("Could not verify lyrics cache deletion", category: .cache)
+                    return
+                }
+                lyricsCacheSize = remainingSize
+                DebugLogger.log(
+                    remainingSize == 0
+                        ? "Lyrics cache cleared"
+                        : "Lyrics cache clear incomplete: \(formatBytes(remainingSize)) remains",
+                    category: .cache
+                )
             }
         }
     }
@@ -253,13 +273,18 @@ final class CacheManager: ObservableObject {
     // MARK: - File helpers
 
     private nonisolated func directorySize(at url: URL) -> UInt64 {
+        measuredDirectorySize(at: url) ?? 0
+    }
+
+    private nonisolated func measuredDirectorySize(at url: URL) -> UInt64? {
         let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path) else { return 0 }
         guard let enumerator = fm.enumerator(
             at: url,
             includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
             options: [.skipsHiddenFiles]
         )
-        else { return 0 }
+        else { return nil }
 
         var total: UInt64 = 0
         for case let fileURL as URL in enumerator {
