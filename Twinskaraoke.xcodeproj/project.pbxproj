@@ -1137,7 +1137,7 @@
 			repositoryURL = "https://github.com/LeoNatan/LNPopupUI";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 3.0.4;
+				minimumVersion = 3.1.0;
 			};
 		};
 		D0C385962FB0BD870055284E /* XCRemoteSwiftPackageReference "swift-spleeter" */ = {
