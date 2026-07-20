@@ -47,6 +47,17 @@ private nonisolated final class DownloadTaskRegistry: @unchecked Sendable {
 struct SongDownloadStatus: Equatable, Sendable {
     let isDownloaded: Bool
     let isDownloading: Bool
+
+    static func make(
+        downloadedIDs: Set<String>,
+        inProgress: Set<String>,
+        songID: String
+    ) -> SongDownloadStatus {
+        SongDownloadStatus(
+            isDownloaded: downloadedIDs.contains(songID),
+            isDownloading: inProgress.contains(songID)
+        )
+    }
 }
 
 @MainActor
@@ -92,7 +103,6 @@ final class DownloadManager: ObservableObject {
     private var pendingWiFiRepairs: [String: Song] = [:]
     private var validDownloadCache: [String: ValidDownloadCacheEntry] = [:]
     private var downloadedMetadata: [String: Song] = [:]
-    private var statusObservers: [String: [UUID: (SongDownloadStatus) -> Void]] = [:]
     private var isWiFiAvailable = false
     private let taskRegistry = DownloadTaskRegistry()
     private let downloadSession: URLSession
@@ -208,28 +218,24 @@ final class DownloadManager: ObservableObject {
     }
 
     func status(for songID: String) -> SongDownloadStatus {
-        SongDownloadStatus(
-            isDownloaded: downloadedIDs.contains(songID),
-            isDownloading: inProgress.contains(songID)
+        SongDownloadStatus.make(
+            downloadedIDs: downloadedIDs,
+            inProgress: inProgress,
+            songID: songID
         )
     }
 
-    func observeStatus(
-        for songID: String,
-        _ observer: @escaping (SongDownloadStatus) -> Void
-    ) -> AnyCancellable {
-        let observerID = UUID()
-        statusObservers[songID, default: [:]][observerID] = observer
-        observer(status(for: songID))
-        return AnyCancellable { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                statusObservers[songID]?.removeValue(forKey: observerID)
-                if statusObservers[songID]?.isEmpty == true {
-                    statusObservers.removeValue(forKey: songID)
-                }
+    func statusPublisher(for songID: String) -> AnyPublisher<SongDownloadStatus, Never> {
+        $publishedState
+            .map { state in
+                SongDownloadStatus.make(
+                    downloadedIDs: state.downloadedIDs,
+                    inProgress: state.inProgress,
+                    songID: songID
+                )
             }
-        }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 
     private func updatePublishedState(_ update: (inout PublishedState) -> Void) {
@@ -237,20 +243,7 @@ final class DownloadManager: ObservableObject {
         var next = previous
         update(&next)
         guard next != previous else { return }
-        let changedSongIDs = previous.downloadedIDs.symmetricDifference(next.downloadedIDs)
-            .union(previous.inProgress.symmetricDifference(next.inProgress))
         publishedState = next
-        for songID in changedSongIDs {
-            let status = SongDownloadStatus(
-                isDownloaded: next.downloadedIDs.contains(songID),
-                isDownloading: next.inProgress.contains(songID)
-            )
-            if let observers = statusObservers[songID] {
-                for observer in observers.values {
-                    observer(status)
-                }
-            }
-        }
     }
 
     var hasActiveQueue: Bool {

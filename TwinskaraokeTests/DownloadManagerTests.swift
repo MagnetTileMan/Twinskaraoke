@@ -85,6 +85,34 @@ struct DownloadManagerTests {
         )
     }
 
+    @Test("Download status reflects only the requested song")
+    func downloadStatusUsesRequestedSong() {
+        let downloadedIDs: Set<String> = ["downloaded"]
+        let inProgress: Set<String> = ["downloading"]
+
+        #expect(
+            SongDownloadStatus.make(
+                downloadedIDs: downloadedIDs,
+                inProgress: inProgress,
+                songID: "downloaded"
+            ) == SongDownloadStatus(isDownloaded: true, isDownloading: false)
+        )
+        #expect(
+            SongDownloadStatus.make(
+                downloadedIDs: downloadedIDs,
+                inProgress: inProgress,
+                songID: "downloading"
+            ) == SongDownloadStatus(isDownloaded: false, isDownloading: true)
+        )
+        #expect(
+            SongDownloadStatus.make(
+                downloadedIDs: downloadedIDs,
+                inProgress: inProgress,
+                songID: "other"
+            ) == SongDownloadStatus(isDownloaded: false, isDownloading: false)
+        )
+    }
+
     @Test("Audio cache access does not mutate persistent download files")
     func cacheTouchLeavesExternalFilesUnchanged() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
