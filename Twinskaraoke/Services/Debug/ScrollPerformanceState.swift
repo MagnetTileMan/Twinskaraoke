@@ -31,12 +31,10 @@ final class ScrollPerformanceState: ObservableObject {
         }
 
         let generation = scrollEndGeneration
-        let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self, self.scrollEndGeneration == generation else { return }
-                self.scrollEndWorkItem = nil
-                self.setScrolling(false)
-            }
+        let workItem = DispatchWorkItem { @MainActor [weak self] in
+            guard let self, self.scrollEndGeneration == generation else { return }
+            self.scrollEndWorkItem = nil
+            self.setScrolling(false)
         }
         scrollEndWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)

@@ -10,6 +10,7 @@ private final class SongDownloadRowState: ObservableObject {
         let manager = DownloadManager.shared
         status = manager.status(for: songID)
         cancellable = manager.statusPublisher(for: songID)
+            .dropFirst()
             .sink { [weak self] status in
                 self?.status = status
             }
