@@ -60,23 +60,11 @@ struct DownloadedSongsView: View {
                         .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
                     }
                     .padding(.bottom, 16)
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: DownloadedCollapsedTitleKey.self,
-                                value: proxy.frame(in: .named("downloadedScroll")).minY < -180
-                            )
-                        }
-                    )
                 }
             }
             .smoothScrolling()
-            .coordinateSpace(name: "downloadedScroll")
             .bottomChromeScrollTracking()
-            .onPreferenceChange(DownloadedCollapsedTitleKey.self) { collapsed in
-                guard showsCollapsedTitle != collapsed else { return }
-                showsCollapsedTitle = collapsed
-            }
+            .collapsedNavigationTitle($showsCollapsedTitle)
         }
         .navigationTitle(showsCollapsedTitle ? "Downloaded" : "")
         .navigationBarTitleDisplayMode(.inline)
@@ -102,10 +90,6 @@ struct DownloadedSongsView: View {
         }
         .musicScreenBackground()
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsCollapsedTitle)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
-            value: localSongs.map(\.id)
-        )
         .scrollIndicators(.hidden)
         .refreshable {
             AppHaptic.selection.play()
@@ -434,12 +418,5 @@ private struct DownloadedSongsMenu: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
-    }
-}
-
-private struct DownloadedCollapsedTitleKey: PreferenceKey {
-    static var defaultValue = false
-    static func reduce(value: inout Bool, nextValue: () -> Bool) {
-        value = value || nextValue()
     }
 }

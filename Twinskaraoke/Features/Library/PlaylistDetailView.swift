@@ -8,7 +8,7 @@ struct PlaylistDetailView: View {
     @StateObject private var loader = PlaylistDetailViewModel()
     @ObservedObject private var favorites = FavoritesManager.shared
     @ObservedObject private var fallbackArt = FallbackArtProvider.shared
-    @State private var scrollOffset: CGFloat = 0
+    @State private var showsCollapsedTitle = false
     private func usesWideOverview(availableWidth: CGFloat) -> Bool {
         AM.Layout.usesWideCanvas(
             horizontalSizeClass: horizontalSizeClass,
@@ -23,23 +23,14 @@ struct PlaylistDetailView: View {
             ScrollView {
                 playlistOverview(songs: songs, width: geo.size.width)
                     .padding(.bottom, 16)
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: ScrollOffsetKey.self,
-                                value: proxy.frame(in: .named("playlistScroll")).minY
-                            )
-                        }
-                    )
             }
             .smoothScrolling()
-            .coordinateSpace(name: "playlistScroll")
             .bottomChromeScrollTracking()
-            .onPreferenceChange(ScrollOffsetKey.self) { scrollOffset = quantizedScrollOffset($0) }
+            .collapsedNavigationTitle($showsCollapsedTitle)
         }
-        .navigationTitle(scrollOffset < -180 ? playlist.name : "")
+        .navigationTitle(showsCollapsedTitle ? playlist.name : "")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(scrollOffset < -180 ? .visible : .hidden, for: .navigationBar)
+        .toolbarBackground(showsCollapsedTitle ? .visible : .hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 PlaylistMoreMenu(
@@ -50,11 +41,7 @@ struct PlaylistDetailView: View {
         }
         .animation(
             reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-            value: scrollOffset < -180
-        )
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
-            value: songs.count
+            value: showsCollapsedTitle
         )
         .animation(
             reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
@@ -169,16 +156,16 @@ struct PlaylistDetailView: View {
 
     private func parallaxHero(width: CGFloat) -> some View {
         let baseSize: CGFloat = 240
-        let stretch = reduceMotion ? 0 : max(0, scrollOffset)
-        let shrink = reduceMotion ? 0 : max(0, -scrollOffset * 0.4)
-        let size = max(140, baseSize + stretch * 0.6 - shrink)
-        let yOffset = reduceMotion ? 0 : (scrollOffset > 0 ? -scrollOffset / 2 : 0)
-        let artworkOpacity = reduceMotion ? 1 : 1 - min(0.7, max(0, -scrollOffset / 250))
-        return playlistArtwork(size: size)
+        return playlistArtwork(size: baseSize)
             .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
-            .opacity(artworkOpacity)
             .frame(width: width)
-            .offset(y: yOffset)
+            .frame(height: baseSize)
+            .scrollParallaxHero(
+                baseSize: baseSize,
+                restingOffset: 12,
+                fadesWhenCollapsed: true,
+                reduceMotion: reduceMotion
+            )
             .padding(.top, 12)
     }
 
@@ -365,15 +352,4 @@ private struct PlaylistMoreMenu: View {
         }
         .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.65, haptic: .selection))
     }
-}
-
-private struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private func quantizedScrollOffset(_ offset: CGFloat) -> CGFloat {
-    (offset / 8).rounded() * 8
 }

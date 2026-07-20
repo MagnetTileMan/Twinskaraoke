@@ -5,6 +5,42 @@ extension View {
     func smoothScrolling(bounceBehavior: ScrollBounceBehavior = .basedOnSize) -> some View {
         modifier(SmoothScrollingModifier(bounceBehavior: bounceBehavior))
     }
+
+    func collapsedNavigationTitle(
+        _ isCollapsed: Binding<Bool>,
+        threshold: CGFloat = 180
+    ) -> some View {
+        onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top > threshold
+        } action: { _, collapsed in
+            guard isCollapsed.wrappedValue != collapsed else { return }
+            isCollapsed.wrappedValue = collapsed
+        }
+    }
+
+    func scrollParallaxHero(
+        baseSize: CGFloat,
+        restingOffset: CGFloat = 0,
+        fadesWhenCollapsed: Bool = false,
+        reduceMotion: Bool
+    ) -> some View {
+        visualEffect { content, proxy in
+            let rawOffset = proxy.frame(in: .scrollView(axis: .vertical)).minY - restingOffset
+            let pullDown = reduceMotion ? 0 : max(0, rawOffset)
+            let collapse = reduceMotion ? 0 : max(0, -rawOffset)
+            let scale = max(
+                140 / max(baseSize, 1),
+                1 + (pullDown * 0.6 - collapse * 0.4) / max(baseSize, 1)
+            )
+            let yOffset = pullDown > 0 ? -pullDown / 2 : 0
+            let opacity = fadesWhenCollapsed ? 1 - min(0.7, collapse / 250) : 1
+
+            return content
+                .scaleEffect(scale)
+                .offset(y: yOffset)
+                .opacity(opacity)
+        }
+    }
 }
 
 private struct SmoothScrollingModifier: ViewModifier {
@@ -27,33 +63,5 @@ private struct SmoothScrollingModifier: ViewModifier {
         } else {
             configured
         }
-    }
-}
-
-struct SmoothScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        let next = nextValue()
-        if abs(next - value) >= 1 {
-            value = next
-        }
-    }
-}
-
-extension ScrollView {
-    func trackScrollOffset(_ offset: Binding<CGFloat>, coordinateSpace: String = "scroll") -> some View {
-        self
-            .coordinateSpace(name: coordinateSpace)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: SmoothScrollOffsetPreferenceKey.self,
-                        value: proxy.frame(in: .named(coordinateSpace)).minY
-                    )
-                }
-            )
-            .onPreferenceChange(SmoothScrollOffsetPreferenceKey.self) { value in
-                offset.wrappedValue = value
-            }
     }
 }

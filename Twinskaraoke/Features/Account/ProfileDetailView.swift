@@ -102,8 +102,6 @@ struct ProfileDetailView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-        .animation(profileAnimation, value: badges.count)
-        .animation(profileAnimation, value: unlocked.count)
     }
 
     private func selectBadge(_ badge: Badge) {

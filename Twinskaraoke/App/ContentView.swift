@@ -523,13 +523,14 @@ private struct PopupContent: View {
     var body: some View {
         FullScreenPlayerView()
             .environmentObject(AudioPlayerManager.shared)
-            .modifier(
-                PopupTitleModifier(
+            .background {
+                PopupMetadataPreferences(
                     title: popupState.title,
-                    subtitle: popupState.subtitle
+                    subtitle: popupState.subtitle,
+                    artwork: popupState.artwork
                 )
-            )
-            .modifier(PopupImageModifier(artwork: popupState.artwork))
+                .equatable()
+            }
             .popupBarButtons {
                 PopupBarTrailingItems(
                     isPlaying: popupState.isPlaying,
@@ -551,19 +552,28 @@ private struct PopupContent: View {
     }
 }
 
-private struct PopupTitleModifier: ViewModifier, Equatable {
+private struct PopupMetadataPreferences: View, Equatable {
     let title: String
     let subtitle: String
-    func body(content: Content) -> some View {
-        content.popupTitle(title, subtitle: subtitle)
+    let artwork: UIImage?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.title == rhs.title
+            && lhs.subtitle == rhs.subtitle
+            && lhs.artwork === rhs.artwork
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityHidden(true)
+            .popupTitle(verbatim: title, subtitle: subtitle)
+            .modifier(PopupMetadataImageModifier(artwork: artwork))
     }
 }
 
-private struct PopupImageModifier: ViewModifier, Equatable {
+private struct PopupMetadataImageModifier: ViewModifier {
     let artwork: UIImage?
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.artwork === rhs.artwork
-    }
 
     func body(content: Content) -> some View {
         if let artwork {

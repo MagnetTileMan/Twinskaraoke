@@ -4,7 +4,6 @@ import SwiftUI
 
 struct ArtistsView: View {
     @StateObject private var viewModel = ArtistsViewModel()
-    @Environment(\.appReduceMotion) private var reduceMotion
     @State private var searchText = ""
 
 
@@ -69,7 +68,6 @@ struct ArtistsView: View {
             viewModel.refresh()
         }
         .onAppear { viewModel.fetchInitial() }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: displayedArtists.map(\.id))
     }
 }
 
@@ -140,7 +138,7 @@ struct ArtistDetailView: View {
     let artist: Artist
     @StateObject private var loader = ArtistDetailViewModel()
     @Environment(\.appReduceMotion) private var reduceMotion
-    @State private var scrollOffset: CGFloat = 0
+    @State private var showsCollapsedTitle = false
     private var current: Artist {
         loader.artist ?? artist
     }
@@ -204,24 +202,15 @@ struct ArtistDetailView: View {
                     aboutSection
                 }
                 .padding(.bottom, 16)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: ArtistScrollOffsetKey.self,
-                            value: proxy.frame(in: .named("artistScroll")).minY
-                        )
-                    }
-                )
             }
             .scrollIndicators(.hidden)
             .smoothScrolling()
-            .coordinateSpace(name: "artistScroll")
-            .onPreferenceChange(ArtistScrollOffsetKey.self) { scrollOffset = quantizedScrollOffset($0) }
+            .collapsedNavigationTitle($showsCollapsedTitle)
         }
         .musicScreenBackground()
-        .navigationTitle(scrollOffset < -180 ? current.name : "")
+        .navigationTitle(showsCollapsedTitle ? current.name : "")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(scrollOffset < -180 ? .visible : .hidden, for: .navigationBar)
+        .toolbarBackground(showsCollapsedTitle ? .visible : .hidden, for: .navigationBar)
         .toolbar {
             if !songs.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -238,11 +227,7 @@ struct ArtistDetailView: View {
                 }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: scrollOffset < -180)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.82),
-            value: songs.map(\.id)
-        )
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsCollapsedTitle)
         .onAppear { loader.load(id: artist.id, fallback: artist) }
     }
 
@@ -254,18 +239,18 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private func parallaxHero(width: CGFloat) -> some View {
         let baseSize: CGFloat = 240
-        let stretch = reduceMotion ? 0 : max(0, scrollOffset)
-        let shrink = reduceMotion ? 0 : max(0, -scrollOffset * 0.4)
-        let size = max(140, baseSize + stretch * 0.6 - shrink)
-        let yOffset = reduceMotion ? 0 : (scrollOffset > 0 ? -scrollOffset / 2 : 0)
-        let artworkOpacity = reduceMotion ? 1 : 1 - min(0.7, max(0, -scrollOffset / 250))
         ArtistAvatar(url: current.imageURL)
-            .frame(width: size, height: size)
+            .frame(width: baseSize, height: baseSize)
             .clipShape(Circle())
             .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
-            .opacity(artworkOpacity)
             .frame(width: width)
-            .offset(y: yOffset)
+            .frame(height: baseSize)
+            .scrollParallaxHero(
+                baseSize: baseSize,
+                restingOffset: 12,
+                fadesWhenCollapsed: true,
+                reduceMotion: reduceMotion
+            )
             .padding(.top, 12)
             .contextMenu {
                 if !songs.isEmpty {
@@ -512,15 +497,4 @@ private struct ArtistActionsMenu: View {
             }
         }
     }
-}
-
-private struct ArtistScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private func quantizedScrollOffset(_ offset: CGFloat) -> CGFloat {
-    (offset / 8).rounded() * 8
 }

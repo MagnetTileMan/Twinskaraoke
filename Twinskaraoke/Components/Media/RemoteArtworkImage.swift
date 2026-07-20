@@ -11,6 +11,7 @@ struct RemoteArtworkImage: View {
     var fullResolution: Bool = false
 
     var fixedDisplaySize: CGSize?
+    @ObservedObject private var scrollState = ScrollPerformanceState.shared
     @State private var fullLoaded: Bool = false
     @State private var loadFailed: Bool = false
     @State private var renderedFullURL: URL?
@@ -82,7 +83,11 @@ struct RemoteArtworkImage: View {
                     ArtworkLoadMetrics.shared.record(cacheType: cacheType)
                     markRendered(url)
                 }
-                .transition(.opacity.animation(AppMotion.spring(response: 0.15, dampingFraction: 0.9)))
+                .transition(
+                    shouldAnimateLoad
+                        ? .opacity.animation(AppMotion.spring(response: 0.15, dampingFraction: 0.9))
+                        : .identity
+                )
             }
         }
     }
@@ -91,7 +96,7 @@ struct RemoteArtworkImage: View {
         guard url == loadedURL, renderedFullURL != loadedURL || !fullLoaded || loadFailed else { return }
         Task { @MainActor in
             guard url == loadedURL, renderedFullURL != loadedURL || !fullLoaded || loadFailed else { return }
-            withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
+            withOptionalAnimation(loadAnimation) {
                 renderedFullURL = loadedURL
                 fullLoaded = true
                 loadFailed = false
@@ -111,16 +116,26 @@ struct RemoteArtworkImage: View {
         evictFailedImageCache(for: failedURL)
         Task { @MainActor in
             guard url == failedURL, !loadFailed else { return }
-            withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
+            withOptionalAnimation(loadAnimation) {
                 loadFailed = true
             }
             try? await Task.sleep(nanoseconds: ArtworkFailureBackoff.shared.cooldownNanoseconds)
             guard url == failedURL, loadFailed else { return }
             ArtworkFailureBackoff.shared.clear(failedURL)
-            withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
+            withOptionalAnimation(loadAnimation) {
                 loadFailed = false
             }
         }
+    }
+
+    private var shouldAnimateLoad: Bool {
+        guard !scrollState.isScrolling else { return false }
+        guard let fixedDisplaySize else { return true }
+        return max(fixedDisplaySize.width, fixedDisplaySize.height) > 96
+    }
+
+    private var loadAnimation: Animation? {
+        shouldAnimateLoad ? AppMotion.spring(response: 0.12, dampingFraction: 0.9) : nil
     }
 
     private static func redactedURLString(_ url: URL) -> String {

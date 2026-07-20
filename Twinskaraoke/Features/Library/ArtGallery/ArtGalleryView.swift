@@ -97,10 +97,6 @@ struct ArtGalleryView: View {
             viewModel.fetch(force: true)
         }
         .onAppear { viewModel.fetch() }
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.84),
-            value: viewModel.artists.count
-        )
     }
 
     private var featuredArt: (art: GalleryArt, artist: GalleryArtist)? {

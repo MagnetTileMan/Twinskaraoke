@@ -3,6 +3,7 @@ import SwiftUI
 struct EqualizerBars: View {
     let isAnimating: Bool
     @Environment(\.appReduceMotion) private var reduceMotion
+    @ObservedObject private var scrollState = ScrollPerformanceState.shared
     @State private var startDate = Date()
     @State private var isVisible: Bool = false
 
@@ -11,7 +12,7 @@ struct EqualizerBars: View {
             let barWidth = geo.size.width / 5
             TimelineView(
                 .animation(
-                    minimumInterval: DisplayRefreshRate.lightweightAnimationInterval,
+                    minimumInterval: DisplayRefreshRate.decorativeAnimationInterval,
                     paused: !shouldAnimateBars
                 )
             ) { context in
@@ -48,6 +49,6 @@ struct EqualizerBars: View {
     }
 
     private var shouldAnimateBars: Bool {
-        isAnimating && isVisible && !reduceMotion
+        isAnimating && isVisible && !reduceMotion && !scrollState.isScrolling
     }
 }

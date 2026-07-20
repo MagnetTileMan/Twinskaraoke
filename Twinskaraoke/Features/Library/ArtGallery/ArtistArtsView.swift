@@ -73,10 +73,6 @@ struct ArtistArtsView: View {
         .smoothScrolling()
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.84),
-            value: arts.count
-        )
     }
 }
 

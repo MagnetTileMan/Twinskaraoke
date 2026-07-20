@@ -866,8 +866,8 @@ struct FullScreenPlayerView: View {
 
     private func backgroundView(song: Song) -> some View {
         PlayerAmbientBackground(
-            artworkURL: audioManager.displayImageURL(for: song, variant: .card),
-            isPlaying: audioManager.isPlaying
+            artworkURL: audioManager.displayImageURL(for: song, variant: .blur),
+            isPlaying: audioManager.isPlaying && popupPresentation.isExpanded
         )
         .id(song.id)
     }

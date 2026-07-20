@@ -99,7 +99,7 @@ struct MarqueeText: View {
         animationTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(startDelay * 1_000_000_000))
             while !Task.isCancelled {
-                withOptionalAnimation(AppMotion.spring(response: duration, dampingFraction: 0.9)) {
+                withOptionalAnimation(AppMotion.linear(duration: duration)) {
                     phase = distance
                 }
                 try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))

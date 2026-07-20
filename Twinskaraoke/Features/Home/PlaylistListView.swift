@@ -6,7 +6,6 @@ struct PlaylistListView: View {
     let playlists: [Playlist]
     var apiURL: ((Int, Int) -> String)?
     let cols = AM.Layout.playlistGridColumns
-    @Environment(\.appReduceMotion) private var reduceMotion
     @StateObject private var loader = PlaylistListLoader()
     @State private var searchText = ""
     private var allPlaylists: [Playlist] {
@@ -71,10 +70,6 @@ struct PlaylistListView: View {
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Search Playlists"
-        )
-        .animation(
-            reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-            value: displayedPlaylists.map(\.id)
         )
         .onAppear {
             if let apiURL {

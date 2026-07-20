@@ -85,7 +85,6 @@ struct RadioQueueView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                     .animation(scheduleAnimation(response: 0.28), value: currentSong?.displayTitle)
-                    .animation(scheduleAnimation(response: 0.24), value: history.count)
                 }
                 .smoothScrolling()
                 .refreshable { await radio.refresh() }

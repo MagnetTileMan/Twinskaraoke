@@ -5,6 +5,8 @@ struct NewView: View {
     @StateObject private var recentlyPlayed = RecentlyPlayedStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
+    @State private var lastSongArtworkPrefetchURLs: [String] = []
+    @State private var lastPlaylistArtworkPrefetchKeys: [String] = []
 
     private var loadingAnimation: Animation? {
         reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
@@ -39,12 +41,11 @@ struct NewView: View {
                 }
             }
             .refreshable { viewModel.fetchHomeData(force: true) }
-            .onChange(of: viewModel.isLoading) { _, isLoading in
-                guard !isLoading else { return }
-                prefetchVisibleArtwork()
+            .onChange(of: artworkPrefetchSignature) { _, _ in
+                prefetchVisibleArtworkIfNeeded()
             }
             .onAppear {
-                prefetchVisibleArtwork()
+                prefetchVisibleArtworkIfNeeded()
             }
             .onDisappear {
                 ArtworkPrefetcher.shared.cancel(reason: "new songs")
@@ -162,16 +163,50 @@ struct NewView: View {
         .accessibilityIdentifier("New.WideOverview")
     }
 
-    private func prefetchVisibleArtwork() {
-        let songs =
-            [viewModel.newReleases.first, viewModel.trending.first].compactMap { $0 }
+    private var artworkPrefetchSongs: [Song] {
+        [viewModel.newReleases.first, viewModel.trending.first].compactMap { $0 }
             + Array(viewModel.newReleases.prefix(12))
             + Array(viewModel.trending.prefix(8))
-        ArtworkPrefetcher.shared.prefetchSongs(songs, limit: 18, reason: "new songs")
-        ArtworkPrefetcher.shared.prefetchPlaylists(
-            Array((viewModel.recentPlaylists + recentlyPlayed.playlists).prefix(8)),
-            limit: 12,
-            reason: "new playlists"
+    }
+
+    private var artworkPrefetchPlaylists: [Playlist] {
+        Array((viewModel.recentPlaylists + recentlyPlayed.playlists).prefix(8))
+    }
+
+    private var artworkPrefetchSignature: NewArtworkPrefetchSignature {
+        NewArtworkPrefetchSignature(
+            songURLs: artworkPrefetchSongs.compactMap(\.imageURL).map(\.absoluteString),
+            playlistKeys: artworkPrefetchPlaylists.map { playlist in
+                let coverURL = playlist.imageURL(variant: .card)?.absoluteString ?? ""
+                let mosaicURLs = playlist.initialMosaicArtworkURLs.map(\.absoluteString).joined(separator: "|")
+                return "\(playlist.id)|\(coverURL)|\(mosaicURLs)"
+            }
         )
     }
+
+    private func prefetchVisibleArtworkIfNeeded() {
+        let signature = artworkPrefetchSignature
+        if !signature.songURLs.isEmpty,
+           signature.songURLs != lastSongArtworkPrefetchURLs
+        {
+            lastSongArtworkPrefetchURLs = signature.songURLs
+            ArtworkPrefetcher.shared.prefetchSongs(artworkPrefetchSongs, limit: 18, reason: "new songs")
+        }
+
+        if !signature.playlistKeys.isEmpty,
+           signature.playlistKeys != lastPlaylistArtworkPrefetchKeys
+        {
+            lastPlaylistArtworkPrefetchKeys = signature.playlistKeys
+            ArtworkPrefetcher.shared.prefetchPlaylists(
+                artworkPrefetchPlaylists,
+                limit: 12,
+                reason: "new playlists"
+            )
+        }
+    }
+}
+
+private struct NewArtworkPrefetchSignature: Equatable {
+    let songURLs: [String]
+    let playlistKeys: [String]
 }

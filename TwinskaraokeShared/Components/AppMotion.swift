@@ -17,12 +17,12 @@ enum DisplayRefreshRate {
     #endif
   }
 
-  static var isHighRefreshDisplay: Bool {
-    maximumFramesPerSecond > 60
+  static var lightweightAnimationInterval: TimeInterval {
+    1.0 / Double(min(maximumFramesPerSecond, 60))
   }
 
-  static var lightweightAnimationInterval: TimeInterval {
-    1.0 / Double(maximumFramesPerSecond)
+  static var decorativeAnimationInterval: TimeInterval {
+    1.0 / 30.0
   }
 }
 
@@ -76,8 +76,7 @@ enum AppMotion {
   }
 
   static func duration(_ seconds: TimeInterval) -> TimeInterval {
-    guard DisplayRefreshRate.isHighRefreshDisplay else { return seconds }
-    return seconds * 0.92
+    max(0, seconds)
   }
 
   static func easeInOut(duration seconds: TimeInterval) -> Animation {

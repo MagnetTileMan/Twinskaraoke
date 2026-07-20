@@ -69,10 +69,6 @@ struct RandomSongsView: View {
         .task {
             await viewModel.loadIfNeeded()
         }
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
-            value: viewModel.songs.map(\.id)
-        )
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: viewModel.isLoading)
     }
 

@@ -33,7 +33,6 @@ struct LibraryView: View {
     @ObservedObject private var savedStore = SavedPlaylistsStore.shared
     @ObservedObject private var addedTracker = RecentlyAddedTracker.shared
     @ObservedObject private var favorites = FavoritesManager.shared
-    @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showCreateSheet = false
     @State private var path = NavigationPath()
@@ -95,10 +94,6 @@ struct LibraryView: View {
             .onChange(of: favorites.favoriteIDs) { _, _ in
                 viewModel.fetchFavoriteSongs(force: true)
             }
-            .animation(
-                reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-                value: recentlyAddedSongs.map(\.id)
-            )
             .sheet(isPresented: $showCreateSheet) {
                 CreatePlaylistSheet()
             }
@@ -365,11 +360,6 @@ struct LibrarySongsView: View {
     @StateObject private var viewModel = LibrarySongsViewModel()
     @Environment(\.appReduceMotion) private var reduceMotion
 
-
-    private var listAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84)
-    }
-
     var body: some View {
         let songs = viewModel.displayedSongs
         let isSearching = !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -458,8 +448,6 @@ struct LibrarySongsView: View {
         .onDisappear {
             ArtworkPrefetcher.shared.cancel(reason: "library visible songs")
         }
-        .animation(listAnimation, value: songs.map(\.id))
-        .animation(listAnimation, value: viewModel.sort)
     }
 
     private func play(_ song: Song, context: [Song]) {
@@ -679,10 +667,6 @@ struct PlaylistsGridScreen: View {
         .onChange(of: favorites.favoriteIDs) { _, _ in
             viewModel.fetchFavoriteSongs(force: true)
         }
-        .animation(
-            reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-            value: displayed.map(\.id)
-        )
         .sheet(isPresented: $showCreateSheet) {
             CreatePlaylistSheet()
         }

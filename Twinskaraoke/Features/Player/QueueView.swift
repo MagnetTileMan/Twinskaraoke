@@ -10,14 +10,6 @@ struct QueueView: View {
         reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.82)
     }
 
-    private var queueListAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86)
-    }
-
-    private var queueShuffleAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86)
-    }
-
     private var headerAnimation: Animation? {
         reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.88)
     }
@@ -146,8 +138,6 @@ struct QueueView: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .environment(\.editMode, .constant(.active))
-                    .animation(queueShuffleAnimation, value: audioManager.isShuffled)
-                    .animation(queueListAnimation, value: upNext.map(\.id))
                 }
             }
         }

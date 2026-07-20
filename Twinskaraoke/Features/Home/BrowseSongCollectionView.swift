@@ -5,7 +5,7 @@ struct BrowseSongCollectionView: View {
     let songs: [Song]
     @Environment(\.appReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var scrollOffset: CGFloat = 0
+    @State private var showsCollapsedTitle = false
 
     private func usesWideOverview(availableWidth: CGFloat) -> Bool {
         AM.Layout.usesWideCanvas(
@@ -25,29 +25,16 @@ struct BrowseSongCollectionView: View {
             ScrollView {
                 collectionOverview(width: geo.size.width)
                     .tabBarBottomPadding()
-                    .animation(
-                        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-                        value: songs.count
-                    )
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: BrowseScrollOffsetKey.self,
-                                value: proxy.frame(in: .named("browseScroll")).minY
-                            )
-                        }
-                    )
             }
             .smoothScrolling()
-            .coordinateSpace(name: "browseScroll")
-            .onPreferenceChange(BrowseScrollOffsetKey.self) { scrollOffset = quantizedScrollOffset($0) }
+            .collapsedNavigationTitle($showsCollapsedTitle)
         }
-        .navigationTitle(scrollOffset < -180 ? title : "")
+        .navigationTitle(showsCollapsedTitle ? title : "")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(scrollOffset < -180 ? .visible : .hidden, for: .navigationBar)
+        .toolbarBackground(showsCollapsedTitle ? .visible : .hidden, for: .navigationBar)
         .animation(
             reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
-            value: scrollOffset < -180
+            value: showsCollapsedTitle
         )
     }
 
@@ -101,17 +88,17 @@ struct BrowseSongCollectionView: View {
     @ViewBuilder
     private func parallaxHero(width _: CGFloat) -> some View {
         let baseSize: CGFloat = 240
-        let stretch = reduceMotion ? 0 : max(0, scrollOffset)
-        let shrink = reduceMotion ? 0 : max(0, -scrollOffset * 0.4)
-        let size = max(140, baseSize + stretch * 0.6 - shrink)
-        let yOffset = reduceMotion ? 0 : (scrollOffset > 0 ? -scrollOffset / 2 : 0)
         heroArtwork
-            .frame(width: size, height: size)
+            .frame(width: baseSize, height: baseSize)
             .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
             .amShadow(AM.Shadow.heroIdle)
-            .offset(y: yOffset)
             .frame(maxWidth: .infinity)
             .frame(height: baseSize)
+            .scrollParallaxHero(
+                baseSize: baseSize,
+                restingOffset: 8,
+                reduceMotion: reduceMotion
+            )
             .padding(.top, 8)
     }
 
@@ -216,15 +203,4 @@ struct BrowseSongCollectionView: View {
         }
         .padding(.horizontal, horizontalPadding)
     }
-}
-
-private struct BrowseScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private func quantizedScrollOffset(_ offset: CGFloat) -> CGFloat {
-    (offset / 8).rounded() * 8
 }

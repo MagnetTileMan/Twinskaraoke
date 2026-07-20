@@ -760,34 +760,84 @@ private protocol QRCameraControllerDelegate: AnyObject {
     func qrCameraController(_ controller: QRCameraController, didFail message: String)
 }
 
-private final class QRCameraController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+private final class QRCameraPreviewView: UIView {
+    override class var layerClass: AnyClass {
+        AVCaptureVideoPreviewLayer.self
+    }
+
+    var previewLayer: AVCaptureVideoPreviewLayer {
+        guard let previewLayer = layer as? AVCaptureVideoPreviewLayer else {
+            preconditionFailure("QRCameraPreviewView must use AVCaptureVideoPreviewLayer")
+        }
+        return previewLayer
+    }
+}
+
+private final class QRCameraMetadataDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegate, @unchecked Sendable {
+    nonisolated(unsafe) weak var controller: QRCameraController?
+
+    init(controller: QRCameraController) {
+        self.controller = controller
+    }
+
+    nonisolated func metadataOutput(
+        _: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from _: AVCaptureConnection
+    ) {
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              object.type == .qr,
+              let value = object.stringValue
+        else { return }
+
+        Task { @MainActor [weak controller] in
+            controller?.didScan(value)
+        }
+    }
+}
+
+private final class QRCameraController: UIViewController {
     weak var delegate: QRCameraControllerDelegate?
-    // Configured on the main actor, started/stopped on sessionQueue, and
-    // stopped from deinit; AVCaptureSession start/stop must run off-main.
     private nonisolated(unsafe) let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "org.evilneuro.Twinskaraoke.qr-camera-session", qos: .userInitiated)
-    private var previewLayer: AVCaptureVideoPreviewLayer?
-    // Set once on the main actor; removal (deinit) is thread-safe.
     private nonisolated(unsafe) var runtimeErrorObserver: NSObjectProtocol?
     private var hasReported = false
     private var isSessionConfigured = false
     private var hasReportedFailure = false
+    private var shouldRunSession = false
+    private var hasUsablePreviewBounds = false
+    private lazy var metadataOutputDelegate = QRCameraMetadataDelegate(controller: self)
+
+    private var cameraPreviewView: QRCameraPreviewView {
+        guard let previewView = view as? QRCameraPreviewView else {
+            preconditionFailure("QRCameraController must use QRCameraPreviewView")
+        }
+        return previewView
+    }
+
+    override func loadView() {
+        view = QRCameraPreviewView()
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        cameraPreviewView.previewLayer.videoGravity = .resizeAspectFill
+        cameraPreviewView.previewLayer.session = session
         observeRuntimeErrors()
         configureSession()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        startSession()
+        shouldRunSession = true
+        updateSessionRunningState()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        stopSession()
+        shouldRunSession = false
+        updateSessionRunningState()
     }
 
     deinit {
@@ -801,74 +851,83 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
         }
     }
 
-    private func stopSession() {
-        // AVCaptureSession start/stop must run off the main thread; the session
-        // is only ever touched from sessionQueue after configuration.
-        nonisolated(unsafe) let capturedSession = session
-        sessionQueue.async {
-            guard capturedSession.isRunning else { return }
-            capturedSession.stopRunning()
-        }
-    }
-
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        previewLayer?.frame = view.layer.bounds
+        let bounds = cameraPreviewView.bounds
+        let hasUsableBounds = bounds.width >= 1 && bounds.height >= 1
+        guard hasUsableBounds != hasUsablePreviewBounds else { return }
+        hasUsablePreviewBounds = hasUsableBounds
+        updateSessionRunningState()
     }
 
     private func configureSession() {
-        guard let device = Self.preferredVideoDevice else {
-            reportFailure("This device doesn't have an available camera for scanning QR codes.")
-            return
+        nonisolated(unsafe) let capturedSession = session
+        let capturedMetadataDelegate = metadataOutputDelegate
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            let failure = Self.configure(capturedSession, metadataDelegate: capturedMetadataDelegate)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if let failure {
+                    reportFailure(failure)
+                    return
+                }
+                isSessionConfigured = true
+                updateSessionRunningState()
+            }
+        }
+    }
+
+    private func updateSessionRunningState() {
+        let shouldRun = shouldRunSession && hasUsablePreviewBounds && isSessionConfigured
+        nonisolated(unsafe) let capturedSession = session
+        sessionQueue.async {
+            if shouldRun {
+                guard !capturedSession.isRunning else { return }
+                capturedSession.startRunning()
+            } else {
+                guard capturedSession.isRunning else { return }
+                capturedSession.stopRunning()
+            }
+        }
+    }
+
+    nonisolated private static func configure(
+        _ session: AVCaptureSession,
+        metadataDelegate: AVCaptureMetadataOutputObjectsDelegate
+    ) -> String? {
+        guard let device = preferredVideoDevice else {
+            return "This device doesn't have an available camera for scanning QR codes."
         }
 
         let input: AVCaptureDeviceInput
         do {
             input = try AVCaptureDeviceInput(device: device)
         } catch {
-            reportFailure("The camera couldn't be opened. Check that it isn't blocked by another app, then try again.")
-            return
+            return "The camera couldn't be opened. Check that it isn't blocked by another app, then try again."
         }
 
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
         guard session.canAddInput(input) else {
-            reportFailure("The camera couldn't be prepared for scanning.")
-            return
+            return "The camera couldn't be prepared for scanning."
         }
         session.addInput(input)
 
         let output = AVCaptureMetadataOutput()
         guard session.canAddOutput(output) else {
-            reportFailure("The QR scanner couldn't start on this device.")
-            return
+            return "The QR scanner couldn't start on this device."
         }
         session.addOutput(output)
 
         guard output.availableMetadataObjectTypes.contains(.qr) else {
-            reportFailure("This camera doesn't support QR code scanning.")
-            return
+            return "This camera doesn't support QR code scanning."
         }
 
-        output.setMetadataObjectsDelegate(self, queue: .main)
+        output.setMetadataObjectsDelegate(metadataDelegate, queue: .main)
         output.metadataObjectTypes = [.qr]
-
-        let preview = AVCaptureVideoPreviewLayer(session: session)
-        preview.videoGravity = .resizeAspectFill
-        preview.frame = view.layer.bounds
-        view.layer.addSublayer(preview)
-        previewLayer = preview
-        isSessionConfigured = true
-    }
-
-    private func startSession() {
-        guard isSessionConfigured else { return }
-        nonisolated(unsafe) let capturedSession = session
-        sessionQueue.async {
-            guard !capturedSession.isRunning else { return }
-            capturedSession.startRunning()
-        }
+        return nil
     }
 
     private func observeRuntimeErrors() {
@@ -893,22 +952,14 @@ private final class QRCameraController: UIViewController, AVCaptureMetadataOutpu
         }
     }
 
-    private static var preferredVideoDevice: AVCaptureDevice? {
+    nonisolated private static var preferredVideoDevice: AVCaptureDevice? {
         AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) ??
             AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) ??
             AVCaptureDevice.default(for: .video)
     }
 
-    func metadataOutput(
-        _: AVCaptureMetadataOutput,
-        didOutput metadataObjects: [AVMetadataObject],
-        from _: AVCaptureConnection
-    ) {
-        guard !hasReported,
-              let obj = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              obj.type == .qr,
-              let value = obj.stringValue
-        else { return }
+    fileprivate func didScan(_ value: String) {
+        guard !hasReported else { return }
         hasReported = true
         delegate?.qrCameraController(self, didScan: value)
     }

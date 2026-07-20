@@ -9,10 +9,6 @@ struct SearchView: View {
     @State private var pendingSongID: String?
     @State private var playbackTask: Task<Void, Never>?
 
-    private var stateChangeAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84)
-    }
-
     private var subtleStateTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98))
     }
@@ -90,10 +86,6 @@ struct SearchView: View {
                     }
                 }
                 .musicScreenBackground()
-                .animation(
-                    stateChangeAnimation,
-                    value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)"
-                )
             }
             .navigationTitle("Search")
             .navigationBarTitleDisplayMode(.large)
@@ -596,7 +588,6 @@ struct SearchCategorySongCollectionView: View {
             loader.loadIfNeeded()
         }
         .animation(categoryStateAnimation, value: loader.isLoading)
-        .animation(categoryStateAnimation, value: loader.songs.count)
     }
 }
 
