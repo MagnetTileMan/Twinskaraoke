@@ -580,13 +580,11 @@ class AudioPlayerManager: ObservableObject {
             }
             .store(in: &cancellables)
         updateRouteIcon()
+        syncSystemVolume()
         AVAudioSession.sharedInstance().publisher(for: \.outputVolume)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] sysVol in
-                guard let self else { return }
-                guard !isUserScrubbingVolume else { return }
-                let v = Double(sysVol)
-                if abs(volume - v) > 0.01 { volume = v }
+                self?.syncSystemVolume(sysVol)
             }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: AVAudioSession.mediaServicesWereResetNotification)
@@ -2492,6 +2490,19 @@ class AudioPlayerManager: ObservableObject {
 
     private func activateAudioSession() {
         try? AVAudioSession.sharedInstance().setActive(true, options: [.notifyOthersOnDeactivation])
+    }
+
+    private func syncSystemVolume(
+        _ systemVolume: Float = AVAudioSession.sharedInstance().outputVolume
+    ) {
+        let reconciledVolume = SystemVolumeReconciliation.value(
+            currentVolume: volume,
+            systemVolume: systemVolume,
+            isUserScrubbing: isUserScrubbingVolume
+        )
+        if volume != reconciledVolume {
+            volume = reconciledVolume
+        }
     }
 
     private func recoverFromEngineConfigChange() {
