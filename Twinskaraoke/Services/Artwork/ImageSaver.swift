@@ -1,26 +1,49 @@
 #if canImport(UIKit)
     import UIKit
 
+    @MainActor
     final class ImageSaver: NSObject {
         static let shared = ImageSaver()
-        private var completion: ((Result<Void, Error>) -> Void)?
+
+        private struct SaveRequest {
+            let image: UIImage
+            let completion: (Result<Void, Error>) -> Void
+        }
+
+        private var pendingRequests: [SaveRequest] = []
+        private var activeCompletion: ((Result<Void, Error>) -> Void)?
 
         func save(image: UIImage, completion: @escaping (Result<Void, Error>) -> Void) {
-            self.completion = completion
+            pendingRequests.append(SaveRequest(image: image, completion: completion))
+            startNextRequestIfNeeded()
+        }
+
+        private func startNextRequestIfNeeded() {
+            guard activeCompletion == nil, !pendingRequests.isEmpty else { return }
+
+            let request = pendingRequests.removeFirst()
+            activeCompletion = request.completion
             UIImageWriteToSavedPhotosAlbum(
-                image, self, #selector(didFinishSaving(_:didFinishSavingWithError:contextInfo:)), nil
+                request.image,
+                self,
+                #selector(didFinishSaving(_:didFinishSavingWithError:contextInfo:)),
+                nil
             )
         }
 
         @objc private func didFinishSaving(
-            _: UIImage, didFinishSavingWithError error: Error?, contextInfo _: UnsafeRawPointer
+            _: UIImage, didFinishSavingWithError error: Error?, contextInfo _: UnsafeRawPointer?
         ) {
+            let completion = activeCompletion
+            activeCompletion = nil
+
             if let error {
                 completion?(.failure(error))
             } else {
                 completion?(.success(()))
             }
-            completion = nil
+
+            startNextRequestIfNeeded()
         }
     }
 #endif

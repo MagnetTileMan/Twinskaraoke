@@ -5,7 +5,22 @@ import Foundation
 import Security
 
 @MainActor
-final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
+private final class WebAuthenticationPresentationContextProvider:
+    NSObject, ASWebAuthenticationPresentationContextProviding
+{
+    private let anchor: ASPresentationAnchor
+
+    init(anchor: ASPresentationAnchor) {
+        self.anchor = anchor
+    }
+
+    func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        anchor
+    }
+}
+
+@MainActor
+final class AuthManager: NSObject, ObservableObject {
     @Published private(set) var isLoggedIn = false
     @Published private(set) var currentUsername: String?
     @Published private(set) var currentUserId: String?
@@ -15,6 +30,7 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
     private(set) var authToken: String?
     private let defaults = UserDefaults.standard
     private var webAuthenticationSession: ASWebAuthenticationSession?
+    private var webAuthenticationContextProvider: WebAuthenticationPresentationContextProvider?
 
     private enum K {
         static let userId = "nk.userId"
@@ -141,6 +157,9 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
         isLoading = true
         errorMessage = nil
         do {
+            guard let presentationAnchor = activePresentationAnchor() else {
+                throw AuthError.invalidCallback
+            }
             let verifier = makeVerifier()
             let challenge = makeChallenge(verifier)
             let state = makeVerifier()
@@ -162,6 +181,7 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                 ) { [weak self] url, error in
                     Task { @MainActor [weak self] in
                         self?.webAuthenticationSession = nil
+                        self?.webAuthenticationContextProvider = nil
                     }
                     if let error {
                         cont.resume(throwing: Self.mappedWebAuthenticationError(error))
@@ -173,10 +193,19 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                     }
                     cont.resume(returning: url)
                 }
-                session.presentationContextProvider = self
+                let contextProvider = WebAuthenticationPresentationContextProvider(
+                    anchor: presentationAnchor
+                )
+                session.presentationContextProvider = contextProvider
                 session.prefersEphemeralWebBrowserSession = true
+                webAuthenticationContextProvider = contextProvider
                 webAuthenticationSession = session
-                session.start()
+                guard session.start() else {
+                    webAuthenticationSession = nil
+                    webAuthenticationContextProvider = nil
+                    cont.resume(throwing: AuthError.invalidCallback)
+                    return
+                }
             }
             guard
                 let cbComps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
@@ -193,6 +222,8 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                 avatar: profile.avatar
             )
         } catch {
+            webAuthenticationSession = nil
+            webAuthenticationContextProvider = nil
             isLoading = false
             if case AuthError.cancelled = error { return }
             errorMessage = friendlyError(error)
@@ -399,17 +430,14 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
         return error.localizedDescription
     }
 
-    func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
+    private func activePresentationAnchor() -> ASPresentationAnchor? {
         let scenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
         let windows = scenes.flatMap(\.windows)
         if let window = windows.first(where: \.isKeyWindow) ?? windows.first {
             return window
         }
-        guard let scene = scenes.first else {
-            // Auth UI is only requested while a scene is connected.
-            preconditionFailure("presentationAnchor requested with no connected window scene")
-        }
+        guard let scene = scenes.first else { return nil }
         return ASPresentationAnchor(windowScene: scene)
     }
 

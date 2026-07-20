@@ -34,6 +34,7 @@ class AudioManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var downloadTask: URLSessionDownloadTask?
     private var downloadToken: UUID?
+    private var remoteCommandTargets: [(command: MPRemoteCommand, target: Any)] = []
     private var recoveringFromBrokenCache: Set<String> = []
     private var playbackRequested = false
     private var shouldResumeAfterInterruption = false
@@ -507,6 +508,10 @@ class AudioManager: ObservableObject {
                   playbackRequested || isLoading
             else { return }
             if valid {
+                try? FileManager.default.setAttributes(
+                    [.modificationDate: Date()],
+                    ofItemAtPath: cacheURL.path
+                )
                 setupPlayer(with: cacheURL)
                 return
             }
@@ -617,26 +622,58 @@ class AudioManager: ObservableObject {
 
     private func setupRemoteCommands() {
         let cc = MPRemoteCommandCenter.shared()
-        cc.playCommand.addTarget { [weak self] _ in
-            guard let self, !self.playbackRequested else { return .commandFailed }
-            return resumePlayback() ? .success : .commandFailed
+        func performOnMain(
+            _ action: @escaping @MainActor () -> MPRemoteCommandHandlerStatus
+        ) -> MPRemoteCommandHandlerStatus {
+            if Thread.isMainThread {
+                return MainActor.assumeIsolated { action() }
+            }
+            var status: MPRemoteCommandHandlerStatus = .commandFailed
+            DispatchQueue.main.sync {
+                status = MainActor.assumeIsolated { action() }
+            }
+            return status
         }
-        cc.pauseCommand.addTarget { [weak self] _ in
-            guard let self, playbackRequested else { return .commandFailed }
-            return pausePlayback() ? .success : .commandFailed
-        }
-        cc.togglePlayPauseCommand.addTarget { [weak self] _ in
+
+        let playTarget = cc.playCommand.addTarget { [weak self] _ in
             guard let self else { return .commandFailed }
-            return togglePlayPause() ? .success : .commandFailed
+            return performOnMain {
+                guard !self.playbackRequested else { return .commandFailed }
+                return self.resumePlayback() ? .success : .commandFailed
+            }
         }
-        cc.nextTrackCommand.addTarget { [weak self] _ in
-            self?.playNext()
-            return .success
+        remoteCommandTargets.append((cc.playCommand, playTarget))
+        let pauseTarget = cc.pauseCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                guard self.playbackRequested else { return .commandFailed }
+                return self.pausePlayback() ? .success : .commandFailed
+            }
         }
-        cc.previousTrackCommand.addTarget { [weak self] _ in
-            self?.playPrevious()
-            return .success
+        remoteCommandTargets.append((cc.pauseCommand, pauseTarget))
+        let toggleTarget = cc.togglePlayPauseCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                self.togglePlayPause() ? .success : .commandFailed
+            }
         }
+        remoteCommandTargets.append((cc.togglePlayPauseCommand, toggleTarget))
+        let nextTarget = cc.nextTrackCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                self.playNext()
+                return .success
+            }
+        }
+        remoteCommandTargets.append((cc.nextTrackCommand, nextTarget))
+        let previousTarget = cc.previousTrackCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                self.playPrevious()
+                return .success
+            }
+        }
+        remoteCommandTargets.append((cc.previousTrackCommand, previousTarget))
     }
 
     private func setupInterruptionHandler() {
@@ -688,6 +725,9 @@ class AudioManager: ObservableObject {
         }
         if let observer = endTimeObserver {
             NotificationCenter.default.removeObserver(observer)
+        }
+        for target in remoteCommandTargets {
+            target.command.removeTarget(target.target)
         }
         player?.pause()
     }

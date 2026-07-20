@@ -231,7 +231,9 @@ final class TransitionCoordinator {
     static func computeFade(
         outBPM: Double?, inBPM: Double?
     ) -> (duration: TimeInterval, style: AVEnginePlayback.RampStyle) {
-        guard let out = outBPM, let inB = inBPM else {
+        guard let out = outBPM, let inB = inBPM,
+              out.isFinite, inB.isFinite, out > 0, inB > 0
+        else {
             return (6.0, .equalPower)
         }
         let diff = harmonicBPMDifference(out, inB)
@@ -451,7 +453,11 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unche
         self.session = nil
         guard !cancelled else { return }
         if error == nil, AudioCacheStore.acceptsAudioResponse(task.response),
-           AudioCacheStore.isPlayableAudioFile(at: partialURL)
+           AudioCacheStore.isPlayableAudioFile(at: partialURL),
+           AudioCacheStore.durationAppearsComplete(
+               actualDuration: AudioCacheStore.audioDuration(at: partialURL),
+               expectedDuration: expectedDuration
+           )
         {
             let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
             DebugLogger.log("Predownload completed for \(songID) with HTTP \(status)", category: .playback)
@@ -466,7 +472,7 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unche
             }
         } else {
             DebugLogger.log(
-                "Predownload failed for \(songID): \(error?.localizedDescription ?? "bad response")",
+                "Predownload failed for \(songID): \(error?.localizedDescription ?? "incomplete or invalid audio")",
                 category: .playback
             )
             try? FileManager.default.removeItem(at: partialURL)

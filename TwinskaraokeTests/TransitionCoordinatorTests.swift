@@ -27,6 +27,17 @@ struct TransitionCoordinatorTests {
         #expect(isEqualPower(result.style))
     }
 
+    @Test("Auto Mix rejects invalid cached tempos")
+    func autoMixFadeWithInvalidBPM() {
+        let zero = TransitionCoordinator.computeFade(outBPM: 0, inBPM: 120)
+        let nonFinite = TransitionCoordinator.computeFade(outBPM: .infinity, inBPM: 120)
+
+        #expect(zero.duration == 6.0)
+        #expect(isEqualPower(zero.style))
+        #expect(nonFinite.duration == 6.0)
+        #expect(isEqualPower(nonFinite.style))
+    }
+
     @Test("Harmonic BPM comparison treats double-time tempos as compatible")
     func harmonicBPMDifferenceUsesDoubleTime() {
         #expect(TransitionCoordinator.harmonicBPMDifference(90, 180) == 0)

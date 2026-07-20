@@ -3,33 +3,36 @@ import SwiftUI
 struct PlaylistActionsMenuItems: View {
     let playlist: Playlist
     let songs: [Song]
-    @ObservedObject private var savedStore: SavedPlaylistsStore = .shared
-    @ObservedObject private var downloads = DownloadManager.shared
+    private let isSaved: Bool
+    private let pendingSongs: [Song]
+    private let inFlightCount: Int
 
-    private var downloadState: (pendingSongs: [Song], inFlightCount: Int) {
-        songs.reduce(into: (pendingSongs: [], inFlightCount: 0)) { state, song in
+    init(playlist: Playlist, songs: [Song]) {
+        self.playlist = playlist
+        self.songs = songs
+        isSaved = SavedPlaylistsStore.shared.isSaved(playlist)
+
+        let downloads = DownloadManager.shared
+        let state = songs.reduce(into: (pendingSongs: [Song](), inFlightCount: 0)) { state, song in
             if downloads.isDownloading(song.id) {
                 state.inFlightCount += 1
             } else if !downloads.isDownloaded(song.id) {
                 state.pendingSongs.append(song)
             }
         }
+        pendingSongs = state.pendingSongs
+        inFlightCount = state.inFlightCount
     }
 
     private var canSaveToLibrary: Bool {
         !playlist.isFavorites && !playlist.isPersonal
     }
 
-    private var isSaved: Bool {
-        savedStore.isSaved(playlist)
-    }
-
     var body: some View {
-        let downloadState = downloadState
-        let pendingCount = downloadState.pendingSongs.count
+        let pendingCount = pendingSongs.count
         let allDownloaded = !songs.isEmpty
             && pendingCount == 0
-            && downloadState.inFlightCount == 0
+            && inFlightCount == 0
 
         if !songs.isEmpty {
             Button {
@@ -54,7 +57,7 @@ struct PlaylistActionsMenuItems: View {
         if canSaveToLibrary {
             Button {
                 AppHaptic.selection.play()
-                savedStore.toggle(playlist)
+                SavedPlaylistsStore.shared.toggle(playlist)
             } label: {
                 if isSaved {
                     Label("Remove from Library", systemImage: "checkmark.circle.fill")
@@ -65,8 +68,8 @@ struct PlaylistActionsMenuItems: View {
         }
 
         if !songs.isEmpty {
-            if downloadState.inFlightCount > 0 {
-                Label("Downloading \(downloadState.inFlightCount)…", systemImage: "arrow.down.circle")
+            if inFlightCount > 0 {
+                Label("Downloading \(inFlightCount)…", systemImage: "arrow.down.circle")
             } else if allDownloaded {
                 Button(role: .destructive) {
                     AppHaptic.warning.play()
@@ -77,7 +80,7 @@ struct PlaylistActionsMenuItems: View {
             } else {
                 Button {
                     AppHaptic.success.play()
-                    DownloadManager.shared.download(songs: downloadState.pendingSongs)
+                    DownloadManager.shared.download(songs: pendingSongs)
                 } label: {
                     let label = pendingCount < songs.count ? "Download Remaining" : "Download"
                     Label(label, systemImage: "arrow.down.circle")

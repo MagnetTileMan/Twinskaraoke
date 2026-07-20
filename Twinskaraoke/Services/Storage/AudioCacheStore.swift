@@ -306,12 +306,18 @@ nonisolated enum AudioCacheStore {
     }
 
     static func touch(_ url: URL) {
-        let now = Date()
-        try? fm.setAttributes([.modificationDate: now], ofItemAtPath: url.path)
+        let standardizedURL = url.standardizedFileURL
+        let standardizedCacheDirectory = cacheDirectory.standardizedFileURL
+        let cachePathPrefix = standardizedCacheDirectory.path + "/"
+        guard standardizedURL.path.hasPrefix(cachePathPrefix) else { return }
 
-        let rootPath = cacheDirectory.path
-        let songDirectory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
-        if songDirectory.path.hasPrefix(rootPath), songDirectory.path != rootPath {
+        let now = Date()
+        try? fm.setAttributes([.modificationDate: now], ofItemAtPath: standardizedURL.path)
+
+        let songDirectory = standardizedURL.hasDirectoryPath
+            ? standardizedURL
+            : standardizedURL.deletingLastPathComponent()
+        if songDirectory != standardizedCacheDirectory {
             try? fm.setAttributes([.modificationDate: now], ofItemAtPath: songDirectory.path)
         }
     }

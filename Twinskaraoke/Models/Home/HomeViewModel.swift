@@ -20,6 +20,8 @@ final class HomeViewModel: ObservableObject {
     private var topPicksPage = 0
     private let topPicksPageSize = 12
     private var topPicksSource: TopPicksSource = .setlists
+    private var dataGeneration = 0
+    private var homeLoadTask: Task<Void, Never>?
 
     init() {
         fetchHomeData()
@@ -32,53 +34,44 @@ final class HomeViewModel: ObservableObject {
         }
 
         if hasLoaded, !force { return }
+        homeLoadTask?.cancel()
+        dataGeneration += 1
+        let generation = dataGeneration
         hasLoaded = true
         isLoading = true
+        isLoadingMoreTopPicks = false
         topPicksPage = 0
         canLoadMoreTopPicks = true
-        let group = DispatchGroup()
-        group.enter()
-        Task { [weak self] in
-            let response = try? await KaraokeAPIClient.trendingSongs(take: 20)
-            await MainActor.run {
-                if let response { self?.trending = response }
-                group.leave()
+        homeLoadTask = Task { [weak self] in
+            guard let self else { return }
+            async let trendingResult = try? KaraokeAPIClient.trendingSongs(take: 20)
+            async let suggestionsResult = try? KaraokeAPIClient.songSuggestions(take: 20)
+            async let topPicksResult = fetchTopPicks(startIndex: 0)
+            async let releasesResult = try? KaraokeAPIClient.latestReleases()
+
+            let (loadedTrending, loadedSuggestions, loadedTopPicks, loadedReleases) = await (
+                trendingResult,
+                suggestionsResult,
+                topPicksResult,
+                releasesResult
+            )
+            guard !Task.isCancelled, dataGeneration == generation else { return }
+
+            if let loadedTrending { trending = loadedTrending }
+            if let loadedSuggestions { suggestions = loadedSuggestions }
+            if let playlists = loadedTopPicks.playlists {
+                topPicksSource = loadedTopPicks.source
+                recentPlaylists = playlists
+                topPicksPage = 1
+                canLoadMoreTopPicks = playlists.count == topPicksPageSize
             }
+            let releases = loadedReleases ?? []
+            newReleases = releases
+            latestSingle = releases.first
+            latestSingleContext = releases
+            isLoading = false
+            homeLoadTask = nil
         }
-        group.enter()
-        Task { [weak self] in
-            let response = try? await KaraokeAPIClient.songSuggestions(take: 20)
-            await MainActor.run {
-                if let response { self?.suggestions = response }
-                group.leave()
-            }
-        }
-        group.enter()
-        fetchTopPicks(startIndex: 0) { [weak self] response in
-            DispatchQueue.main.async {
-                if let response {
-                    self?.recentPlaylists = response
-                    self?.topPicksPage = 1
-                    self?.canLoadMoreTopPicks = response.count == (self?.topPicksPageSize ?? 0)
-                }
-                group.leave()
-            }
-        }
-        group.enter()
-        Task { [weak self] in
-            let songs = await (try? KaraokeAPIClient.latestReleases()) ?? []
-            await MainActor.run {
-                guard let self else {
-                    group.leave()
-                    return
-                }
-                self.newReleases = songs
-                self.latestSingle = songs.first
-                self.latestSingleContext = songs
-                group.leave()
-            }
-        }
-        group.notify(queue: .main) { [weak self] in self?.isLoading = false }
     }
 
     func loadMoreTopPicksIfNeeded(current: Playlist) {
@@ -102,6 +95,7 @@ final class HomeViewModel: ObservableObject {
         let startIndex = topPicksPage * topPicksPageSize
         let source = topPicksSource
         let pageSize = topPicksPageSize
+        let generation = dataGeneration
         Task { [weak self] in
             let playlists: [Playlist] = switch source {
             case .setlists:
@@ -118,7 +112,7 @@ final class HomeViewModel: ObservableObject {
                 )) ?? []
             }
             await MainActor.run {
-                guard let self else { return }
+                guard let self, self.dataGeneration == generation else { return }
                 if !playlists.isEmpty {
                     let existing = Set(self.recentPlaylists.map(\.id))
                     self.recentPlaylists += playlists.filter { !existing.contains($0.id) }
@@ -132,33 +126,25 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    private func fetchTopPicks(startIndex: Int, completion: @escaping ([Playlist]?) -> Void) {
+    private func fetchTopPicks(
+        startIndex: Int
+    ) async -> (source: TopPicksSource, playlists: [Playlist]?) {
         let pageSize = topPicksPageSize
-        Task { [weak self] in
-            let setlists = await (try? KaraokeAPIClient.playlists(
-                startIndex: startIndex,
-                pageSize: pageSize,
-                isSetlist: true,
-                sortDescending: true
-            )) ?? []
-            if !setlists.isEmpty {
-                await MainActor.run {
-                    self?.topPicksSource = .setlists
-                    completion(setlists)
-                }
-                return
-            }
-
-            let fallback =
-                try? await KaraokeAPIClient.publicPlaylists(
-                    startIndex: startIndex,
-                    pageSize: pageSize
-                )
-            await MainActor.run {
-                self?.topPicksSource = .publicPlaylists
-                completion(fallback)
-            }
+        let setlists = await (try? KaraokeAPIClient.playlists(
+            startIndex: startIndex,
+            pageSize: pageSize,
+            isSetlist: true,
+            sortDescending: true
+        )) ?? []
+        if !setlists.isEmpty {
+            return (.setlists, setlists)
         }
+
+        let fallback = try? await KaraokeAPIClient.publicPlaylists(
+            startIndex: startIndex,
+            pageSize: pageSize
+        )
+        return (.publicPlaylists, fallback)
     }
 
     private func applyUITestFixture() {
@@ -232,5 +218,9 @@ final class HomeViewModel: ObservableObject {
                 coverArtists: ["Neuro"]
             ),
         ]
+    }
+
+    deinit {
+        homeLoadTask?.cancel()
     }
 }

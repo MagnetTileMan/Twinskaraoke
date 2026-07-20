@@ -83,6 +83,7 @@ final class DownloadManager: ObservableObject {
     var inProgress: Set<String> { publishedState.inProgress }
     private let cacheDir: URL
     private var tasks: [String: URLSessionDownloadTask] = [:]
+    private var cachePromotionTasks: [String: Task<Void, Never>] = [:]
     private var queuedDownloads: [String: Song] = [:]
     private var queuedDownloadOrder: [String] = []
     private var isLoggingDownloadQueue = false
@@ -122,9 +123,10 @@ final class DownloadManager: ObservableObject {
         startNetworkMonitoring()
         // The startup scan opens every downloaded audio file to validate it;
         // that per-file decode work must stay off the main thread at launch.
+        let scanStartedAt = Date()
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let scan = scanExistingDownloadsBlocking()
+            let scan = scanExistingDownloadsBlocking(createdBefore: scanStartedAt)
             await MainActor.run {
                 self.applyStartupScan(scan)
             }
@@ -132,6 +134,9 @@ final class DownloadManager: ObservableObject {
     }
 
     deinit {
+        for task in cachePromotionTasks.values {
+            task.cancel()
+        }
         downloadSession.invalidateAndCancel()
         networkMonitor.cancel()
     }
@@ -249,7 +254,7 @@ final class DownloadManager: ObservableObject {
     }
 
     var hasActiveQueue: Bool {
-        !tasks.isEmpty || !queuedDownloadOrder.isEmpty
+        !tasks.isEmpty || !cachePromotionTasks.isEmpty || !queuedDownloadOrder.isEmpty
     }
 
     func download(song: Song) {
@@ -284,7 +289,7 @@ final class DownloadManager: ObservableObject {
     }
 
     private func startQueuedDownloadsIfPossible() {
-        while tasks.count < Self.maxConcurrentDownloads, !queuedDownloadOrder.isEmpty {
+        while activeDownloadWorkCount < Self.maxConcurrentDownloads, !queuedDownloadOrder.isEmpty {
             let songID = queuedDownloadOrder.removeFirst()
             guard let song = queuedDownloads.removeValue(forKey: songID) else { continue }
             guard inProgress.contains(songID), !downloadedIDs.contains(songID) else {
@@ -301,16 +306,114 @@ final class DownloadManager: ObservableObject {
             return
         }
         let songID = song.id
-        let songFiles = files(for: songID)
         let token = UUID()
         let taskRegistry = taskRegistry
         taskRegistry.register(songID: songID, token: token)
         ensureSongDirectory(for: songID)
+        let promotionTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            let promoted = self.promotePlaybackCacheIfAvailable(
+                for: song,
+                remoteURL: remote,
+                token: token
+            )
+            await MainActor.run { [weak self] in
+                self?.finishCachePromotion(
+                    song: song,
+                    remoteURL: remote,
+                    token: token,
+                    promoted: promoted
+                )
+            }
+        }
+        cachePromotionTasks[songID] = promotionTask
+    }
+
+    private var activeDownloadWorkCount: Int {
+        tasks.count + cachePromotionTasks.count
+    }
+
+    private nonisolated func promotePlaybackCacheIfAvailable(
+        for song: Song,
+        remoteURL: URL,
+        token: UUID
+    ) -> Bool {
+        let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
+        guard let cachedURL = AudioCacheStore.playableMainURL(
+            for: song.id,
+            expectedRemoteURL: remoteURL,
+            expectedDuration: expectedDuration
+        ), !Task.isCancelled else { return false }
+
+        let songFiles = files(for: song.id)
+        let stagedAudio = songFiles.directory.appendingPathComponent(
+            "main.mp3.promoting-\(token.uuidString)"
+        )
+        let stagedSource = songFiles.directory.appendingPathComponent(
+            "main.source.promoting-\(token.uuidString)"
+        )
+        let fm = FileManager.default
+        defer {
+            try? fm.removeItem(at: stagedAudio)
+            try? fm.removeItem(at: stagedSource)
+        }
+
+        do {
+            try fm.createDirectory(at: songFiles.directory, withIntermediateDirectories: true)
+            try fm.copyItem(at: cachedURL, to: stagedAudio)
+            guard !Task.isCancelled,
+                  Self.isValidDownloadedAudio(at: stagedAudio, expectedDuration: expectedDuration),
+                  let sourceData = remoteURL.absoluteString.data(using: .utf8)
+            else { return false }
+            try sourceData.write(to: stagedSource, options: [.atomic])
+
+            return try taskRegistry.performIfActive(songID: song.id, token: token) {
+                try? fm.removeItem(at: songFiles.audio)
+                try? fm.removeItem(at: songFiles.source)
+                try fm.moveItem(at: stagedAudio, to: songFiles.audio)
+                try fm.moveItem(at: stagedSource, to: songFiles.source)
+                return true
+            } ?? false
+        } catch {
+            DebugLogger.log(
+                "Playback cache promotion failed for \(song.id): \(error.localizedDescription)",
+                category: .cache
+            )
+            return false
+        }
+    }
+
+    private func finishCachePromotion(
+        song: Song,
+        remoteURL: URL,
+        token: UUID,
+        promoted: Bool
+    ) {
+        cachePromotionTasks.removeValue(forKey: song.id)
+        if promoted {
+            DebugLogger.log("Download promoted from playback cache: \(song.id)", category: .cache)
+            finishDownload(songID: song.id, song: song, moved: true, token: token)
+            return
+        }
+
+        let isCurrentTask = taskRegistry.performIfActive(songID: song.id, token: token) { true } ?? false
+        guard isCurrentTask, inProgress.contains(song.id) else {
+            startQueuedDownloadsIfPossible()
+            logDownloadQueueCompletionIfNeeded()
+            return
+        }
+        startNetworkDownload(song: song, remoteURL: remoteURL, token: token)
+    }
+
+    private func startNetworkDownload(song: Song, remoteURL: URL, token: UUID) {
+        let songID = song.id
+        let songFiles = files(for: songID)
+        let taskRegistry = taskRegistry
         DebugLogger.log(
             "Download started: \(songID) (active=\(tasks.count + 1), queued=\(queuedDownloadOrder.count))",
             category: .network
         )
-        let task = downloadSession.downloadTask(with: remote) { [weak self] tempURL, response, error in
+        let task = downloadSession.downloadTask(with: remoteURL) { [weak self] tempURL, response, error in
             var moved = false
             let expectedBytes = response?.expectedContentLength ?? NSURLSessionTransferSizeUnknown
             let downloadedBytes = tempURL.map { Self.downloadedByteCount(at: $0) } ?? 0
@@ -331,7 +434,7 @@ final class DownloadManager: ObservableObject {
                         try? FileManager.default.removeItem(at: songFiles.source)
                         FileManager.default.createFile(
                             atPath: songFiles.source.path,
-                            contents: remote.absoluteString.data(using: .utf8)
+                            contents: remoteURL.absoluteString.data(using: .utf8)
                         )
                         return true
                     } ?? false
@@ -365,7 +468,7 @@ final class DownloadManager: ObservableObject {
                 self?.finishDownload(songID: songID, song: song, moved: moved, token: token)
             }
         }
-        tasks[song.id] = task
+        tasks[songID] = task
         task.resume()
     }
 
@@ -385,6 +488,7 @@ final class DownloadManager: ObservableObject {
             taskRegistry.cancel(songID: songID)
         }
         tasks.removeValue(forKey: songID)
+        cachePromotionTasks.removeValue(forKey: songID)
         let wasInProgress = inProgress.contains(songID)
         guard wasInProgress else {
             startQueuedDownloadsIfPossible()
@@ -423,6 +527,8 @@ final class DownloadManager: ObservableObject {
 
     private func cancelWork(songID: String) {
         taskRegistry.cancel(songID: songID)
+        cachePromotionTasks[songID]?.cancel()
+        cachePromotionTasks.removeValue(forKey: songID)
         tasks[songID]?.cancel()
         tasks.removeValue(forKey: songID)
         queuedDownloads.removeValue(forKey: songID)
@@ -546,7 +652,11 @@ final class DownloadManager: ObservableObject {
         for task in tasks.values {
             task.cancel()
         }
+        for task in cachePromotionTasks.values {
+            task.cancel()
+        }
         tasks.removeAll()
+        cachePromotionTasks.removeAll()
         queuedDownloads.removeAll()
         queuedDownloadOrder.removeAll()
         isLoggingDownloadQueue = false
@@ -590,7 +700,11 @@ final class DownloadManager: ObservableObject {
     }
 
     private func logDownloadQueueCompletionIfNeeded() {
-        guard isLoggingDownloadQueue, tasks.isEmpty, queuedDownloadOrder.isEmpty else { return }
+        guard isLoggingDownloadQueue,
+              tasks.isEmpty,
+              cachePromotionTasks.isEmpty,
+              queuedDownloadOrder.isEmpty
+        else { return }
         DebugLogger.log(
             "Download queue complete: completed=\(completedInCurrentQueue), failed=\(failedInCurrentQueue)",
             category: .network
@@ -600,10 +714,12 @@ final class DownloadManager: ObservableObject {
         failedInCurrentQueue = 0
     }
 
-    /// Read-only for song directories: the scan runs concurrently with live
-    /// downloads, so destructive cleanup is deferred to `applyStartupScan`,
-    /// which runs on the main actor and can defer to live download state.
-    private nonisolated func scanExistingDownloadsBlocking() -> StartupScanResult {
+    /// The scan runs concurrently with live downloads. It only removes
+    /// promotion staging files that predate this launch; all other destructive
+    /// cleanup is deferred to `applyStartupScan` so live state wins.
+    private nonisolated func scanExistingDownloadsBlocking(
+        createdBefore scanStartedAt: Date
+    ) -> StartupScanResult {
         migrateLegacyDownloadsIfNeeded()
         let fm = FileManager.default
         var ids = Set<String>()
@@ -633,6 +749,7 @@ final class DownloadManager: ObservableObject {
                 try? fm.removeItem(at: entry)
                 continue
             }
+            Self.removePromotionStagingFiles(in: entry, createdBefore: scanStartedAt)
             // Read from the directory itself because unsafe IDs are stored under a hash.
             let metadata = readMetadata(at: entry.appendingPathComponent("metadata.json"))
             let directoryKey = entry.lastPathComponent
@@ -668,6 +785,26 @@ final class DownloadManager: ObservableObject {
             repairs: repairs,
             junkDirectories: junkDirectories
         )
+    }
+
+    nonisolated static func removePromotionStagingFiles(
+        in directory: URL,
+        createdBefore cutoff: Date
+    ) {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        for entry in entries where entry.lastPathComponent.contains(".promoting-") {
+            let modifiedAt = try? entry.resourceValues(
+                forKeys: [.contentModificationDateKey]
+            ).contentModificationDate
+            if let modifiedAt, modifiedAt > cutoff { continue }
+            try? fm.removeItem(at: entry)
+        }
     }
 
     private func applyStartupScan(_ scan: StartupScanResult) {

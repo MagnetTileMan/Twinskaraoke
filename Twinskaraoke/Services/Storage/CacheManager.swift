@@ -315,10 +315,17 @@ final class CacheManager: ObservableObject {
         for file in sortedFiles {
             guard currentSize > limit else { break }
             let size = fileSize(at: file)
-            try? fm.removeItem(at: file)
-            currentSize -= size
-            evicted += 1
-            DebugLogger.log("Evicted: \(file.lastPathComponent) (\(formatBytes(size)))", category: .cache)
+            do {
+                try fm.removeItem(at: file)
+                currentSize = currentSize > size ? currentSize - size : 0
+                evicted += 1
+                DebugLogger.log("Evicted: \(file.lastPathComponent) (\(formatBytes(size)))", category: .cache)
+            } catch {
+                DebugLogger.log(
+                    "Could not evict \(file.lastPathComponent): \(error)",
+                    category: .cache
+                )
+            }
         }
 
         DebugLogger.log(
@@ -347,9 +354,16 @@ final class CacheManager: ObservableObject {
             guard currentSize > limit else { break }
             if protectedIDs.contains(folder.lastPathComponent) { continue }
             let size = directorySize(at: folder)
-            try? fm.removeItem(at: folder)
-            currentSize = currentSize > size ? currentSize - size : 0
-            DebugLogger.log("Evicted song cache: \(folder.lastPathComponent) (\(formatBytes(size)))", category: .cache)
+            do {
+                try fm.removeItem(at: folder)
+                currentSize = currentSize > size ? currentSize - size : 0
+                DebugLogger.log("Evicted song cache: \(folder.lastPathComponent) (\(formatBytes(size)))", category: .cache)
+            } catch {
+                DebugLogger.log(
+                    "Could not evict song cache \(folder.lastPathComponent): \(error)",
+                    category: .cache
+                )
+            }
         }
     }
 
@@ -372,8 +386,10 @@ final class CacheManager: ObservableObject {
                 let modified = values.contentModificationDate,
                 modified < cutoff
             else { continue }
-            try? fm.removeItem(at: fileURL)
-            count += 1
+            do {
+                try fm.removeItem(at: fileURL)
+                count += 1
+            } catch {}
         }
         return count
     }
@@ -405,8 +421,10 @@ final class CacheManager: ObservableObject {
             else {
                 continue
             }
-            try? fm.removeItem(at: folder)
-            count += 1
+            do {
+                try fm.removeItem(at: folder)
+                count += 1
+            } catch {}
         }
         return count
     }

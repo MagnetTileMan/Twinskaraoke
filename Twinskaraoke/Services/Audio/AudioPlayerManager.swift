@@ -322,6 +322,7 @@ class AudioPlayerManager: ObservableObject {
     private var lastNowPlayingElapsedSecond: Int?
     private var lastNowPlayingPlaybackRate: Double?
     private var lastLoggedNowPlayingElapsedSecond: Int?
+    private var lastRemoteCommandDiagnosticState: String?
     private static func loadCrossfadeSeconds() -> Double {
         let raw = UserDefaults.standard.object(forKey: "nk.crossfadeSeconds") as? Double ?? 6.0
         return min(15, max(1, raw))
@@ -2726,8 +2727,12 @@ class AudioPlayerManager: ObservableObject {
         cc.nextTrackCommand.isEnabled = hasCurrentItem && !isRadioMode
         cc.previousTrackCommand.isEnabled = hasCurrentItem && !isRadioMode
         cc.changePlaybackPositionCommand.isEnabled = hasCurrentItem && !isRadioMode
+        let diagnosticState =
+            "item=\(hasCurrentItem), play=\(cc.playCommand.isEnabled), pause=\(cc.pauseCommand.isEnabled), toggle=\(cc.togglePlayPauseCommand.isEnabled), requested=\(isPlaybackRequested)"
+        guard lastRemoteCommandDiagnosticState != diagnosticState else { return }
+        lastRemoteCommandDiagnosticState = diagnosticState
         DebugLogger.log(
-            "Remote commands availability: item=\(hasCurrentItem), play=\(cc.playCommand.isEnabled), pause=\(cc.pauseCommand.isEnabled), toggle=\(cc.togglePlayPauseCommand.isEnabled), requested=\(isPlaybackRequested)",
+            "Remote commands availability: \(diagnosticState)",
             category: .playback
         )
     }

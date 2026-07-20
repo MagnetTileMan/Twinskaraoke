@@ -98,7 +98,7 @@ struct SongRow: View {
                         .fill(Color.appArtworkOverlay)
                         .frame(width: size.artSize, height: size.artSize)
 
-                    EqualizerBars(isAnimating: false)
+                    EqualizerBars(isAnimating: playback.isPlaying)
                         .frame(width: size.indicatorSize, height: size.indicatorSize)
                         .foregroundStyle(.primary)
                 }

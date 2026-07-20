@@ -90,14 +90,26 @@ final class VideoGalleryViewModel: ObservableObject {
             return
         }
 
+        let previousCount = reset ? 0 : videos.count
         if reset {
-            videos = decoded.items
+            videos = Self.uniqueVideos(decoded.items)
         } else {
-            videos += decoded.items
+            var seen = Set(videos.map(\.id))
+            videos += decoded.items.filter { seen.insert($0.id).inserted }
         }
         page += 1
-        canLoadMore = videos.count < decoded.totalCount
+        let addedCount = videos.count - previousCount
+        canLoadMore = addedCount > 0 && videos.count < decoded.totalCount
         errorMessage = nil
+    }
+
+    private static func uniqueVideos(_ videos: [GalleryVideo]) -> [GalleryVideo] {
+        var seen = Set<String>()
+        return videos.filter { seen.insert($0.id).inserted }
+    }
+
+    deinit {
+        activeTask?.cancel()
     }
 }
 

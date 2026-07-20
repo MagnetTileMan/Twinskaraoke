@@ -17,6 +17,7 @@ final class LibrarySongsViewModel: ObservableObject {
     private var canLoadMore = true
     private var page = 1
     private var requestToken = 0
+    private var activeTask: URLSessionDataTask?
     private let pageSize = 40
 
     private func rebuildDisplayedSongs() {
@@ -51,6 +52,11 @@ final class LibrarySongsViewModel: ObservableObject {
     }
 
     func refresh() {
+        activeTask?.cancel()
+        activeTask = nil
+        requestToken += 1
+        isLoading = false
+        isLoadingMore = false
         hasLoaded = false
         canLoadMore = true
         fetch(page: 1, replace: true)
@@ -100,7 +106,7 @@ final class LibrarySongsViewModel: ObservableObject {
             "sortDescending": true,
         ])
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             Task { @MainActor [weak self, data, response, error, page, replace, token] in
                 self?.applyResponse(
                     data,
@@ -111,7 +117,9 @@ final class LibrarySongsViewModel: ObservableObject {
                     token: token
                 )
             }
-        }.resume()
+        }
+        activeTask = task
+        task.resume()
     }
 
     private func applyResponse(
@@ -124,6 +132,7 @@ final class LibrarySongsViewModel: ObservableObject {
     ) {
         guard token == requestToken else { return }
         defer {
+            activeTask = nil
             isLoading = false
             isLoadingMore = false
         }
@@ -170,5 +179,9 @@ final class LibrarySongsViewModel: ObservableObject {
             return decoded.items
         }
         return SongPayloadDecoder.decodeSongs(from: data) ?? []
+    }
+
+    deinit {
+        activeTask?.cancel()
     }
 }

@@ -159,13 +159,20 @@ final class ArtworkFailureBackoff {
         let now = Date()
         lock.lock()
         defer { lock.unlock() }
-        blockedUntil = blockedUntil.filter { $0.value > now }
         guard let until = blockedUntil[url] else { return false }
-        return until > now
+        guard until > now else {
+            blockedUntil.removeValue(forKey: url)
+            return false
+        }
+        return true
     }
 
     func recordFailure(_ url: URL) {
         lock.lock()
+        if blockedUntil.count > 256 {
+            let now = Date()
+            blockedUntil = blockedUntil.filter { $0.value > now }
+        }
         blockedUntil[url] = Date().addingTimeInterval(cooldown)
         lock.unlock()
     }

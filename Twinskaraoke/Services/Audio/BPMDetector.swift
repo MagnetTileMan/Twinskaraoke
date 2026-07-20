@@ -4,14 +4,19 @@ import Foundation
 
 nonisolated enum BPMDetector {
     static func detect(url: URL) async -> Double? {
-        let asset = AVURLAsset(url: url)
-        guard let track = try? await asset.loadTracks(withMediaType: .audio).first else { return nil }
-        let duration = await (try? asset.load(.duration)) ?? .invalid
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                let result = detectSync(asset: asset, track: track, duration: duration)
-                continuation.resume(returning: result)
-            }
+        let worker = Task.detached(priority: .utility) { () -> Double? in
+            let asset = AVURLAsset(url: url)
+            guard !Task.isCancelled,
+                  let track = try? await asset.loadTracks(withMediaType: .audio).first
+            else { return nil }
+            let duration = await (try? asset.load(.duration)) ?? .invalid
+            guard !Task.isCancelled else { return nil }
+            return detectSync(asset: asset, track: track, duration: duration)
+        }
+        return await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
         }
     }
 
@@ -30,11 +35,12 @@ nonisolated enum BPMDetector {
     private static let confidenceThreshold: Float = 1.4
 
     private static func detectSync(asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) -> Double? {
+        guard !Task.isCancelled else { return nil }
         guard let samples = loadMonoSamples(asset: asset, track: track, duration: duration) else { return nil }
-        guard samples.count > windowSize else { return nil }
+        guard !Task.isCancelled, samples.count > windowSize else { return nil }
 
         let envelope = onsetEnvelope(samples)
-        guard envelope.count > 2 else { return nil }
+        guard !Task.isCancelled, envelope.count > 2 else { return nil }
 
         return bpmFromAutocorrelation(envelope)
     }
@@ -52,11 +58,16 @@ nonisolated enum BPMDetector {
             AVLinearPCMIsNonInterleaved: false,
         ]
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
+        guard reader.canAdd(output) else { return nil }
         reader.add(output)
 
         let totalSeconds = duration.seconds
+        guard totalSeconds.isFinite, totalSeconds > 0 else {
+            let cap = Int(analysisSeconds * analysisSR) + 8192
+            return readAllSamples(reader: reader, output: output, maxFrames: cap)
+        }
         guard totalSeconds > 5 else {
-            let cap = Int(max(totalSeconds, 30) * analysisSR) + 8192
+            let cap = Int(totalSeconds * analysisSR) + 8192
             return readAllSamples(reader: reader, output: output, maxFrames: cap)
         }
         let analysisLen = min(analysisSeconds, totalSeconds * 0.6)
@@ -79,6 +90,10 @@ nonisolated enum BPMDetector {
         var all = [Float]()
         let cap = maxFrames ?? Int.max
         while reader.status == .reading {
+            guard !Task.isCancelled else {
+                reader.cancelReading()
+                return nil
+            }
             guard let sb = output.copyNextSampleBuffer(),
                   let bb = CMSampleBufferGetDataBuffer(sb)
             else { break }
@@ -92,9 +107,10 @@ nonisolated enum BPMDetector {
                 ) == noErr,
                 let dataPtr
             else { continue }
-            let floatPtr = UnsafeRawPointer(dataPtr).bindMemory(to: Float.self, capacity: sampleCount)
-            let toAppend = min(sampleCount, cap - all.count)
+            let availableSamples = length / MemoryLayout<Float>.stride
+            let toAppend = min(sampleCount, availableSamples, cap - all.count)
             guard toAppend > 0 else { break }
+            let floatPtr = UnsafeRawPointer(dataPtr).bindMemory(to: Float.self, capacity: toAppend)
             all.append(contentsOf: UnsafeBufferPointer(start: floatPtr, count: toAppend))
             if all.count >= cap { break }
         }
@@ -107,6 +123,7 @@ nonisolated enum BPMDetector {
 
         var rms = [Float](repeating: 0, count: frameCount)
         for i in 0 ..< frameCount {
+            guard !Task.isCancelled else { return [] }
             let offset = i * hopSize
             let end = min(offset + windowSize, samples.count)
             let count = end - offset
@@ -139,6 +156,7 @@ nonisolated enum BPMDetector {
 
         envelope.withUnsafeBufferPointer { buf in
             for i in 0 ..< lagCount {
+                guard !Task.isCancelled else { return }
                 let lag = minLag + i
                 let overlapLen = n - lag
                 guard overlapLen > 0 else { continue }
@@ -152,6 +170,7 @@ nonisolated enum BPMDetector {
                 acf[i] = dot / Float(overlapLen)
             }
         }
+        guard !Task.isCancelled else { return nil }
 
         var peakVal: Float = 0
         var peakIdx: vDSP_Length = 0

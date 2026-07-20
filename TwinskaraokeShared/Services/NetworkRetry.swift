@@ -10,9 +10,13 @@ nonisolated enum NetworkRetry {
     var lastError: Error?
 
     for attempt in 0...maxRetries {
+      try Task.checkCancellation()
       do {
         return try await operation()
+      } catch is CancellationError {
+        throw CancellationError()
       } catch {
+        try Task.checkCancellation()
         lastError = error
 
         guard attempt < maxRetries else {
@@ -20,7 +24,7 @@ nonisolated enum NetworkRetry {
         }
 
         let delay = baseDelay * pow(2.0, Double(attempt))
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       }
     }
 
@@ -34,9 +38,13 @@ nonisolated enum NetworkRetry {
     var lastError: Error?
 
     for attempt in 0...maxRetries {
+      try Task.checkCancellation()
       do {
         return try await operation()
+      } catch is CancellationError {
+        throw CancellationError()
       } catch {
+        try Task.checkCancellation()
         lastError = error
 
         guard shouldRetry(error) else {
@@ -48,7 +56,7 @@ nonisolated enum NetworkRetry {
         }
 
         let delay = baseDelay * pow(2.0, Double(attempt))
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       }
     }
 
