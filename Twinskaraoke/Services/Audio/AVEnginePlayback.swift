@@ -10,6 +10,16 @@ private nonisolated struct LoadedMediaTransfer<Value>: @unchecked Sendable {
     let value: Value
 }
 
+/// Transfers detached timers to the main queue for invalidation without
+/// retaining their actor-isolated owner during teardown.
+private nonisolated struct TimerInvalidationTransfer: @unchecked Sendable {
+    let timers: [Timer]
+
+    func invalidate() {
+        timers.forEach { $0.invalidate() }
+    }
+}
+
 enum AVEnginePlaybackRampStyle {
     case equalPower
     case linear
@@ -27,7 +37,9 @@ extension AVAudioTime {
 }
 
 final class SimpleAudioPlayer {
-    let playerNode = AVAudioPlayerNode()
+    // AVAudioPlayerNode.stop() is thread-safe and is also used during
+    // nonisolated owner teardown.
+    nonisolated(unsafe) let playerNode = AVAudioPlayerNode()
     // Invoked from the audio render callback thread, hence @Sendable and
     // accessible off the main actor.
     nonisolated(unsafe) var completionHandler: (@Sendable () -> Void)?
@@ -346,23 +358,29 @@ final class AVEnginePlayback {
     }
 
     deinit {
-        MainActor.assumeIsolated {
-            if let engineConfigObserver {
-                NotificationCenter.default.removeObserver(engineConfigObserver)
-            }
-            crossfadeTimer?.invalidate()
-            handoffBlendTimer?.invalidate()
-            singleLoadTask?.cancel()
-            stemsLoadTask?.cancel()
-            switchToStemsLoadTask?.cancel()
-            crossfadePreloadTask?.cancel()
-            crossfadeFinalizeTask?.cancel()
-            mainPlayer.stop()
-            crossfadePlayer.stop()
-            stemVocals.stop()
-            stemInstrumental.stop()
-            engine.stop()
+        if let engineConfigObserver {
+            NotificationCenter.default.removeObserver(engineConfigObserver)
         }
+        let timers = TimerInvalidationTransfer(
+            timers: [crossfadeTimer, handoffBlendTimer].compactMap { $0 }
+        )
+        crossfadeTimer = nil
+        handoffBlendTimer = nil
+        if !timers.timers.isEmpty {
+            DispatchQueue.main.async {
+                timers.invalidate()
+            }
+        }
+        singleLoadTask?.cancel()
+        stemsLoadTask?.cancel()
+        switchToStemsLoadTask?.cancel()
+        crossfadePreloadTask?.cancel()
+        crossfadeFinalizeTask?.cancel()
+        mainPlayer.playerNode.stop()
+        crossfadePlayer.playerNode.stop()
+        stemVocals.playerNode.stop()
+        stemInstrumental.playerNode.stop()
+        engine.stop()
     }
 
     func startEngineIfNeeded() {

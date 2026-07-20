@@ -622,29 +622,56 @@ class AudioManager: ObservableObject {
 
     private func setupRemoteCommands() {
         let cc = MPRemoteCommandCenter.shared()
+        func performOnMain(
+            _ action: @escaping @MainActor () -> MPRemoteCommandHandlerStatus
+        ) -> MPRemoteCommandHandlerStatus {
+            if Thread.isMainThread {
+                return MainActor.assumeIsolated { action() }
+            }
+            var status: MPRemoteCommandHandlerStatus = .commandFailed
+            DispatchQueue.main.sync {
+                status = MainActor.assumeIsolated { action() }
+            }
+            return status
+        }
+
         let playTarget = cc.playCommand.addTarget { [weak self] _ in
-            guard let self, !self.playbackRequested else { return .commandFailed }
-            return resumePlayback() ? .success : .commandFailed
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                guard !self.playbackRequested else { return .commandFailed }
+                return self.resumePlayback() ? .success : .commandFailed
+            }
         }
         remoteCommandTargets.append((cc.playCommand, playTarget))
         let pauseTarget = cc.pauseCommand.addTarget { [weak self] _ in
-            guard let self, playbackRequested else { return .commandFailed }
-            return pausePlayback() ? .success : .commandFailed
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                guard self.playbackRequested else { return .commandFailed }
+                return self.pausePlayback() ? .success : .commandFailed
+            }
         }
         remoteCommandTargets.append((cc.pauseCommand, pauseTarget))
         let toggleTarget = cc.togglePlayPauseCommand.addTarget { [weak self] _ in
             guard let self else { return .commandFailed }
-            return togglePlayPause() ? .success : .commandFailed
+            return performOnMain {
+                self.togglePlayPause() ? .success : .commandFailed
+            }
         }
         remoteCommandTargets.append((cc.togglePlayPauseCommand, toggleTarget))
         let nextTarget = cc.nextTrackCommand.addTarget { [weak self] _ in
-            self?.playNext()
-            return .success
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                self.playNext()
+                return .success
+            }
         }
         remoteCommandTargets.append((cc.nextTrackCommand, nextTarget))
         let previousTarget = cc.previousTrackCommand.addTarget { [weak self] _ in
-            self?.playPrevious()
-            return .success
+            guard let self else { return .commandFailed }
+            return performOnMain {
+                self.playPrevious()
+                return .success
+            }
         }
         remoteCommandTargets.append((cc.previousTrackCommand, previousTarget))
     }

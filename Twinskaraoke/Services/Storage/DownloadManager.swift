@@ -123,9 +123,10 @@ final class DownloadManager: ObservableObject {
         startNetworkMonitoring()
         // The startup scan opens every downloaded audio file to validate it;
         // that per-file decode work must stay off the main thread at launch.
+        let scanStartedAt = Date()
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let scan = scanExistingDownloadsBlocking()
+            let scan = scanExistingDownloadsBlocking(createdBefore: scanStartedAt)
             await MainActor.run {
                 self.applyStartupScan(scan)
             }
@@ -713,10 +714,12 @@ final class DownloadManager: ObservableObject {
         failedInCurrentQueue = 0
     }
 
-    /// Read-only for song directories: the scan runs concurrently with live
-    /// downloads, so destructive cleanup is deferred to `applyStartupScan`,
-    /// which runs on the main actor and can defer to live download state.
-    private nonisolated func scanExistingDownloadsBlocking() -> StartupScanResult {
+    /// The scan runs concurrently with live downloads. It only removes
+    /// promotion staging files that predate this launch; all other destructive
+    /// cleanup is deferred to `applyStartupScan` so live state wins.
+    private nonisolated func scanExistingDownloadsBlocking(
+        createdBefore scanStartedAt: Date
+    ) -> StartupScanResult {
         migrateLegacyDownloadsIfNeeded()
         let fm = FileManager.default
         var ids = Set<String>()
@@ -746,6 +749,7 @@ final class DownloadManager: ObservableObject {
                 try? fm.removeItem(at: entry)
                 continue
             }
+            Self.removePromotionStagingFiles(in: entry, createdBefore: scanStartedAt)
             // Read from the directory itself because unsafe IDs are stored under a hash.
             let metadata = readMetadata(at: entry.appendingPathComponent("metadata.json"))
             let directoryKey = entry.lastPathComponent
@@ -781,6 +785,26 @@ final class DownloadManager: ObservableObject {
             repairs: repairs,
             junkDirectories: junkDirectories
         )
+    }
+
+    nonisolated static func removePromotionStagingFiles(
+        in directory: URL,
+        createdBefore cutoff: Date
+    ) {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        for entry in entries where entry.lastPathComponent.contains(".promoting-") {
+            let modifiedAt = try? entry.resourceValues(
+                forKeys: [.contentModificationDateKey]
+            ).contentModificationDate
+            if let modifiedAt, modifiedAt > cutoff { continue }
+            try? fm.removeItem(at: entry)
+        }
     }
 
     private func applyStartupScan(_ scan: StartupScanResult) {

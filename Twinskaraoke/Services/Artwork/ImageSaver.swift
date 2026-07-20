@@ -32,7 +32,7 @@
         }
 
         @objc private func didFinishSaving(
-            _: UIImage, didFinishSavingWithError error: Error?, contextInfo _: UnsafeRawPointer
+            _: UIImage, didFinishSavingWithError error: Error?, contextInfo _: UnsafeRawPointer?
         ) {
             let completion = activeCompletion
             activeCompletion = nil

@@ -5,7 +5,22 @@ import Foundation
 import Security
 
 @MainActor
-final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
+private final class WebAuthenticationPresentationContextProvider:
+    NSObject, ASWebAuthenticationPresentationContextProviding
+{
+    private let anchor: ASPresentationAnchor
+
+    init(anchor: ASPresentationAnchor) {
+        self.anchor = anchor
+    }
+
+    func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        anchor
+    }
+}
+
+@MainActor
+final class AuthManager: NSObject, ObservableObject {
     @Published private(set) var isLoggedIn = false
     @Published private(set) var currentUsername: String?
     @Published private(set) var currentUserId: String?
@@ -15,7 +30,7 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
     private(set) var authToken: String?
     private let defaults = UserDefaults.standard
     private var webAuthenticationSession: ASWebAuthenticationSession?
-    private var webAuthenticationAnchor: ASPresentationAnchor?
+    private var webAuthenticationContextProvider: WebAuthenticationPresentationContextProvider?
 
     private enum K {
         static let userId = "nk.userId"
@@ -166,7 +181,7 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                 ) { [weak self] url, error in
                     Task { @MainActor [weak self] in
                         self?.webAuthenticationSession = nil
-                        self?.webAuthenticationAnchor = nil
+                        self?.webAuthenticationContextProvider = nil
                     }
                     if let error {
                         cont.resume(throwing: Self.mappedWebAuthenticationError(error))
@@ -178,13 +193,16 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                     }
                     cont.resume(returning: url)
                 }
-                session.presentationContextProvider = self
+                let contextProvider = WebAuthenticationPresentationContextProvider(
+                    anchor: presentationAnchor
+                )
+                session.presentationContextProvider = contextProvider
                 session.prefersEphemeralWebBrowserSession = true
-                webAuthenticationAnchor = presentationAnchor
+                webAuthenticationContextProvider = contextProvider
                 webAuthenticationSession = session
                 guard session.start() else {
                     webAuthenticationSession = nil
-                    webAuthenticationAnchor = nil
+                    webAuthenticationContextProvider = nil
                     cont.resume(throwing: AuthError.invalidCallback)
                     return
                 }
@@ -205,7 +223,7 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
             )
         } catch {
             webAuthenticationSession = nil
-            webAuthenticationAnchor = nil
+            webAuthenticationContextProvider = nil
             isLoading = false
             if case AuthError.cancelled = error { return }
             errorMessage = friendlyError(error)
@@ -410,19 +428,6 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
             }
         }
         return error.localizedDescription
-    }
-
-    func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        if let webAuthenticationAnchor {
-            return webAuthenticationAnchor
-        }
-        if let current = activePresentationAnchor() {
-            return current
-        }
-        // The sign-in path verifies and retains an anchor before starting the
-        // authentication session, so this is only reachable for a protocol
-        // call made outside that lifecycle.
-        preconditionFailure("presentationAnchor requested with no connected window scene")
     }
 
     private func activePresentationAnchor() -> ASPresentationAnchor? {
