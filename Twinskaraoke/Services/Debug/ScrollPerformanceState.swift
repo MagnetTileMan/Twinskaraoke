@@ -8,14 +8,14 @@ final class ScrollPerformanceState: ObservableObject {
     @Published private(set) var isScrolling = false
 
     private var activeScrollIDs = Set<UUID>()
-    private var scrollEndTask: Task<Void, Never>?
+    private var scrollEndWorkItem: DispatchWorkItem?
+    private var scrollEndGeneration: UInt = 0
 
     private init() {}
 
     func update(id: UUID, isScrolling scrolling: Bool) {
         if scrolling {
-            scrollEndTask?.cancel()
-            scrollEndTask = nil
+            cancelPendingScrollEnd()
             activeScrollIDs.insert(id)
         } else {
             activeScrollIDs.remove(id)
@@ -24,18 +24,28 @@ final class ScrollPerformanceState: ObservableObject {
     }
 
     private func scheduleScrollStateUpdate() {
-        scrollEndTask?.cancel()
+        cancelPendingScrollEnd()
         if !activeScrollIDs.isEmpty {
             setScrolling(true)
             return
         }
-        scrollEndTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 140_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self?.setScrolling(false)
+
+        let generation = scrollEndGeneration
+        let workItem = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.scrollEndGeneration == generation else { return }
+                self.scrollEndWorkItem = nil
+                self.setScrolling(false)
             }
         }
+        scrollEndWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: workItem)
+    }
+
+    private func cancelPendingScrollEnd() {
+        scrollEndGeneration &+= 1
+        scrollEndWorkItem?.cancel()
+        scrollEndWorkItem = nil
     }
 
     private func setScrolling(_ scrolling: Bool) {
