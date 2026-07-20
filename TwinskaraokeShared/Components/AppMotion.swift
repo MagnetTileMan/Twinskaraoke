@@ -18,7 +18,7 @@ enum DisplayRefreshRate {
   }
 
   static var lightweightAnimationInterval: TimeInterval {
-    1.0 / Double(min(maximumFramesPerSecond, 60))
+    1.0 / 60.0
   }
 
   static var decorativeAnimationInterval: TimeInterval {

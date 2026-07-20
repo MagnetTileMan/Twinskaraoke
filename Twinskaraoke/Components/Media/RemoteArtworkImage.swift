@@ -11,7 +11,6 @@ struct RemoteArtworkImage: View {
     var fullResolution: Bool = false
 
     var fixedDisplaySize: CGSize?
-    @ObservedObject private var scrollState = ScrollPerformanceState.shared
     @State private var fullLoaded: Bool = false
     @State private var loadFailed: Bool = false
     @State private var renderedFullURL: URL?
@@ -129,7 +128,7 @@ struct RemoteArtworkImage: View {
     }
 
     private var shouldAnimateLoad: Bool {
-        guard !scrollState.isScrolling else { return false }
+        guard !ScrollPerformanceState.shared.isScrolling else { return false }
         guard let fixedDisplaySize else { return true }
         return max(fixedDisplaySize.width, fixedDisplaySize.height) > 96
     }

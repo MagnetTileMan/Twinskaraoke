@@ -5,8 +5,7 @@ struct HomeView: View {
     @StateObject private var recentlyPlayed = RecentlyPlayedStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.appReduceMotion) private var reduceMotion
-    @State private var lastSongArtworkPrefetchURLs: [String] = []
-    @State private var lastPlaylistArtworkPrefetchKeys: [String] = []
+    @State private var artworkPrefetchTracker = ArtworkPrefetchTracker()
 
     private var loadingAnimation: Animation? {
         reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
@@ -49,6 +48,7 @@ struct HomeView: View {
                 prefetchVisibleArtworkIfNeeded()
             }
             .onDisappear {
+                artworkPrefetchTracker.reset()
                 ArtworkPrefetcher.shared.cancel(reason: "home songs")
                 ArtworkPrefetcher.shared.cancel(reason: "home playlists")
             }
@@ -172,34 +172,21 @@ struct HomeView: View {
 
     private var artworkPrefetchSignature: ArtworkPrefetchSignature {
         ArtworkPrefetchSignature(
-            songURLs: artworkPrefetchSongs.compactMap(\.imageURL).map(\.absoluteString),
-            playlistKeys: artworkPrefetchPlaylists.map { playlist in
-                let coverURL = playlist.imageURL(variant: .card)?.absoluteString ?? ""
-                let mosaicURLs = playlist.initialMosaicArtworkURLs.map(\.absoluteString).joined(separator: "|")
-                return "\(playlist.id)|\(coverURL)|\(mosaicURLs)"
-            }
+            songs: artworkPrefetchSongs,
+            playlists: artworkPrefetchPlaylists
         )
     }
 
     private func prefetchVisibleArtworkIfNeeded() {
-        let signature = artworkPrefetchSignature
-        if !signature.songURLs.isEmpty,
-           signature.songURLs != lastSongArtworkPrefetchURLs
-        {
-            lastSongArtworkPrefetchURLs = signature.songURLs
-            ArtworkPrefetcher.shared.prefetchSongs(artworkPrefetchSongs, limit: 18, reason: "home songs")
-        }
-
-        if !signature.playlistKeys.isEmpty,
-           signature.playlistKeys != lastPlaylistArtworkPrefetchKeys
-        {
-            lastPlaylistArtworkPrefetchKeys = signature.playlistKeys
-            ArtworkPrefetcher.shared.prefetchPlaylists(
-                artworkPrefetchPlaylists,
-                limit: 12,
-                reason: "home playlists"
-            )
-        }
+        artworkPrefetchTracker.prefetch(
+            signature: artworkPrefetchSignature,
+            songs: artworkPrefetchSongs,
+            playlists: artworkPrefetchPlaylists,
+            songReason: "home songs",
+            playlistReason: "home playlists",
+            songLimit: 18,
+            playlistLimit: 12
+        )
     }
 
     @ViewBuilder
@@ -228,9 +215,4 @@ struct HomeView: View {
             )
         }
     }
-}
-
-private struct ArtworkPrefetchSignature: Equatable {
-    let songURLs: [String]
-    let playlistKeys: [String]
 }

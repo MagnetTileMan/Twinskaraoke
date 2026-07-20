@@ -159,8 +159,32 @@ struct PlayerAmbientBackground: View {
 
     private var runtimeBlurRadius: CGFloat {
         guard let artworkURL else { return 0 }
-        let source = artworkURL.absoluteString.lowercased()
-        return source.contains("blur=") || source.contains("width=32") ? 12 : 42
+        let options = Self.imageTransformOptions(from: artworkURL)
+        let sourceBlur = options["blur"].flatMap(Double.init) ?? 0
+        let sourceWidth = options["width"].flatMap(Double.init)
+        return sourceBlur > 0 || sourceWidth.map { $0 <= 32 } == true ? 12 : 42
+    }
+
+    private static func imageTransformOptions(from url: URL) -> [String: String] {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return [:] }
+        var options: [String: String] = [:]
+        for item in components.queryItems ?? [] {
+            options[item.name.lowercased()] = item.value ?? ""
+        }
+
+        let pathParts = components.path.split(separator: "/")
+        guard let imageIndex = pathParts.indices.first(where: {
+            pathParts[$0] == "image" && $0 > pathParts.startIndex && pathParts[$0 - 1] == "cdn-cgi"
+        }) else { return options }
+
+        let optionIndex = pathParts.index(after: imageIndex)
+        guard optionIndex < pathParts.endIndex else { return options }
+        for option in pathParts[optionIndex].split(separator: ",") {
+            let pair = option.split(separator: "=", maxSplits: 1)
+            guard pair.count == 2 else { continue }
+            options[String(pair[0]).lowercased()] = String(pair[1])
+        }
+        return options
     }
 
     private func loadPalette() {

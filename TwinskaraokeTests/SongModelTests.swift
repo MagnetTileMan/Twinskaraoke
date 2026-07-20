@@ -8,6 +8,40 @@ struct SongModelTests {
         UserDefaults.standard.set("global", forKey: "nk.storageRegion")
     }
 
+    @Test("Artwork prefetch signatures ignore ordering and duplicates")
+    @MainActor
+    func artworkPrefetchSignatureUsesURLSets() {
+        useGlobalStorageRegion()
+        let first = Song(
+            id: "song-1",
+            title: "First",
+            duration: 180,
+            absolutePath: "/audio/first.mp3",
+            cloudflareID: "first-image",
+            coverArt: nil,
+            originalArtists: nil,
+            coverArtists: nil,
+            userUploaded: false
+        )
+        let second = Song(
+            id: "song-2",
+            title: "Second",
+            duration: 180,
+            absolutePath: "/audio/second.mp3",
+            cloudflareID: "second-image",
+            coverArt: nil,
+            originalArtists: nil,
+            coverArtists: nil,
+            userUploaded: false
+        )
+
+        let ordered = ArtworkPrefetchSignature(songs: [first, second, first], playlists: [])
+        let reordered = ArtworkPrefetchSignature(songs: [second, first], playlists: [])
+
+        #expect(ordered == reordered)
+        #expect(ordered.songURLs.count == 2)
+    }
+
     @Test("Cloudflare artwork URLs use the image CDN")
     func songImageURLWithCloudflareId() {
         useGlobalStorageRegion()

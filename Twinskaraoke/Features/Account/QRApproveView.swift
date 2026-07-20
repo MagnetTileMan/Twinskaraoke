@@ -808,6 +808,12 @@ private final class QRCameraController: UIViewController {
     private var hasUsablePreviewBounds = false
     private lazy var metadataOutputDelegate = QRCameraMetadataDelegate(controller: self)
 
+    // Capture may run only while the controller is visible, after configuration
+    // succeeds, and once layout has produced non-zero preview bounds.
+    private var isSessionReadyToRun: Bool {
+        shouldRunSession && isSessionConfigured && hasUsablePreviewBounds
+    }
+
     private var cameraPreviewView: QRCameraPreviewView {
         guard let previewView = view as? QRCameraPreviewView else {
             preconditionFailure("QRCameraController must use QRCameraPreviewView")
@@ -879,7 +885,7 @@ private final class QRCameraController: UIViewController {
     }
 
     private func updateSessionRunningState() {
-        let shouldRun = shouldRunSession && hasUsablePreviewBounds && isSessionConfigured
+        let shouldRun = isSessionReadyToRun
         nonisolated(unsafe) let capturedSession = session
         sessionQueue.async {
             if shouldRun {

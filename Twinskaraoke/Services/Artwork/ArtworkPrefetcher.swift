@@ -3,6 +3,64 @@ import SDWebImage
 import SDWebImageSwiftUI
 
 @MainActor
+struct ArtworkPrefetchSignature: Equatable {
+    let songURLs: Set<String>
+    let playlistURLs: Set<String>
+
+    init(
+        songs: [Song],
+        playlists: [Playlist],
+        variant: ArtworkImageVariant = .card
+    ) {
+        songURLs = Set(
+            ArtworkPrefetcher.urls(for: songs, variant: variant).map(\.absoluteString)
+        )
+        playlistURLs = Set(
+            ArtworkPrefetcher.urls(for: playlists, variant: variant).map(\.absoluteString)
+        )
+    }
+}
+
+@MainActor
+struct ArtworkPrefetchTracker {
+    private var lastSongURLs = Set<String>()
+    private var lastPlaylistURLs = Set<String>()
+
+    mutating func prefetch(
+        signature: ArtworkPrefetchSignature,
+        songs: [Song],
+        playlists: [Playlist],
+        songReason: String,
+        playlistReason: String,
+        songLimit: Int,
+        playlistLimit: Int
+    ) {
+        if signature.songURLs != lastSongURLs {
+            lastSongURLs = signature.songURLs
+            if !signature.songURLs.isEmpty {
+                ArtworkPrefetcher.shared.prefetchSongs(songs, limit: songLimit, reason: songReason)
+            }
+        }
+
+        if signature.playlistURLs != lastPlaylistURLs {
+            lastPlaylistURLs = signature.playlistURLs
+            if !signature.playlistURLs.isEmpty {
+                ArtworkPrefetcher.shared.prefetchPlaylists(
+                    playlists,
+                    limit: playlistLimit,
+                    reason: playlistReason
+                )
+            }
+        }
+    }
+
+    mutating func reset() {
+        lastSongURLs.removeAll(keepingCapacity: true)
+        lastPlaylistURLs.removeAll(keepingCapacity: true)
+    }
+}
+
+@MainActor
 final class ArtworkPrefetcher {
     private struct ActivePrefetch {
         let id: UUID
@@ -29,7 +87,19 @@ final class ArtworkPrefetcher {
         reason: String,
         variant: ArtworkImageVariant = .card
     ) {
-        let urls = songs.compactMap { song -> URL? in
+        prefetch(
+            urls: Self.urls(for: songs, variant: variant),
+            limit: limit,
+            reason: reason,
+            variant: variant
+        )
+    }
+
+    fileprivate static func urls(
+        for songs: [Song],
+        variant: ArtworkImageVariant
+    ) -> [URL] {
+        songs.compactMap { song -> URL? in
             switch variant {
             case .row:
                 song.rowImageURL
@@ -43,7 +113,6 @@ final class ArtworkPrefetcher {
                 song.imageURL
             }
         }
-        prefetch(urls: urls, limit: limit, reason: reason, variant: variant)
     }
 
     func prefetchPlaylists(
@@ -52,7 +121,19 @@ final class ArtworkPrefetcher {
         reason: String,
         variant: ArtworkImageVariant = .card
     ) {
-        let urls = playlists.flatMap { playlist -> [URL] in
+        prefetch(
+            urls: Self.urls(for: playlists, variant: variant),
+            limit: limit,
+            reason: reason,
+            variant: variant
+        )
+    }
+
+    fileprivate static func urls(
+        for playlists: [Playlist],
+        variant: ArtworkImageVariant
+    ) -> [URL] {
+        playlists.flatMap { playlist -> [URL] in
             var values: [URL] = []
             if let imageURL = playlist.imageURL(variant: variant) {
                 values.append(imageURL)
@@ -62,7 +143,6 @@ final class ArtworkPrefetcher {
             })
             return values
         }
-        prefetch(urls: urls, limit: limit, reason: reason, variant: variant)
     }
 
     func prefetch(

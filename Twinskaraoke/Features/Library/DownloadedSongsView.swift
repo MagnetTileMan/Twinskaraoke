@@ -131,11 +131,19 @@ struct DownloadedSongsView: View {
     }
 
     private func heroHeader(width: CGFloat) -> some View {
-        mosaicArtwork
-            .frame(width: 240, height: 240)
+        let baseSize: CGFloat = 240
+        return mosaicArtwork
+            .frame(width: baseSize, height: baseSize)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
             .frame(width: width)
+            .frame(height: baseSize)
+            .scrollParallaxHero(
+                baseSize: baseSize,
+                restingOffset: 12,
+                fadesWhenCollapsed: true,
+                reduceMotion: reduceMotion
+            )
             .padding(.top, 12)
     }
 
