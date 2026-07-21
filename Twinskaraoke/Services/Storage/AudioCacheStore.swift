@@ -18,7 +18,7 @@ nonisolated enum AudioCacheStore {
     private nonisolated(unsafe) static let compressionAlgorithm: Algorithm = .lzfse
     private static let chunkSize = 64 * 1024
     private static let maximumPlayableFileSize: Int64 = 256 * 1024 * 1024
-    private static let supportedMainAudioExtensions: Set<String> = [
+    static let supportedMainAudioExtensions: Set<String> = [
         "aac", "aif", "aiff", "caf", "flac", "m4a", "m4b", "mp3", "mp4", "wav",
     ]
     private static let cacheDirectory: URL = {
@@ -322,7 +322,7 @@ nonisolated enum AudioCacheStore {
         (name.hasSuffix(".partial") || name.contains(".partial.")) && modifiedAt < cutoff
     }
 
-    private static func mainAudioExtension(for sourceURL: URL) -> String {
+    static func mainAudioExtension(for sourceURL: URL) -> String {
         let pathExtension = sourceURL.pathExtension.lowercased()
         return supportedMainAudioExtensions.contains(pathExtension) ? pathExtension : "mp3"
     }

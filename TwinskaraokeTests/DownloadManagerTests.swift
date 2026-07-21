@@ -62,6 +62,55 @@ struct DownloadManagerTests {
         )
     }
 
+    @Test("Persistent downloads preserve the remote audio container extension")
+    func persistentDownloadsPreserveRemoteContainerExtension() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            UUID().uuidString,
+            isDirectory: true
+        )
+        let m4aSource = try #require(URL(string: "https://storage.example.com/upload.m4a"))
+        let mp3Source = try #require(URL(string: "https://storage.example.com/catalog.mp3"))
+
+        #expect(
+            DownloadManager.downloadedAudioURL(in: directory, sourceURL: m4aSource)
+                .lastPathComponent == "main.m4a"
+        )
+        #expect(
+            DownloadManager.downloadedAudioURL(in: directory, sourceURL: mp3Source)
+                .lastPathComponent == "main.mp3"
+        )
+    }
+
+    @Test("Persistent download commit replaces legacy container variants")
+    func persistentDownloadCommitRemovesLegacyVariant() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            UUID().uuidString,
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let sourceURL = try #require(URL(string: "https://storage.example.com/upload.m4a"))
+        let finalURL = DownloadManager.downloadedAudioURL(
+            in: directory,
+            sourceURL: sourceURL
+        )
+        let stagedURL = directory.appendingPathComponent("incoming.m4a")
+        let legacyURL = directory.appendingPathComponent("main.mp3")
+        try Data("new".utf8).write(to: stagedURL)
+        try Data("legacy".utf8).write(to: legacyURL)
+
+        try DownloadManager.commitDownloadedAudioFile(
+            at: stagedURL,
+            to: finalURL,
+            in: directory
+        )
+
+        #expect(try Data(contentsOf: finalURL) == Data("new".utf8))
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
+        #expect(!FileManager.default.fileExists(atPath: stagedURL.path))
+    }
+
     @Test("Playback cache commit replaces its destination and removes legacy variants")
     func playbackCacheCommitReplacesDestinationSafely() throws {
         let songID = "cache-commit-\(UUID().uuidString)"
