@@ -1,11 +1,17 @@
 import SwiftUI
 
+private struct DownloadedSongRowIdentity: Hashable {
+    let songID: String
+    let duration: Int
+}
+
 struct DownloadedSongsView: View {
     @StateObject private var downloads = DownloadManager.shared
     @StateObject private var recentlyPlayed = RecentlyPlayedStore.shared
     @Environment(\.appReduceMotion) private var reduceMotion
     @State private var localSongs: [Song] = []
     @State private var refreshTask: Task<Void, Never>?
+    @State private var durationTask: Task<Void, Never>?
 
     @State private var showsCollapsedTitle = false
     @State private var showRemoveAllConfirmation = false
@@ -36,6 +42,12 @@ struct DownloadedSongsView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(localSongs.enumerated()), id: \.element.id) { idx, song in
                                 SongRow(song: song, size: .regular)
+                                    .id(
+                                        DownloadedSongRowIdentity(
+                                            songID: song.id,
+                                            duration: song.duration
+                                        )
+                                    )
                                     .padding(.horizontal)
                                     .padding(.vertical, 8)
                                     .contentShape(Rectangle())
@@ -100,6 +112,8 @@ struct DownloadedSongsView: View {
         .onDisappear {
             refreshTask?.cancel()
             refreshTask = nil
+            durationTask?.cancel()
+            durationTask = nil
             ArtworkPrefetcher.shared.cancel(reason: "downloaded songs")
         }
     }
@@ -189,13 +203,41 @@ struct DownloadedSongsView: View {
     private func refresh() {
         let cached = recentlyPlayed.playlists.flatMap { $0.songListDTOs ?? [] }
         let songs = downloads.downloadedSongs(knownSongs: cached)
+        let localAudioURLs = songs.reduce(into: [String: URL]()) { urls, song in
+            let url = downloads.localURL(for: song.id)
+            guard FileManager.default.fileExists(atPath: url.path) else { return }
+            urls[song.id] = url
+        }
         ArtworkPrefetcher.shared.prefetchSongs(
             Array(songs.prefix(18)),
             limit: 18,
             reason: "downloaded songs",
             variant: .row
         )
-        if reduceMotion {
+        replaceLocalSongs(songs, animated: true)
+
+        durationTask?.cancel()
+        durationTask = Task { @MainActor in
+            let songsWithDurations = await UploadedSongDurationResolver.shared
+                .fillingMissingDurations(
+                    in: songs,
+                    localAudioURLs: localAudioURLs
+                )
+            guard !Task.isCancelled else { return }
+
+            let resolvedCount = songsWithDurations.filter { $0.duration > 0 }.count
+            let missingCount = songsWithDurations.count - resolvedCount
+            DebugLogger.log(
+                "Downloaded duration hydration: resolved=\(resolvedCount), missing=\(missingCount)",
+                category: .cache
+            )
+            replaceLocalSongs(songsWithDurations, animated: false)
+            durationTask = nil
+        }
+    }
+
+    private func replaceLocalSongs(_ songs: [Song], animated: Bool) {
+        if reduceMotion || !animated {
             localSongs = songs
         } else {
             withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {

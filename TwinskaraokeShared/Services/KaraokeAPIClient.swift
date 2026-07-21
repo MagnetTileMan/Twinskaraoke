@@ -141,7 +141,29 @@ nonisolated enum KaraokeAPIClient {
     if id == Playlist.favoritesID {
       return try await favoriteSongs()
     }
-    return try await playlistDetail(id: id).songListDTOs
+    let songs = try await playlistDetail(id: id).songListDTOs
+    return try await hydratePlaylistUploadedSongs(songs)
+  }
+
+  private static func hydratePlaylistUploadedSongs(_ songs: [Song]) async throws -> [Song] {
+    guard CredentialStore.token != nil else { return songs }
+    let missingDurationIDs = songs.filter { $0.duration <= 0 }.map(\.id)
+    guard !missingDurationIDs.isEmpty else { return songs }
+
+    do {
+      let uploadedMetadata = try await uploadedSongs(matching: missingDurationIDs)
+      return hydratingFavorites(
+        songs,
+        canonicalSongs: [],
+        uploadedSongs: uploadedMetadata
+      )
+    } catch {
+      try rethrowIfCancelled(error)
+      favoriteMetadataLogger.error(
+        "Playlist uploaded metadata fetch failed: \(String(describing: error), privacy: .public)"
+      )
+      return songs
+    }
   }
 
   static func playlistSongCount(id: String) async throws -> Int? {
@@ -223,11 +245,11 @@ nonisolated enum KaraokeAPIClient {
 
   static func uploadedSongs(matching ids: [String]) async throws -> [Song] {
     try await uploadedSongMetadataCache.value(for: Set(ids)) {
-      try await fetchUploadedSongs()
+      try await uploadedSongs()
     }
   }
 
-  private static func fetchUploadedSongs() async throws -> [Song] {
+  static func uploadedSongs() async throws -> [Song] {
     let data = try await data(for: uploadedSongsRequest())
     guard let songs = SongPayloadDecoder.decodeSongs(from: data) else {
       throw APIError.decodeFailed

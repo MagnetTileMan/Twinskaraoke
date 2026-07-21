@@ -216,6 +216,7 @@ struct PlaylistDetailView: View {
                                 }
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.985, dim: 0.78, haptic: .selection))
+                        .id("\(song.id):\(song.duration)")
                         .accessibilityHint("Starts playback.")
                         .accessibilityIdentifier("PlaylistDetail.song.\(song.id)")
                         Divider().padding(.leading, rowHorizontalPadding + 60)

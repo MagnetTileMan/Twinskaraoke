@@ -41,10 +41,38 @@ class PlaylistDetailViewModel: ObservableObject {
         isLoading = true
         loadTask = Task { [weak self] in
             do {
-                let loadedSongs = try await KaraokeAPIClient.playlistSongs(id: playlistID)
+                async let remoteSongs = KaraokeAPIClient.playlistSongs(id: playlistID)
+
+                if let fallback, !fallback.isEmpty {
+                    let fallbackWithDurations = await UploadedSongDurationResolver.shared
+                        .fillingMissingDurations(in: fallback)
+                    guard !Task.isCancelled else { return }
+                    self?.applyLoadedSongs(
+                        fallbackWithDurations,
+                        playlistID: playlistID,
+                        requestFailed: false
+                    )
+                }
+
+                let loadedSongs = try await remoteSongs
                 guard !Task.isCancelled else { return }
                 self?.applyLoadedSongs(
                     loadedSongs,
+                    playlistID: playlistID,
+                    requestFailed: false
+                )
+
+                let songsWithDurations = await UploadedSongDurationResolver.shared
+                    .fillingMissingDurations(in: loadedSongs)
+                guard !Task.isCancelled else { return }
+                DebugLogger.log(
+                    "Playlist duration hydration \(playlistID): resolved="
+                        + "\(songsWithDurations.filter { $0.duration > 0 }.count), "
+                        + "missing=\(songsWithDurations.filter { $0.duration <= 0 }.count)",
+                    category: .cache
+                )
+                self?.applyLoadedSongs(
+                    songsWithDurations,
                     playlistID: playlistID,
                     requestFailed: false
                 )

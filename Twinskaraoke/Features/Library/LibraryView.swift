@@ -185,6 +185,11 @@ struct LibraryView: View {
                 title: "Downloaded",
                 destination: DownloadedSongsView()
             )
+            libraryLink(
+                icon: "arrow.up.circle",
+                title: "Uploaded",
+                destination: UploadedSongsView()
+            )
             libraryLink(icon: "paintpalette", title: "Art Gallery", destination: ArtGalleryView())
             libraryLink(icon: "play.rectangle", title: "Video Gallery", destination: VideoGalleryView())
             libraryLink(
