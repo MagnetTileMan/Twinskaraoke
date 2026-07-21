@@ -2,6 +2,19 @@ import Foundation
 import Testing
 @testable import Twinskaraoke
 
+private actor UploadedSongLoaderProbe {
+    private var calls = 0
+
+    func load() -> [Song] {
+        calls += 1
+        return []
+    }
+
+    func callCount() -> Int {
+        calls
+    }
+}
+
 @Suite("Song model")
 struct SongModelTests {
     private func useGlobalStorageRegion() {
@@ -421,6 +434,42 @@ struct SongModelTests {
         )
     }
 
+    @Test("Favorite nested artwork takes priority over canonical flat artwork")
+    func favoriteNestedArtworkTakesPriority() {
+        useGlobalStorageRegion()
+        let favorite = Song(
+            id: "favorite-upload",
+            title: "Uploaded Favorite",
+            duration: 180,
+            absolutePath: "uploads/favorite.m4a",
+            cloudflareID: nil,
+            coverArt: Media(absolutePath: nil, cloudflareId: "favorite-nested-artwork-id"),
+            originalArtists: nil,
+            coverArtists: nil,
+            userUploaded: true
+        )
+        let canonical = Song(
+            id: "favorite-upload",
+            title: "Uploaded Favorite",
+            duration: 180,
+            absolutePath: "uploads/favorite.m4a",
+            cloudflareID: "canonical-flat-artwork-id",
+            coverArt: nil,
+            originalArtists: nil,
+            coverArtists: ["Uploader"],
+            userUploaded: true
+        )
+
+        let hydrated = favorite.fillingMissingMetadata(from: canonical)
+
+        #expect(hydrated.cloudflareID == nil)
+        #expect(hydrated.coverArt?.cloudflareId == "favorite-nested-artwork-id")
+        #expect(
+            hydrated.rowImageURL?.absoluteString
+                == "https://images.neurokaraoke.com/cdn-cgi/image/width=180,quality=78,format=webp/favorite-nested-artwork-id/public"
+        )
+    }
+
     @Test("Bulk song metadata request posts the song ID array")
     func bulkSongMetadataRequestPostsIDs() throws {
         let request = try KaraokeAPIClient.songsByIDsRequest(["first-id", "second-id"])
@@ -438,6 +487,36 @@ struct SongModelTests {
 
         #expect(request.httpMethod == "GET")
         #expect(request.url?.path == "/api/user/songs")
+    }
+
+    @Test("Uploaded song metadata cache refreshes for new favorites and after expiration")
+    func uploadedSongMetadataCacheRefreshesWhenNeeded() async throws {
+        let cache = UploadedSongMetadataCache(lifetime: 60)
+        let loader = UploadedSongLoaderProbe()
+        let start = Date(timeIntervalSince1970: 1_000)
+
+        _ = try await cache.value(for: ["first"], at: start) { await loader.load() }
+        _ = try await cache.value(for: ["first"], at: start.addingTimeInterval(30)) {
+            await loader.load()
+        }
+        let callsForStableFavorites = await loader.callCount()
+
+        _ = try await cache.value(
+            for: ["first", "new-favorite"],
+            at: start.addingTimeInterval(31)
+        ) {
+            await loader.load()
+        }
+        let callsAfterAddingFavorite = await loader.callCount()
+
+        _ = try await cache.value(for: ["first"], at: start.addingTimeInterval(92)) {
+            await loader.load()
+        }
+        let callsAfterExpiration = await loader.callCount()
+
+        #expect(callsForStableFavorites == 1)
+        #expect(callsAfterAddingFavorite == 2)
+        #expect(callsAfterExpiration == 3)
     }
 
     @Test("Uploaded song metadata takes priority when hydrating favorites")

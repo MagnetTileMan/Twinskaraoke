@@ -237,7 +237,9 @@ nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
       title: title,
       duration: duration > 0 ? duration : canonical.duration,
       absolutePath: Self.preferredString(absolutePath, fallback: canonical.absolutePath),
-      cloudflareID: Self.preferredString(cloudflareID, fallback: canonical.cloudflareID),
+      cloudflareID: hasOwnArtwork
+        ? cloudflareID
+        : Self.preferredString(cloudflareID, fallback: canonical.cloudflareID),
       coverArt: hasUsableArtwork(coverArt) ? coverArt : canonical.coverArt,
       originalArtists: Self.preferredArtists(originalArtists, fallback: canonical.originalArtists),
       coverArtists: Self.preferredArtists(coverArtists, fallback: canonical.coverArtists),
