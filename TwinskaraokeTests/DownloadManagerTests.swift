@@ -37,6 +37,29 @@ struct DownloadManagerTests {
                 createdBefore: cutoff
             )
         )
+        #expect(
+            AudioCacheStore.shouldRemovePartialFile(
+                named: "main.partial.m4a",
+                modifiedAt: cutoff.addingTimeInterval(-1),
+                createdBefore: cutoff
+            )
+        )
+    }
+
+    @Test("Playback cache preserves the remote audio container extension")
+    func playbackCachePreservesRemoteContainerExtension() throws {
+        let remoteURL = try #require(
+            URL(string: "https://storage.example.com/Imported%20Song.m4a")
+        )
+
+        #expect(
+            AudioCacheStore.mainAudioURL(for: "uploaded-song", sourceURL: remoteURL)
+                .lastPathComponent == "main.m4a"
+        )
+        #expect(
+            AudioCacheStore.mainPartialAudioURL(for: "uploaded-song", sourceURL: remoteURL)
+                .lastPathComponent == "main.partial.m4a"
+        )
     }
 
     @Test("Only uncompressed stem formats are selected for compression")

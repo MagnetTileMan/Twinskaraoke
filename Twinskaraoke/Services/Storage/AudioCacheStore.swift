@@ -5,8 +5,6 @@ import Foundation
 nonisolated enum AudioCacheStore {
     struct SongFiles {
         let directory: URL
-        let main: URL
-        let mainPartial: URL
         let mainSource: URL
         let vocals: URL
         let instruments: URL
@@ -20,6 +18,9 @@ nonisolated enum AudioCacheStore {
     private nonisolated(unsafe) static let compressionAlgorithm: Algorithm = .lzfse
     private static let chunkSize = 64 * 1024
     private static let maximumPlayableFileSize: Int64 = 256 * 1024 * 1024
+    private static let supportedMainAudioExtensions: Set<String> = [
+        "aac", "aif", "aiff", "caf", "flac", "m4a", "m4b", "mp3", "mp4", "wav",
+    ]
     private static let cacheDirectory: URL = {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("AudioCache", isDirectory: true)
@@ -36,11 +37,29 @@ nonisolated enum AudioCacheStore {
         )
     }
 
+    static func mainAudioURL(for songID: String, sourceURL: URL) -> URL {
+        files(for: songID).directory.appendingPathComponent(
+            "main.\(mainAudioExtension(for: sourceURL))"
+        )
+    }
+
+    static func mainPartialAudioURL(for songID: String, sourceURL: URL) -> URL {
+        files(for: songID).directory.appendingPathComponent(
+            "main.partial.\(mainAudioExtension(for: sourceURL))"
+        )
+    }
+
+    static func removeMainAudioFiles(for songID: String) {
+        let directory = files(for: songID).directory
+        for url in cachedMainAudioURLs(in: directory) {
+            try? fm.removeItem(at: url)
+            try? fm.removeItem(at: compressedURL(for: url))
+        }
+    }
+
     private static func songFiles(in directory: URL) -> SongFiles {
         return SongFiles(
             directory: directory,
-            main: directory.appendingPathComponent("main.mp3"),
-            mainPartial: directory.appendingPathComponent("main.mp3.partial"),
             mainSource: directory.appendingPathComponent("main.source"),
             vocals: directory.appendingPathComponent("vocals.wav"),
             instruments: directory.appendingPathComponent("instruments.wav"),
@@ -59,25 +78,32 @@ nonisolated enum AudioCacheStore {
 
     static func playableMainURL(for songID: String, expectedRemoteURL: URL? = nil, expectedDuration: TimeInterval? = nil) -> URL? {
         let songFiles = files(for: songID)
-        guard let playable = playableURL(for: songFiles.main) else { return nil }
-        guard validateMainSource(for: songID, expectedRemoteURL: expectedRemoteURL) else {
-            return nil
-        }
-        if let expectedDuration, expectedDuration.isFinite, expectedDuration > 1.0 {
-            let actualDuration = audioDuration(at: playable)
-            guard durationAppearsComplete(
-                actualDuration: actualDuration,
-                expectedDuration: expectedDuration
-            ) else {
-                DebugLogger.log(
-                    "Discarding audio cache for \(songID) due to duration mismatch: expected \(expectedDuration)s, got \(actualDuration)s",
-                    category: .cache
-                )
-                removeSongCache(for: songID)
+        for candidate in mainAudioCandidates(
+            in: songFiles.directory,
+            songID: songID,
+            expectedRemoteURL: expectedRemoteURL
+        ) {
+            guard let playable = playableURL(for: candidate) else { continue }
+            guard validateMainSource(for: songID, expectedRemoteURL: expectedRemoteURL) else {
                 return nil
             }
+            if let expectedDuration, expectedDuration.isFinite, expectedDuration > 1.0 {
+                let actualDuration = audioDuration(at: playable)
+                guard durationAppearsComplete(
+                    actualDuration: actualDuration,
+                    expectedDuration: expectedDuration
+                ) else {
+                    DebugLogger.log(
+                        "Discarding audio cache for \(songID) due to duration mismatch: expected \(expectedDuration)s, got \(actualDuration)s",
+                        category: .cache
+                    )
+                    removeSongCache(for: songID)
+                    return nil
+                }
+            }
+            return playable
         }
-        return playable
+        return nil
     }
 
     /// Like `playableMainURL`, but never decompresses: returns nil when only the
@@ -89,26 +115,35 @@ nonisolated enum AudioCacheStore {
         expectedDuration: TimeInterval? = nil
     ) -> URL? {
         let songFiles = files(for: songID)
-        guard fm.fileExists(atPath: songFiles.main.path),
-              validateMainSource(for: songID, expectedRemoteURL: expectedRemoteURL),
-              isValidAudioFile(at: songFiles.main)
-        else { return nil }
-        if let expectedDuration, expectedDuration.isFinite, expectedDuration > 1.0 {
-            let actualDuration = audioDuration(at: songFiles.main)
-            guard durationAppearsComplete(
-                actualDuration: actualDuration,
-                expectedDuration: expectedDuration
-            ) else {
-                DebugLogger.log(
-                    "Discarding immediate audio cache for \(songID) due to duration mismatch: expected \(expectedDuration)s, got \(actualDuration)s",
-                    category: .cache
-                )
-                removeSongCache(for: songID)
+        for candidate in mainAudioCandidates(
+            in: songFiles.directory,
+            songID: songID,
+            expectedRemoteURL: expectedRemoteURL
+        ) {
+            guard fm.fileExists(atPath: candidate.path), isValidAudioFile(at: candidate) else {
+                continue
+            }
+            guard validateMainSource(for: songID, expectedRemoteURL: expectedRemoteURL) else {
                 return nil
             }
+            if let expectedDuration, expectedDuration.isFinite, expectedDuration > 1.0 {
+                let actualDuration = audioDuration(at: candidate)
+                guard durationAppearsComplete(
+                    actualDuration: actualDuration,
+                    expectedDuration: expectedDuration
+                ) else {
+                    DebugLogger.log(
+                        "Discarding immediate audio cache for \(songID) due to duration mismatch: expected \(expectedDuration)s, got \(actualDuration)s",
+                        category: .cache
+                    )
+                    removeSongCache(for: songID)
+                    return nil
+                }
+            }
+            touch(candidate)
+            return candidate
         }
-        touch(songFiles.main)
-        return songFiles.main
+        return nil
     }
 
     static func playableStems(
@@ -273,7 +308,43 @@ nonisolated enum AudioCacheStore {
         modifiedAt: Date,
         createdBefore cutoff: Date
     ) -> Bool {
-        name.hasSuffix(".partial") && modifiedAt < cutoff
+        (name.hasSuffix(".partial") || name.contains(".partial.")) && modifiedAt < cutoff
+    }
+
+    private static func mainAudioExtension(for sourceURL: URL) -> String {
+        let pathExtension = sourceURL.pathExtension.lowercased()
+        return supportedMainAudioExtensions.contains(pathExtension) ? pathExtension : "mp3"
+    }
+
+    private static func mainAudioCandidates(
+        in directory: URL,
+        songID: String,
+        expectedRemoteURL: URL?
+    ) -> [URL] {
+        if let expectedRemoteURL {
+            // The container extension is part of Core Audio's file-type
+            // selection. Do not reuse a legacy `main.mp3` that contains M4A
+            // bytes from the same source URL.
+            return [mainAudioURL(for: songID, sourceURL: expectedRemoteURL)]
+        }
+        return cachedMainAudioURLs(in: directory)
+    }
+
+    private static func cachedMainAudioURLs(in directory: URL) -> [URL] {
+        guard let entries = try? fm.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        return entries
+            .filter { url in
+                let name = url.lastPathComponent
+                return name.hasPrefix("main.")
+                    && !name.contains(".partial.")
+                    && !name.contains(".promoting-")
+                    && supportedMainAudioExtensions.contains(url.pathExtension.lowercased())
+            }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     static func compressIdleAssets(excluding songIDs: Set<String>) {

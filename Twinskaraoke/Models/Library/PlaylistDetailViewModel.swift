@@ -50,6 +50,10 @@ class PlaylistDetailViewModel: ObservableObject {
                 )
             } catch {
                 guard !Task.isCancelled else { return }
+                DebugLogger.log(
+                    "Playlist \(playlistID) load failed: \(String(describing: error))",
+                    category: .network
+                )
                 self?.applyLoadedSongs(nil, playlistID: playlistID, requestFailed: true)
             }
         }

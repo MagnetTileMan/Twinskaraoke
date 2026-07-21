@@ -269,7 +269,11 @@ final class TransitionCoordinator {
 
     private func predownload(song: Song, from remoteURL: URL) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let session = PredownloadSession(songID: song.id, expectedDuration: song.duration > 0 ? TimeInterval(song.duration) : nil)
+            let session = PredownloadSession(
+                songID: song.id,
+                expectedDuration: song.duration > 0 ? TimeInterval(song.duration) : nil,
+                remoteURL: remoteURL
+            )
             self.predownloadSession = session
             session.onCompletion = { [weak self] in
                 DebugLogger.log(
@@ -370,12 +374,11 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unche
     private var isCancelled = false
     var onCompletion: (() -> Void)?
 
-    init(songID: String, expectedDuration: TimeInterval?) {
+    init(songID: String, expectedDuration: TimeInterval?, remoteURL: URL) {
         self.songID = songID
         self.expectedDuration = expectedDuration
-        let songFiles = AudioCacheStore.files(for: songID)
-        finalURL = songFiles.main
-        partialURL = songFiles.mainPartial
+        finalURL = AudioCacheStore.mainAudioURL(for: songID, sourceURL: remoteURL)
+        partialURL = AudioCacheStore.mainPartialAudioURL(for: songID, sourceURL: remoteURL)
         super.init()
     }
 
@@ -462,7 +465,7 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unche
             let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
             DebugLogger.log("Predownload completed for \(songID) with HTTP \(status)", category: .playback)
             do {
-                try? FileManager.default.removeItem(at: finalURL)
+                AudioCacheStore.removeMainAudioFiles(for: songID)
                 try FileManager.default.moveItem(at: partialURL, to: finalURL)
                 AudioCacheStore.writeMainSourceURL(remoteURL, for: songID)
             } catch {

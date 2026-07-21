@@ -198,6 +198,48 @@ struct SongModelTests {
         #expect(url?.contains("%20") == true)
     }
 
+    @Test("audioURL falls back to oss when absolutePath is blank")
+    func songAudioURLFallsBackToOssWhenAbsolutePathIsBlank() {
+        useGlobalStorageRegion()
+        let song = Song(
+            id: "song-blank-path",
+            title: "Uploaded File",
+            duration: 90,
+            absolutePath: "  ",
+            cloudflareID: nil,
+            coverArt: nil,
+            originalArtists: nil,
+            coverArtists: nil,
+            userUploaded: true,
+            oss: "uploads/My Song.mp3"
+        )
+
+        #expect(
+            song.audioURL?.absoluteString
+                == "https://storage.neurokaraoke.com/uploads/My%20Song.mp3"
+        )
+    }
+
+    @Test("audioURL preserves complete remote URLs")
+    func songAudioURLPreservesRemoteURL() {
+        let song = Song(
+            id: "song-remote",
+            title: "Remote Upload",
+            duration: 90,
+            absolutePath: "https://uploads.example.com/audio/My%20Song.mp3?token=abc",
+            cloudflareID: nil,
+            coverArt: nil,
+            originalArtists: nil,
+            coverArtists: nil,
+            userUploaded: true
+        )
+
+        #expect(
+            song.audioURL?.absoluteString
+                == "https://uploads.example.com/audio/My%20Song.mp3?token=abc"
+        )
+    }
+
     @Test("audioURL is nil when both absolutePath and oss are nil")
     func songAudioURLNilWithoutAnyPath() {
         let song = Song(
@@ -225,6 +267,86 @@ struct SongModelTests {
         #expect(song != nil)
         #expect(song?.oss == "audio/test.mp3")
         #expect(song?.audioURL?.absoluteString == "https://storage.neurokaraoke.com/audio/test.mp3")
+    }
+
+    @Test("Song decodes flexible metadata used by uploaded YouTube songs")
+    func songDecodesFlexibleUploadedMetadata() throws {
+        let json = """
+        {
+          "id": "youtube-1",
+          "title": "Imported Song",
+          "duration": "213.8",
+          "absolutePath": "youtube/Imported Song.mp3",
+          "cloudflareId": "artwork-id",
+          "originalArtists": [{"name": "Original Artist"}],
+          "coverArtists": "Uploader",
+          "userUploaded": 1
+        }
+        """.data(using: .utf8)!
+
+        let song = try JSONDecoder().decode(Song.self, from: json)
+
+        #expect(song.duration == 213)
+        #expect(song.originalArtists == ["Original Artist"])
+        #expect(song.coverArtists == ["Uploader"])
+        #expect(song.userUploaded == true)
+        #expect(song.cloudflareID == "artwork-id")
+    }
+
+    @Test("Favorite responses decode uploaded songs wrapped in an envelope")
+    func favoriteEnvelopeDecodesUploadedSong() throws {
+        let json = """
+        {
+          "items": [
+            {
+              "song": {
+                "id": "favorite-upload",
+                "title": "Uploaded Favorite",
+                "duration": 123.4,
+                "absolutePath": null,
+                "oss": "uploads/Uploaded Favorite.mp3",
+                "userUploaded": "true"
+              }
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let songs = try #require(SongPayloadDecoder.decodeSongs(from: json))
+
+        #expect(songs.map(\.id) == ["favorite-upload"])
+        #expect(songs.first?.userUploaded == true)
+        #expect(
+            songs.first?.audioURL?.absoluteString
+                == "https://storage.neurokaraoke.com/uploads/Uploaded%20Favorite.mp3"
+        )
+    }
+
+    @Test("Playlist detail skips malformed songs instead of failing the playlist")
+    func playlistDetailSkipsMalformedSong() throws {
+        let json = """
+        {
+          "id": "playlist-1",
+          "name": "Uploads",
+          "songListDTOs": [
+            {
+              "id": "youtube-1",
+              "title": "YouTube Upload",
+              "duration": "180",
+              "absolutePath": "youtube/song.mp3",
+              "originalArtists": [{"artistName": "Artist"}],
+              "userUploaded": true
+            },
+            {
+              "title": "Missing ID"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let playlist = try JSONDecoder().decode(PlaylistDetail.self, from: json)
+
+        #expect(playlist.songListDTOs.map(\.id) == ["youtube-1"])
     }
 
     @Test("Display artist combines original and cover artists")
