@@ -347,6 +347,7 @@ class AudioPlayerManager: ObservableObject {
     private var streamPlaybackRequested = false
     private var remotePlaybackCacheTask: Task<Void, Never>?
     private var remotePlaybackCacheToken: UUID?
+    private var cacheRecoverySongID: String?
     private var lastKnownPlaybackTime: TimeInterval = 0
     private var pollTimer: Timer?
     private var streamFadeTimer: Timer?
@@ -534,13 +535,33 @@ class AudioPlayerManager: ObservableObject {
                let playbackURL = currentPlaybackURL,
                playbackURL.path.hasPrefix(AudioPlayerManager.audioCacheDir.path)
             {
+                guard cacheRecoverySongID != song.id else {
+                    DebugLogger.log(
+                        "Remote cache retry exhausted for \(song.id)",
+                        category: .playback
+                    )
+                    AudioCacheStore.removeSongCache(for: song.id)
+                    currentPlaybackURL = nil
+                    setPlaybackState(
+                        playing: false,
+                        buffering: false,
+                        reason: "avEngine.cacheRetryExhausted"
+                    )
+                    return
+                }
+                cacheRecoverySongID = song.id
                 DebugLogger.log(
                     "Removing broken cache and retrying from remote for \(song.id)",
                     category: .cache
                 )
                 AudioCacheStore.removeSongCache(for: song.id)
                 currentPlaybackURL = nil
-                play(song: song)
+                play(
+                    song: song,
+                    context: [],
+                    resetTransitionVolume: true,
+                    preserveCacheRecoveryState: true
+                )
                 return
             }
             setPlaybackState(
@@ -1185,7 +1206,15 @@ class AudioPlayerManager: ObservableObject {
         play(song: song, context: context, resetTransitionVolume: true)
     }
 
-    private func play(song: Song, context: [Song] = [], resetTransitionVolume: Bool) {
+    private func play(
+        song: Song,
+        context: [Song] = [],
+        resetTransitionVolume: Bool,
+        preserveCacheRecoveryState: Bool = false
+    ) {
+        if !preserveCacheRecoveryState {
+            cacheRecoverySongID = nil
+        }
         DebugLogger.log("Play requested: \(song.title) (id: \(song.id))", category: .playback)
         let previousSongID = currentSong?.id
         let effectToResume = currentActiveEffect ?? deferredAIEffect
@@ -2143,9 +2172,10 @@ class AudioPlayerManager: ObservableObject {
         }
 
         _ = AudioCacheStore.ensureSongDirectory(for: songID)
-        let songFiles = AudioCacheStore.files(for: songID)
+        let finalURL = AudioCacheStore.mainAudioURL(for: songID, sourceURL: remoteURL)
+        let partialURL = AudioCacheStore.mainPartialAudioURL(for: songID, sourceURL: remoteURL)
         DebugLogger.log("Remote playback cache start for \(songID)", category: .cache)
-        try? FileManager.default.removeItem(at: songFiles.mainPartial)
+        try? FileManager.default.removeItem(at: partialURL)
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -2162,33 +2192,36 @@ class AudioPlayerManager: ObservableObject {
             throw RemotePlaybackCacheError.invalidResponse
         }
 
-        try? FileManager.default.removeItem(at: songFiles.mainPartial)
+        try? FileManager.default.removeItem(at: partialURL)
         do {
-            try FileManager.default.moveItem(at: temporaryURL, to: songFiles.mainPartial)
+            try FileManager.default.moveItem(at: temporaryURL, to: partialURL)
         } catch {
-            try FileManager.default.copyItem(at: temporaryURL, to: songFiles.mainPartial)
+            try FileManager.default.copyItem(at: temporaryURL, to: partialURL)
             try? FileManager.default.removeItem(at: temporaryURL)
         }
         try Task.checkCancellation()
 
-        guard AudioCacheStore.isPlayableAudioFile(at: songFiles.mainPartial) else {
-            try? FileManager.default.removeItem(at: songFiles.mainPartial)
+        guard AudioCacheStore.isPlayableAudioFile(at: partialURL) else {
+            try? FileManager.default.removeItem(at: partialURL)
             throw RemotePlaybackCacheError.invalidAudio
         }
-        let actualDuration = AudioCacheStore.audioDuration(at: songFiles.mainPartial)
+        let actualDuration = AudioCacheStore.audioDuration(at: partialURL)
         guard AudioCacheStore.durationAppearsComplete(
             actualDuration: actualDuration,
             expectedDuration: expectedDuration
         ) else {
-            try? FileManager.default.removeItem(at: songFiles.mainPartial)
+            try? FileManager.default.removeItem(at: partialURL)
             throw RemotePlaybackCacheError.invalidAudio
         }
 
-        try? FileManager.default.removeItem(at: songFiles.main)
-        try FileManager.default.moveItem(at: songFiles.mainPartial, to: songFiles.main)
+        try AudioCacheStore.commitMainAudioFile(
+            at: partialURL,
+            to: finalURL,
+            for: songID
+        )
         AudioCacheStore.writeMainSourceURL(remoteURL, for: songID)
         DebugLogger.log("Remote playback cache complete for \(songID)", category: .cache)
-        return songFiles.main
+        return finalURL
     }
 
     private enum RemotePlaybackCacheError: LocalizedError {
