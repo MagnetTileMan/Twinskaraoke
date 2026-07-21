@@ -23,11 +23,27 @@ struct UploadedSongsViewModelTests {
         #expect(!UploadedSongsViewModel.isCancellationError(URLError(.timedOut)))
     }
 
-    private func song(id: String, title: String) -> Song {
+    @Test("Resolved durations fill only missing values")
+    func resolvedDurationsFillOnlyMissingValues() {
+        let missingDuration = song(id: "missing", title: "Missing", duration: 0)
+        let existingDuration = song(id: "existing", title: "Existing", duration: 90)
+
+        let songs = UploadedSongsViewModel.applyingResolvedDurations(
+            ["missing": 214, "existing": 999],
+            to: [missingDuration, existingDuration]
+        )
+
+        #expect(songs.map(\.id) == ["missing", "existing"])
+        #expect(songs.map(\.duration) == [214, 90])
+        #expect(songs[0].absolutePath == missingDuration.absolutePath)
+        #expect(songs[0].userUploaded == true)
+    }
+
+    private func song(id: String, title: String, duration: Int = 120) -> Song {
         Song(
             id: id,
             title: title,
-            duration: 120,
+            duration: duration,
             absolutePath: "uploads/\(id).m4a",
             cloudflareID: nil,
             coverArt: nil,

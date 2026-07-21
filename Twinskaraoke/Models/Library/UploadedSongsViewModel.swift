@@ -1,3 +1,4 @@
+import AVFoundation
 import Combine
 import Foundation
 
@@ -51,12 +52,20 @@ final class UploadedSongsViewModel: ObservableObject {
         loadTask = Task { [weak self] in
             do {
                 let loadedSongs = try await KaraokeAPIClient.uploadedSongs()
+                let uniqueSongs = Self.removingDuplicateSongs(loadedSongs)
                 try Task.checkCancellation()
                 guard let self, generation == requestGeneration else { return }
 
-                songs = Self.removingDuplicateSongs(loadedSongs)
+                songs = uniqueSongs
                 hasLoaded = true
                 isLoading = false
+                rebuildDisplayedSongs()
+
+                let songsWithDurations = await Self.fillingMissingDurations(in: uniqueSongs)
+                try Task.checkCancellation()
+                guard generation == requestGeneration else { return }
+
+                songs = songsWithDurations
                 loadTask = nil
                 rebuildDisplayedSongs()
             } catch {
@@ -103,6 +112,80 @@ final class UploadedSongsViewModel: ObservableObject {
     nonisolated static func removingDuplicateSongs(_ songs: [Song]) -> [Song] {
         var seenIDs = Set<String>()
         return songs.filter { seenIDs.insert($0.id).inserted }
+    }
+
+    nonisolated static func applyingResolvedDurations(
+        _ durations: [String: Int],
+        to songs: [Song]
+    ) -> [Song] {
+        songs.map { song in
+            guard song.duration <= 0,
+                  let duration = durations[song.id],
+                  duration > 0 else {
+                return song
+            }
+            return Song(
+                id: song.id,
+                title: song.title,
+                duration: duration,
+                absolutePath: song.absolutePath,
+                cloudflareID: song.cloudflareID,
+                coverArt: song.coverArt,
+                originalArtists: song.originalArtists,
+                coverArtists: song.coverArtists,
+                userUploaded: song.userUploaded,
+                oss: song.oss
+            )
+        }
+    }
+
+    private nonisolated static func fillingMissingDurations(in songs: [Song]) async -> [Song] {
+        let songsNeedingDuration = songs.filter { $0.duration <= 0 && $0.audioURL != nil }
+        guard !songsNeedingDuration.isEmpty else { return songs }
+
+        let maximumConcurrentLookups = 4
+        var resolvedDurations: [String: Int] = [:]
+
+        for batchStart in stride(
+            from: 0,
+            to: songsNeedingDuration.count,
+            by: maximumConcurrentLookups
+        ) {
+            guard !Task.isCancelled else { return songs }
+            let batchEnd = min(
+                batchStart + maximumConcurrentLookups,
+                songsNeedingDuration.count
+            )
+            let batch = songsNeedingDuration[batchStart..<batchEnd]
+
+            await withTaskGroup(of: (String, Int?).self) { group in
+                for song in batch {
+                    group.addTask {
+                        (song.id, await resolvedDuration(for: song))
+                    }
+                }
+                for await (songID, duration) in group {
+                    if let duration {
+                        resolvedDurations[songID] = duration
+                    }
+                }
+            }
+        }
+
+        return applyingResolvedDurations(resolvedDurations, to: songs)
+    }
+
+    private nonisolated static func resolvedDuration(for song: Song) async -> Int? {
+        guard !Task.isCancelled, let audioURL = song.audioURL else { return nil }
+        do {
+            let duration = try await AVURLAsset(url: audioURL).load(.duration)
+            try Task.checkCancellation()
+            let seconds = duration.seconds
+            guard seconds.isFinite, seconds > 0 else { return nil }
+            return max(1, Int(seconds.rounded()))
+        } catch {
+            return nil
+        }
     }
 
     nonisolated static func isCancellationError(_ error: Error) -> Bool {
