@@ -49,12 +49,27 @@ nonisolated enum AudioCacheStore {
         )
     }
 
-    static func removeMainAudioFiles(for songID: String) {
+    static func removeMainAudioFiles(for songID: String, excluding preservedURL: URL? = nil) {
         let directory = files(for: songID).directory
+        let preservedURL = preservedURL?.standardizedFileURL
         for url in cachedMainAudioURLs(in: directory) {
+            guard url.standardizedFileURL != preservedURL else { continue }
             try? fm.removeItem(at: url)
             try? fm.removeItem(at: compressedURL(for: url))
         }
+    }
+
+    static func commitMainAudioFile(at stagedURL: URL, to finalURL: URL, for songID: String) throws {
+        if fm.fileExists(atPath: finalURL.path) {
+            _ = try fm.replaceItemAt(finalURL, withItemAt: stagedURL)
+        } else {
+            try fm.moveItem(at: stagedURL, to: finalURL)
+        }
+
+        // A newly committed uncompressed file supersedes any compressed copy
+        // and alternate legacy-extension variants.
+        try? fm.removeItem(at: compressedURL(for: finalURL))
+        removeMainAudioFiles(for: songID, excluding: finalURL)
     }
 
     private static func songFiles(in directory: URL) -> SongFiles {
@@ -77,9 +92,7 @@ nonisolated enum AudioCacheStore {
     }
 
     static func playableMainURL(for songID: String, expectedRemoteURL: URL? = nil, expectedDuration: TimeInterval? = nil) -> URL? {
-        let songFiles = files(for: songID)
         for candidate in mainAudioCandidates(
-            in: songFiles.directory,
             songID: songID,
             expectedRemoteURL: expectedRemoteURL
         ) {
@@ -114,9 +127,7 @@ nonisolated enum AudioCacheStore {
         expectedRemoteURL: URL? = nil,
         expectedDuration: TimeInterval? = nil
     ) -> URL? {
-        let songFiles = files(for: songID)
         for candidate in mainAudioCandidates(
-            in: songFiles.directory,
             songID: songID,
             expectedRemoteURL: expectedRemoteURL
         ) {
@@ -316,18 +327,14 @@ nonisolated enum AudioCacheStore {
         return supportedMainAudioExtensions.contains(pathExtension) ? pathExtension : "mp3"
     }
 
-    private static func mainAudioCandidates(
-        in directory: URL,
-        songID: String,
-        expectedRemoteURL: URL?
-    ) -> [URL] {
+    private static func mainAudioCandidates(songID: String, expectedRemoteURL: URL?) -> [URL] {
         if let expectedRemoteURL {
             // The container extension is part of Core Audio's file-type
             // selection. Do not reuse a legacy `main.mp3` that contains M4A
             // bytes from the same source URL.
             return [mainAudioURL(for: songID, sourceURL: expectedRemoteURL)]
         }
-        return cachedMainAudioURLs(in: directory)
+        return cachedMainAudioURLs(in: files(for: songID).directory)
     }
 
     private static func cachedMainAudioURLs(in directory: URL) -> [URL] {

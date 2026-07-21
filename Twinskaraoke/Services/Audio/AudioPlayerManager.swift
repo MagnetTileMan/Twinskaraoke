@@ -556,7 +556,12 @@ class AudioPlayerManager: ObservableObject {
                 )
                 AudioCacheStore.removeSongCache(for: song.id)
                 currentPlaybackURL = nil
-                play(song: song, context: [], resetTransitionVolume: true)
+                play(
+                    song: song,
+                    context: [],
+                    resetTransitionVolume: true,
+                    preserveCacheRecoveryState: true
+                )
                 return
             }
             setPlaybackState(
@@ -1198,11 +1203,18 @@ class AudioPlayerManager: ObservableObject {
     }
 
     func play(song: Song, context: [Song] = []) {
-        cacheRecoverySongID = nil
         play(song: song, context: context, resetTransitionVolume: true)
     }
 
-    private func play(song: Song, context: [Song] = [], resetTransitionVolume: Bool) {
+    private func play(
+        song: Song,
+        context: [Song] = [],
+        resetTransitionVolume: Bool,
+        preserveCacheRecoveryState: Bool = false
+    ) {
+        if !preserveCacheRecoveryState {
+            cacheRecoverySongID = nil
+        }
         DebugLogger.log("Play requested: \(song.title) (id: \(song.id))", category: .playback)
         let previousSongID = currentSong?.id
         let effectToResume = currentActiveEffect ?? deferredAIEffect
@@ -2202,8 +2214,11 @@ class AudioPlayerManager: ObservableObject {
             throw RemotePlaybackCacheError.invalidAudio
         }
 
-        AudioCacheStore.removeMainAudioFiles(for: songID)
-        try FileManager.default.moveItem(at: partialURL, to: finalURL)
+        try AudioCacheStore.commitMainAudioFile(
+            at: partialURL,
+            to: finalURL,
+            for: songID
+        )
         AudioCacheStore.writeMainSourceURL(remoteURL, for: songID)
         DebugLogger.log("Remote playback cache complete for \(songID)", category: .cache)
         return finalURL

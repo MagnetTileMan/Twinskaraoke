@@ -465,13 +465,15 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate, @unche
             let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
             DebugLogger.log("Predownload completed for \(songID) with HTTP \(status)", category: .playback)
             do {
-                AudioCacheStore.removeMainAudioFiles(for: songID)
-                try FileManager.default.moveItem(at: partialURL, to: finalURL)
+                try AudioCacheStore.commitMainAudioFile(
+                    at: partialURL,
+                    to: finalURL,
+                    for: songID
+                )
                 AudioCacheStore.writeMainSourceURL(remoteURL, for: songID)
             } catch {
                 DebugLogger.log("Predownload move failed for \(songID): \(error)", category: .playback)
                 try? FileManager.default.removeItem(at: partialURL)
-                AudioCacheStore.writeMainSourceURL(nil, for: songID)
             }
         } else {
             DebugLogger.log(

@@ -62,6 +62,62 @@ struct DownloadManagerTests {
         )
     }
 
+    @Test("Playback cache commit replaces its destination and removes legacy variants")
+    func playbackCacheCommitReplacesDestinationSafely() throws {
+        let songID = "cache-commit-\(UUID().uuidString)"
+        defer { AudioCacheStore.removeSongCache(for: songID) }
+
+        let m4aSource = try #require(URL(string: "https://storage.example.com/song.m4a"))
+        let mp3Source = try #require(URL(string: "https://storage.example.com/song.mp3"))
+        let finalURL = AudioCacheStore.mainAudioURL(for: songID, sourceURL: m4aSource)
+        let stagedURL = AudioCacheStore.mainPartialAudioURL(for: songID, sourceURL: m4aSource)
+        let legacyURL = AudioCacheStore.mainAudioURL(for: songID, sourceURL: mp3Source)
+        _ = AudioCacheStore.ensureSongDirectory(for: songID)
+
+        try Data("old".utf8).write(to: finalURL)
+        try Data("legacy".utf8).write(to: legacyURL)
+        try Data("new".utf8).write(to: stagedURL)
+
+        try AudioCacheStore.commitMainAudioFile(
+            at: stagedURL,
+            to: finalURL,
+            for: songID
+        )
+
+        #expect(try Data(contentsOf: finalURL) == Data("new".utf8))
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
+        #expect(!FileManager.default.fileExists(atPath: stagedURL.path))
+    }
+
+    @Test("Failed playback cache commit preserves the existing destination")
+    func failedPlaybackCacheCommitPreservesDestination() throws {
+        let songID = "cache-commit-failure-\(UUID().uuidString)"
+        defer { AudioCacheStore.removeSongCache(for: songID) }
+
+        let sourceURL = try #require(URL(string: "https://storage.example.com/song.m4a"))
+        let finalURL = AudioCacheStore.mainAudioURL(for: songID, sourceURL: sourceURL)
+        let missingStagedURL = AudioCacheStore.mainPartialAudioURL(
+            for: songID,
+            sourceURL: sourceURL
+        )
+        _ = AudioCacheStore.ensureSongDirectory(for: songID)
+        try Data("old".utf8).write(to: finalURL)
+
+        var commitFailed = false
+        do {
+            try AudioCacheStore.commitMainAudioFile(
+                at: missingStagedURL,
+                to: finalURL,
+                for: songID
+            )
+        } catch {
+            commitFailed = true
+        }
+
+        #expect(commitFailed)
+        #expect(try Data(contentsOf: finalURL) == Data("old".utf8))
+    }
+
     @Test("Only uncompressed stem formats are selected for compression")
     func cacheCompressionSkipsAlreadyCompressedAudio() {
         #expect(AudioCacheStore.shouldCompressPlayableFile(at: URL(fileURLWithPath: "/tmp/vocals.wav")))

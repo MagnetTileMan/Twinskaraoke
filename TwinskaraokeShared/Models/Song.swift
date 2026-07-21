@@ -791,14 +791,6 @@ nonisolated enum SongPayloadDecoder {
     if let list = (try? decoder.decode(SongCollection.self, from: data))?.songs, !list.isEmpty {
       return list
     }
-    if let wrapped = try? decoder.decode(LossyArray<FavoriteSongEnvelope>.self, from: data) {
-      let songs = wrapped.elements.compactMap(\.song)
-      if !songs.isEmpty { return songs }
-    }
-    if let wrapped = try? decoder.decode([FavoriteSongEnvelope].self, from: data) {
-      let songs = wrapped.compactMap(\.song)
-      if !songs.isEmpty { return songs }
-    }
     return nil
   }
 }
