@@ -1,5 +1,10 @@
 import SwiftUI
 
+private struct DownloadedSongRowIdentity: Hashable {
+    let songID: String
+    let duration: Int
+}
+
 struct DownloadedSongsView: View {
     @StateObject private var downloads = DownloadManager.shared
     @StateObject private var recentlyPlayed = RecentlyPlayedStore.shared
@@ -37,7 +42,12 @@ struct DownloadedSongsView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(localSongs.enumerated()), id: \.element.id) { idx, song in
                                 SongRow(song: song, size: .regular)
-                                    .id(song.duration)
+                                    .id(
+                                        DownloadedSongRowIdentity(
+                                            songID: song.id,
+                                            duration: song.duration
+                                        )
+                                    )
                                     .padding(.horizontal)
                                     .padding(.vertical, 8)
                                     .contentShape(Rectangle())
