@@ -15,7 +15,7 @@ All credits go to the website creator "Soul". This is a companion app for the we
 - [@NELC-Official](https://github.com/NELC-Official) (NELC-Official)
 
 ::: info  UPDATE
-**moving towards an App Store and TestFlight launch very soon! Stay tuned!**
+**Moving towards an App Store and TestFlight launch very soon! Stay tuned!**
 :::
 ::: warning NOTE
 Until the official launch, the current installation method means you must sideload the app every 7 days.
@@ -52,6 +52,7 @@ Until the official launch, the current installation method means you must sidelo
   <img src="../readmeimages/downloadoption.png" width="32%" title="Download Option">
   <img src="../readmeimages/downloaded.png" width="32%" title="Downloaded">
   <br>
+  <em>Built-in EQ &nbsp;&bull;&nbsp; Download Songs &nbsp;&bull;&nbsp; Play Offline</em>
   <em>Built In EQ &nbsp;&bull;&nbsp; Download Songs &nbsp;&bull;&nbsp; Play Offline</em>
 </p>
 
