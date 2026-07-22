@@ -70,7 +70,7 @@ struct RemoteArtworkImage: View {
                         .frame(width: displaySize.width, height: displaySize.height)
                         .clipped()
                         .onAppear {
-                            markRendered(url)
+                            deferMarkRendered(url)
                         }
                 } placeholder: {
                     Color.clear
@@ -79,8 +79,10 @@ struct RemoteArtworkImage: View {
                     markFinishedAfterFailure(for: url, error: error)
                 }
                 .onSuccess { _, _, cacheType in
-                    ArtworkLoadMetrics.shared.record(cacheType: cacheType)
-                    markRendered(url)
+                    // Memory-cache hits complete synchronously while SwiftUI is still
+                    // evaluating this view; writing @State here trips "Modifying state
+                    // during view update". Defer the write to the next runloop turn.
+                    deferMarkRendered(url, cacheType: cacheType)
                 }
                 .transition(
                     shouldAnimateLoad
@@ -88,6 +90,15 @@ struct RemoteArtworkImage: View {
                         : .identity
                 )
             }
+        }
+    }
+
+    private func deferMarkRendered(_ loadedURL: URL, cacheType: SDImageCacheType? = nil) {
+        DispatchQueue.main.async {
+            if let cacheType {
+                ArtworkLoadMetrics.shared.record(cacheType: cacheType)
+            }
+            markRendered(loadedURL)
         }
     }
 
