@@ -115,7 +115,7 @@ struct ProfileDetailView: View {
     }
 
     private var profileAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.36, dampingFraction: 0.82)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var bottomTransition: AnyTransition {
@@ -369,7 +369,7 @@ private struct AchievementMeter: View {
             animatedProgress = newValue
             return
         }
-        withOptionalAnimation(AppMotion.spring(response: 0.7, dampingFraction: 0.86)) {
+        withOptionalAnimation(AppMotion.gentle) {
             animatedProgress = newValue
         }
     }

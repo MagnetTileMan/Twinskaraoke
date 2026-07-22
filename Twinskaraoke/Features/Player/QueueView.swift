@@ -7,15 +7,15 @@ struct QueueView: View {
     @State private var showCurrentAddToPlaylist = false
 
     private var queueToggleAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.82)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var headerAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.88)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var queueMutationAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.86)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var emptyQueueTransition: AnyTransition {

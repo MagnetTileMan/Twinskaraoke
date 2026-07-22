@@ -385,6 +385,8 @@ struct MusicSkeletonLine: View {
 struct MusicEmptyState: View {
     let title: String
     let message: String
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @State private var appeared = false
 
     var body: some View {
         VStack(spacing: 15) {
@@ -407,6 +409,18 @@ struct MusicEmptyState: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
         .padding(.vertical, 10)
+        .opacity(appeared || reduceMotion ? 1 : 0)
+        .scaleEffect(appeared || reduceMotion ? 1 : 0.97)
+        .onAppear {
+            guard !appeared else { return }
+            guard !reduceMotion else {
+                appeared = true
+                return
+            }
+            withAnimation(AppMotion.standard) {
+                appeared = true
+            }
+        }
     }
 }
 

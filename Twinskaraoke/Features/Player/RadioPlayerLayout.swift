@@ -172,8 +172,8 @@ struct RadioPlayerLayout: View {
     private var liveDotAnimation: Animation? {
         guard !reduceMotion else { return nil }
         return audioManager.isPlaying
-            ? AppMotion.spring(response: 0.42, dampingFraction: 0.78).repeatForever(autoreverses: true)
-            : AppMotion.spring(response: 0.25, dampingFraction: 0.78)
+            ? AppMotion.standard.repeatForever(autoreverses: true)
+            : AppMotion.snap
     }
 
     private var radioFavoriteID: String? {

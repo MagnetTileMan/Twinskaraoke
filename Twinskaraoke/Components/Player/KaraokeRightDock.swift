@@ -151,7 +151,7 @@ struct KaraokeRightDock: View {
     }
 
     private var dockAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.4, dampingFraction: 0.85)
+        reduceMotion ? nil : AppMotion.standard
     }
 
     private var sliderTransition: AnyTransition {

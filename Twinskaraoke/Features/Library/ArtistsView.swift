@@ -385,7 +385,7 @@ private struct ArtistDetailStateView: View {
                 isPulsing = false
                 return
             }
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            withAnimation(AppMotion.standard) {
                 hasAppeared = true
             }
             withAnimation(.easeInOut(duration: 1.45).repeatForever(autoreverses: true)) {

@@ -127,7 +127,7 @@ struct AppleMusicProgressBar: View {
     }
 
     private var scrubAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.85)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var scrubBubbleTransition: AnyTransition {

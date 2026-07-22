@@ -5,7 +5,7 @@ struct UploadedSongsView: View {
     @Environment(\.appReduceMotion) private var reduceMotion
 
     private var listAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     var body: some View {

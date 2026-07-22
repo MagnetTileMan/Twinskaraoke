@@ -40,11 +40,11 @@ struct PlaylistDetailView: View {
             }
         }
         .animation(
-            reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.84),
+            reduceMotion ? nil : AppMotion.quick,
             value: showsCollapsedTitle
         )
         .animation(
-            reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84),
+            reduceMotion ? nil : AppMotion.quick,
             value: loader.isLoading
         )
         .scrollIndicators(.hidden)

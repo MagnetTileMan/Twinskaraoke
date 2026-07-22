@@ -67,7 +67,7 @@ struct ArtDetailView: View {
                 appeared = true
                 return
             }
-            withAnimation(.spring(response: 0.48, dampingFraction: 0.82)) {
+            withAnimation(AppMotion.standard) {
                 appeared = true
             }
         }

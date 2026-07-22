@@ -256,7 +256,7 @@ private struct PopupHostView: View {
     }
 
     private var shellAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.24, dampingFraction: 0.88)
+        reduceMotion ? nil : AppMotion.snap
     }
 
     private var shellTransition: AnyTransition {

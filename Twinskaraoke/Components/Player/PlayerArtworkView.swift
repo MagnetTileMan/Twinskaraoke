@@ -68,11 +68,11 @@ struct PlayerArtworkView: View {
     }
 
     private var artworkPlaybackAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.55, dampingFraction: 0.86)
+        reduceMotion ? nil : AppMotion.gentle
     }
 
     private var bufferingAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.25, dampingFraction: 0.86)
+        reduceMotion ? nil : AppMotion.snap
     }
 
     private var bufferingTransition: AnyTransition {

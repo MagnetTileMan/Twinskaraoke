@@ -120,7 +120,7 @@ private struct PressableButtonBody: View {
   }
 
   private var animation: Animation {
-    pressAnimation ?? AppMotion.spring(response: 0.32, dampingFraction: 0.7)
+    pressAnimation ?? AppMotion.playful
   }
 
   private func updatePressState(_ isPressed: Bool) {

@@ -58,11 +58,11 @@ struct LoginSheet: View {
                 if !message.isEmpty { AppHaptic.error.play() }
             }
             .animation(
-                reduceMotion ? nil : AppMotion.spring(response: 0.34, dampingFraction: 0.86),
+                reduceMotion ? nil : AppMotion.quick,
                 value: auth.errorMessage ?? ""
             )
             .animation(
-                reduceMotion ? nil : AppMotion.spring(response: 0.32, dampingFraction: 0.84),
+                reduceMotion ? nil : AppMotion.quick,
                 value: auth.isLoading
             )
         }
@@ -179,7 +179,7 @@ struct LoginSheet: View {
                 )
         }
         .animation(
-            reduceMotion ? nil : AppMotion.spring(response: 0.28, dampingFraction: 0.86),
+            reduceMotion ? nil : AppMotion.snap,
             value: focus
         )
     }

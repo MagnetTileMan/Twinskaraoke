@@ -240,7 +240,7 @@ struct DownloadedSongsView: View {
         if reduceMotion || !animated {
             localSongs = songs
         } else {
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+            withAnimation(AppMotion.quick) {
                 localSongs = songs
             }
         }
@@ -345,7 +345,7 @@ private struct DownloadedEmptyStateView: View {
                 hasAppeared = true
                 isPulsing = false
             } else {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                withAnimation(AppMotion.standard) {
                     hasAppeared = true
                 }
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {

@@ -550,7 +550,7 @@ struct SearchCategorySongCollectionView: View {
     @Environment(\.appReduceMotion) private var reduceMotion
 
     private var categoryStateAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84)
+        reduceMotion ? nil : AppMotion.quick
     }
 
 
@@ -686,7 +686,7 @@ private struct SearchRecoveryStateView: View {
     @State private var hasAppeared = false
 
     private var entranceAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82)
+        reduceMotion ? nil : AppMotion.standard
     }
 
 

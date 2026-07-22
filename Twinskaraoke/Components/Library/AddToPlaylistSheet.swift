@@ -106,9 +106,9 @@ struct AddToPlaylistSheet: View {
             .sheet(isPresented: $showCreatePlaylist) {
                 CreatePlaylistSheet()
             }
-            .animation(reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9), value: inFlight)
-            .animation(reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.82), value: added)
-            .animation(reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9), value: failed)
+            .animation(reduceMotion ? nil : AppMotion.snap, value: inFlight)
+            .animation(reduceMotion ? nil : AppMotion.quick, value: added)
+            .animation(reduceMotion ? nil : AppMotion.snap, value: failed)
         }
     }
 

@@ -567,12 +567,21 @@ struct FullScreenPlayerView: View {
                     AppHaptic.success.play()
                 }
             } label: {
-                Image(systemName: favorites.isFavorite(song.id) ? "star.fill" : "star")
-                    .font(.title3)
-                    .foregroundStyle(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
-                    .frame(width: 44, height: 44)
-                    .background(playerTitleButtonBackground, in: Circle())
-                    .overlay(playerTitleButtonBorder)
+                Group {
+                    let isFav = favorites.isFavorite(song.id)
+                    if #available(iOS 17.0, *), !reduceMotion {
+                        Image(systemName: isFav ? "star.fill" : "star")
+                            .contentTransition(.symbolEffect(.replace))
+                            .symbolEffect(.bounce, value: isFav)
+                    } else {
+                        Image(systemName: isFav ? "star.fill" : "star")
+                    }
+                }
+                .font(.title3)
+                .foregroundStyle(playerTitleIconColor(isActive: favorites.isFavorite(song.id)))
+                .frame(width: 44, height: 44)
+                .background(playerTitleButtonBackground, in: Circle())
+                .overlay(playerTitleButtonBorder)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.88, dim: 0.6))
             .accessibilityLabel(
@@ -682,6 +691,7 @@ struct FullScreenPlayerView: View {
                     if #available(iOS 17.0, *), !reduceMotion {
                         Image(systemName: isFav ? "star.fill" : "star")
                             .contentTransition(.symbolEffect(.replace))
+                            .symbolEffect(.bounce, value: isFav)
                     } else {
                         Image(systemName: isFav ? "star.fill" : "star")
                     }
@@ -782,7 +792,7 @@ struct FullScreenPlayerView: View {
                 .foregroundStyle(audioManager.isEditingProgress ? .primary : .secondary)
                 .scaleEffect(audioManager.isEditingProgress ? 1.12 : 1.0, anchor: .center)
                 .animation(
-                    reduceMotion ? nil : AppMotion.spring(response: 0.3, dampingFraction: 0.85),
+                    reduceMotion ? nil : AppMotion.quick,
                     value: audioManager.isEditingProgress
                 )
                 .padding(.horizontal, metrics.horizontalPadding)
@@ -884,7 +894,7 @@ struct FullScreenPlayerView: View {
     }
 
     private var playerSurfaceAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.46, dampingFraction: 0.86, blendDuration: 0.08)
+        reduceMotion ? nil : AppMotion.standard
     }
 
     private var lyricsSurfaceTransition: AnyTransition {
@@ -954,7 +964,7 @@ struct FullScreenPlayerView: View {
         .accessibilityValue(lyricsTranslationAccessibilityValue)
         .accessibilityHint(lyricsTranslationAccessibilityHint)
         .animation(
-            reduceMotion ? nil : AppMotion.spring(response: 0.32, dampingFraction: 0.86),
+            reduceMotion ? nil : AppMotion.quick,
             value: lyricsViewModel.translationState
         )
     }

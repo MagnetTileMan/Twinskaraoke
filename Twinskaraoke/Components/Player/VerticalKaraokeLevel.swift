@@ -32,6 +32,6 @@ struct VerticalKaraokeLevel: View {
     }
 
     private var levelAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)
+        reduceMotion ? nil : AppMotion.quick
     }
 }

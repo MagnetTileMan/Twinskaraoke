@@ -45,7 +45,7 @@ struct RadioView: View {
     @State private var showingRadioSchedule = false
 
     private var metadataPulseAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.82)
+        reduceMotion ? nil : AppMotion.standard
     }
 
     var body: some View {

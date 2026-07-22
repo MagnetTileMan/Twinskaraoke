@@ -382,11 +382,11 @@ struct QRApproveView: View {
     }
 
     private var phaseAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.36, dampingFraction: 0.84)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var permissionAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.2, dampingFraction: 0.9)
+        reduceMotion ? nil : AppMotion.snap
     }
 }
 

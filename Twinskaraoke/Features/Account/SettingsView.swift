@@ -562,7 +562,7 @@ private struct SettingsOverviewCard: View {
     }
 
     private var overviewAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.7)
+        reduceMotion ? nil : AppMotion.playful
     }
 }
 

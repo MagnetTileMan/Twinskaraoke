@@ -121,9 +121,9 @@ struct CreatePlaylistSheet: View {
             .onAppear {
                 focusedField = .name
             }
-            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84), value: isSaving)
+            .animation(reduceMotion ? nil : AppMotion.quick, value: isSaving)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: errorMessage)
-            .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: trimmedName)
+            .animation(reduceMotion ? nil : AppMotion.quick, value: trimmedName)
         }
     }
 

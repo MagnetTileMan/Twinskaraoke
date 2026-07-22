@@ -12,7 +12,7 @@ struct LyricsView: View {
     @Environment(\.appReduceMotion) private var reduceMotion
 
     private var scrollAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.6, dampingFraction: 0.85)
+        reduceMotion ? nil : AppMotion.gentle
     }
 
     private var currentIndex: Int {
@@ -195,7 +195,6 @@ private struct LyricLineRow: View, Equatable {
                         Text(line.text)
                             .scaledSystemFont(size: isCurrent ? 30 : 23, weight: isCurrent ? .bold : .semibold)
                             .foregroundStyle(lineColor)
-                            .blur(radius: lineBlur)
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -216,6 +215,7 @@ private struct LyricLineRow: View, Equatable {
                 }
             }
             .padding(.horizontal, 4)
+            .blur(radius: lineBlur)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.97, dim: 0.82, haptic: .selection))
         .scaleEffect(reduceMotion ? 1.0 : (isCurrent ? 1.0 : 0.92), anchor: .leading)
@@ -255,11 +255,11 @@ private struct LyricLineRow: View, Equatable {
     }
 
     private var lineAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.82)
+        reduceMotion ? nil : AppMotion.gentle
     }
 
     private var translationAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.86)
+        reduceMotion ? nil : AppMotion.quick
     }
 
     private var translationTransition: AnyTransition {
@@ -273,7 +273,11 @@ private struct LyricLineRow: View, Equatable {
     }
 
     private var lineBlur: CGFloat {
-        0
+        // Depth-of-field: the active line stays crisp while lines soften with
+        // distance, like Apple Music. Skipped under reduce motion, where the
+        // constant refocusing would read as movement.
+        guard !reduceMotion, !isCurrent else { return 0 }
+        return min(2.0, 0.7 * CGFloat(distance))
     }
 
     private var lineOpacity: Double {

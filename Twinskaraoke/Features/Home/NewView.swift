@@ -8,7 +8,7 @@ struct NewView: View {
     @State private var artworkPrefetchTracker = ArtworkPrefetchTracker()
 
     private var loadingAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
+        reduceMotion ? nil : AppMotion.standard
     }
 
     var body: some View {

@@ -17,12 +17,16 @@ enum DisplayRefreshRate {
     #endif
   }
 
+  /// Full display rate — 120Hz on ProMotion — for small always-moving elements
+  /// (spinners, bouncing dots) whose choppiness is visible next to smooth scrolling.
   static var lightweightAnimationInterval: TimeInterval {
-    1.0 / 60.0
+    1.0 / Double(maximumFramesPerSecond)
   }
 
+  /// Decorative ambience (equalizer bars). 60fps reads as fluid; full display
+  /// rate would spend battery on motion nobody tracks closely.
   static var decorativeAnimationInterval: TimeInterval {
-    1.0 / 30.0
+    1.0 / 60.0
   }
 }
 
@@ -94,4 +98,24 @@ enum AppMotion {
   static func spring(response: TimeInterval, dampingFraction: Double) -> Animation {
     .spring(response: duration(response), dampingFraction: dampingFraction)
   }
+
+  // MARK: - Semantic motion scale
+
+  // One shared physics family so every interaction feels tuned by the same hand.
+  // Pick by role, not by taste-per-callsite:
+
+  /// Small state flips: icons, badges, toggles, selection feedback.
+  static var snap: Animation { spring(response: 0.22, dampingFraction: 0.88) }
+
+  /// The workhorse: row/list changes, control state, chrome reveals.
+  static var quick: Animation { spring(response: 0.32, dampingFraction: 0.85) }
+
+  /// Content-level moves: section reflows, layout swaps, sheets' inner content.
+  static var standard: Animation { spring(response: 0.42, dampingFraction: 0.84) }
+
+  /// Large surfaces: hero artwork, full-screen layout shifts, lyric scrolling.
+  static var gentle: Animation { spring(response: 0.58, dampingFraction: 0.85) }
+
+  /// Deliberately bouncy celebratory moments.
+  static var playful: Animation { spring(response: 0.34, dampingFraction: 0.7) }
 }

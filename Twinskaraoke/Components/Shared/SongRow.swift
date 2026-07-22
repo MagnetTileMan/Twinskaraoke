@@ -61,6 +61,7 @@ struct SongRow: View {
     @ObservedObject private var playback = PlaybackRowState.shared
     @StateObject private var downloadState: SongDownloadRowState
     @State private var showAddToPlaylist = false
+    @Environment(\.appReduceMotion) private var reduceMotion
 
     init(
         song: Song,
@@ -105,6 +106,7 @@ struct SongRow: View {
                         .foregroundStyle(.primary)
                 }
             }
+            .animation(statusAnimation, value: isCurrentSong)
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .font(size.titleFont)
@@ -116,15 +118,20 @@ struct SongRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            if downloadState.status.isDownloaded {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Downloaded")
-            } else if downloadState.status.isDownloading {
-                ProgressView()
-                    .controlSize(.small)
+            Group {
+                if downloadState.status.isDownloaded {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Downloaded")
+                        .transition(statusTransition)
+                } else if downloadState.status.isDownloading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .transition(statusTransition)
+                }
             }
+            .animation(statusAnimation, value: downloadState.status)
             if !song.durationText.isEmpty {
                 Text(song.durationText)
                     .font(.caption.monospacedDigit())
@@ -164,6 +171,14 @@ struct SongRow: View {
         SongActionsMenuItems(song: song) {
             showAddToPlaylist = true
         }
+    }
+
+    private var statusAnimation: Animation? {
+        reduceMotion ? nil : AppMotion.quick
+    }
+
+    private var statusTransition: AnyTransition {
+        reduceMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity)
     }
 }
 

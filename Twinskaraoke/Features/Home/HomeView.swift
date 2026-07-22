@@ -8,7 +8,7 @@ struct HomeView: View {
     @State private var artworkPrefetchTracker = ArtworkPrefetchTracker()
 
     private var loadingAnimation: Animation? {
-        reduceMotion ? nil : AppMotion.spring(response: 0.38, dampingFraction: 0.84)
+        reduceMotion ? nil : AppMotion.standard
     }
 
 
@@ -70,23 +70,29 @@ struct HomeView: View {
     private var compactHomeOverview: some View {
         VStack(alignment: .leading, spacing: 18) {
             topPicksShelf()
+                .shelfEntrance(index: 0)
 
             if !recentlyPlayed.playlists.isEmpty {
                 PlaylistCarousel(title: "Recently Played", playlists: recentlyPlayed.playlists)
+                    .shelfEntrance(index: 1)
             }
 
             if !viewModel.suggestions.isEmpty {
                 HomeSongSection(title: "Made for You", songs: viewModel.suggestions)
+                    .shelfEntrance(index: 2)
             }
 
             latestSingleSection()
+                .shelfEntrance(index: 3)
 
             if !viewModel.newReleases.isEmpty {
                 HomeSongSection(title: "New Releases", songs: viewModel.newReleases)
+                    .shelfEntrance(index: 4)
             }
 
             if !viewModel.trending.isEmpty {
                 HomeSongSection(title: "More to Explore", songs: viewModel.trending)
+                    .shelfEntrance(index: 5)
             }
         }
     }
@@ -100,6 +106,7 @@ struct HomeView: View {
                 secondarySong: homeSecondarySong,
                 secondaryContext: viewModel.suggestions.isEmpty ? viewModel.trending : viewModel.suggestions
             )
+            .shelfEntrance(index: 0)
 
             HStack(alignment: .top, spacing: AM.Spacing.xxl) {
                 VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
@@ -119,6 +126,7 @@ struct HomeView: View {
                 }
                 .frame(minWidth: 520, maxWidth: .infinity, alignment: .topLeading)
                 .layoutPriority(1)
+                .shelfEntrance(index: 1)
 
                 VStack(alignment: .leading, spacing: AM.Spacing.xxl) {
                     latestSingleSection(horizontalPadding: 0)
@@ -135,6 +143,7 @@ struct HomeView: View {
                     width: AM.Layout.wideInspectorWidth,
                     alignment: .topLeading
                 )
+                .shelfEntrance(index: 2)
             }
         }
         .frame(maxWidth: AM.Layout.wideContentMaxWidth, alignment: .topLeading)
@@ -214,5 +223,38 @@ struct HomeView: View {
                 horizontalPadding: horizontalPadding
             )
         }
+    }
+}
+
+/// Fades and rises a Home shelf into place once, staggered by its position,
+/// when the loaded content first replaces the skeleton.
+private struct ShelfEntranceModifier: ViewModifier {
+    let index: Int
+    @Environment(\.appReduceMotion) private var reduceMotion
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared || reduceMotion ? 1 : 0)
+            .offset(y: appeared || reduceMotion ? 0 : 14)
+            .onAppear {
+                guard !appeared else { return }
+                guard !reduceMotion else {
+                    appeared = true
+                    return
+                }
+                withAnimation(
+                    AppMotion.standard
+                        .delay(Double(index) * 0.05)
+                ) {
+                    appeared = true
+                }
+            }
+    }
+}
+
+private extension View {
+    func shelfEntrance(index: Int) -> some View {
+        modifier(ShelfEntranceModifier(index: index))
     }
 }
