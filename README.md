@@ -26,13 +26,14 @@ All credits go to the website creator "Soul". This is a companion app for the we
 
 *   **Offline Play:** Listen to neuro and evil sing anywhere, even without the internet.
 
-* **Instrumental Slider:** allows you to switch between hearing the lyrics sung by the twins to a actual karaoke experience.
+*  **Advanced Audio Controls:** A built-in 10-band parametric EQ
 
+* **Vocal & Instrumental Slider:** to separate tracks in real-time.
+
+*   **Live Radio & Galleries:** Listen to live streaming radio episodes, and browse through thousands of fan artworks and videos.
 
 <details>
-<summary><b>
-screenshots
-</b></summary>
+<summary><b>screenshots</b></summary>
 <br>
 
 <p align="center">
@@ -44,19 +45,43 @@ screenshots
 <p align="center">
   <img src="readmeimages/accountpage.png" width="32%" title="Account & Settings">
   <img src="readmeimages/playingnext.png" width="32%" title="Up Next Queue">
-  <img src="readmeimages/instrumentallyrics.png" width="32%" title="Instrumental Lyrics">
+  <img src="readmeimages/new.png" width="32%" title="Instrumental Lyrics">
 </p>
 
 <p align="center">
-  <img src="readmeimages/horizontal.png" width="70%" title="Horizontal Mode">
+  <img src="readmeimages/EQ.png" width="32%" title="EQ">
+  <img src="readmeimages/downloadoption.png" width="32%" title="Download Option">
+  <img src="readmeimages/downloaded.png" width="32%" title="Downloaded">
+  <br>
+  <em>Built In EQ &nbsp;&bull;&nbsp; Download Songs &nbsp;&bull;&nbsp; Play Offline</em>
+</p>
+
+<p align="center">
+  <img src="readmeimages/artistpage.png" width="32%" title="Artist Page">
+  <img src="readmeimages/art.png" width="32%" title="Art">
+  <img src="readmeimages/ARTartist.png" width="32%" title="Art Artist">
+  <br>
+  <em>Find Artists &nbsp;&bull;&nbsp; And Art</em>
+</p>
+
+<p align="center">
+  <img src="readmeimages/library.png" width="32%" title="Library">
+  <img src="readmeimages/backgroundplaydemo.webp" width="32%" title="Background Play Demo">
+  <img src="readmeimages/videos.png" width="32%" title="videos">
+  <br>
+  <em>Playlists, Upload New Songs & Watch Videos & More &nbsp;&bull;&nbsp; Full Background Play & System Controls</em>
+</p>
+
+<p align="center">
+  <img src="readmeimages/homescreenipad.png" width="70%" title="Horizontal Mode">
   <br>
   <em>Full landscape support for iPad and iPhone</em>
 </p>
 
 <p align="center">
-  <img src="readmeimages/backgroundplaydemo.webp" width="32%" title="Background Play Demo">
+  <img src="readmeimages/lyricsipad.png" width="70%" title="Horizontal lyrics">
   <br>
-  <em>Full background playback and system controls</em>
+  <em>See More on iPad</em>
 </p>
 
 </details>
