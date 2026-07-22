@@ -5,17 +5,34 @@ A karaoke player for [twinskaraoke.com](https://neurokaraoke.com) — available 
 
 All credits go to the website creator "Soul". This is a companion app for the website with extra features.
 
-This App Created By
-- [@ytsodacan](https://github.com/ytsodacan) (SillyProotSoda) 
+**This App Created & Maintained By:**
 - [@XiaoYuan151](https://github.com/XiaoYuan151) (XiaoYuan151)
-- [@Mag1cByt3s](https://github.com/Mag1cByt3s) (MagicBytes).
+- [@Mag1cByt3s](https://github.com/Mag1cByt3s) (MagicBytes)
+- [@ytsodacan](https://github.com/ytsodacan) (SillyProotSoda) 
+- [@NELC-Official](https://github.com/NELC-Official) (NELC-Official)
 
-> Warning : currently the installation means you must sideload the app every 7 days.
+
+> **Update : We are officially moving towards an App Store and TestFlight launch very soon! Stay tuned!**
+>
+> Note: Until the official launch, the current installation method means you must sideload the app every 7 days.
+
 
 ## Features
 
+*   **Native Experience:** Better than the website!
+
+*   **Background Playback:** Full integration with the iOS Lock Screen and Control Center.
+*   **Apple Watch Companion:** Control from your wrist (work in progress)
+
+*   **Offline Play:** Listen to neuro and evil sing anywhere, even without the internet.
+
+* **Instrumental Slider:** allows you to switch between hearing the lyrics sung by the twins to a actual karaoke experience.
+
+
 <details>
-<summary><b>screenshots</b></summary>
+<summary><b>
+screenshots
+</b></summary>
 <br>
 
 <p align="center">
@@ -46,17 +63,19 @@ This App Created By
 
 # Twinskaraoke - iOS Installation Guide
 
-Currently, Twinskaraoke is not available on the App Store or via TestFlight.
+Currently, Twinskaraoke is not yet available on the App Store or via TestFlight. 
 
-To install the app on your iPhone or iPad, you must use a sideloader or build from source.
+To install the app on your iPhone or iPad today, you must use a sideloader or build from source.
 
 ## Install
 
 install using sideloading tools like [Sideloadly](https://sideloadly.io/) or [AltStore](https://altstore.io/).
 you will need a free Apple ID.
 
-### Step 1: Download the App
-Go to the **[Releases](../../releases/latest)** page on the right side of this repository and download the latest `.ipa` file:
+### Step 1: Download the App (Nightly Builds)
+As we prepare for our App Store launch, we highly recommend using our Nightly Builds to get the latest features, bug fixes, and improvements!
+
+Go to the **[Nightly Releases](https://github.com/Evil-Project/Twinskaraoke/releases)** page on this repository and download the latest nightly `.ipa` file:
 * **`Twinskaraoke-iPhone-Sideload.ipa`** (Recommended for iPhone & iPad)
 
 ### Step 2: Sideload
@@ -69,7 +88,6 @@ Go to the **[Releases](../../releases/latest)** page on the right side of this r
 
 ## Apple Watch
 If you wish to use the Apple Watch companion app, download the **`Twinskaraoke-Watch.ipa`** as well.
-
 
 Free Apple accounts are limited to creating **10 App IDs every 7 days**. Because Watch apps use multiple App IDs at once, sideloading the Watch version may fail if you have hit Apple's server limit. If this happens, please stick to the iPhone-only IPA.
 

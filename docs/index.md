@@ -11,10 +11,15 @@ hero:
       text: Getting Started
       link: /getting-started
     - theme: alt
+      text: Get Nightly Builds
+      link: https://github.com/Evil-Project/Twinskaraoke/releases
+    - theme: alt
       text: GitHub
       link: //github.com/Evil-Project/Twinskaraoke
 
 features:
+  - title: 🚀 Coming Soon to App Store & TestFlight!
+    details: We are actively working alongside new developers to bring Twinskaraoke natively to the App Store. Stay tuned for our upcoming TestFlight beta!
   - title: Designed For Neuro-sama's Swarm
     details: Listen to your favorite streamer's karaoke anywhere, even without an Internet connection.
   - title: Connected With Neurokaraoke Player

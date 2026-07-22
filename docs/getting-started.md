@@ -8,19 +8,24 @@ Twinskaraoke is a karaoke player for [twinskaraoke.com](https://neurokaraoke.com
 
 All credits go to the website creator "Soul". This is a companion app for the website with extra features.
 
-Created by [@ytsodacan](https://github.com/ytsodacan) (SillyProotSoda) and [@XiaoYuan151](https://github.com/XiaoYuan151) (XiaoYuan151).
+Created and maintained by [@XiaoYuan151](https://github.com/XiaoYuan151), [@Mag1cByt3s](https://github.com/Mag1cByt3s), [@ytsodacan](https://github.com/ytsodacan), [@NELC-Official](https://github.com/NELC-Official)
 
+::: info 🚀 COMING SOON
+**We are moving towards an official App Store and TestFlight launch soon!** 
+:::
 ::: warning
-Currently the installation means you must sideload the app every 7 days.
+Until the official launch, the current installation method means you must sideload the app every 7 days.
 :::
 
 ## Install via Sideloading
 
 Install using sideloading tools like [Sideloadly](https://sideloadly.io/) or [AltStore](https://altstore.io/). You will need a free Apple ID.
 
-### Step 1: Download the App
+### Step 1: Download the App (Nightly Builds)
 
-Go to the **[Releases](https://github.com/Evil-Project/Twinskaraoke/releases/latest)** page and download the latest `.ipa` file:
+To get the latest improvements as we gear up for the App Store release, we highly recommend downloading our Nightly Builds!
+
+Go to the **[Nightly Releases](https://github.com/Evil-Project/Twinskaraoke/releases)** page and download the latest `.ipa` file:
 
 - **`Twinskaraoke-iPhone-Sideload.ipa`** (Recommended for iPhone & iPad)
 
