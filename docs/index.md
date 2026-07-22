@@ -18,12 +18,12 @@ hero:
       link: //github.com/Evil-Project/Twinskaraoke
 
 features:
-  - title: 🚀 Coming Soon to App Store & TestFlight!
-    details: We are actively working alongside new developers to bring Twinskaraoke natively to the App Store. Stay tuned for our upcoming TestFlight beta!
-  - title: Designed For Neuro-sama's Swarm
-    details: Listen to your favorite streamer's karaoke anywhere, even without an Internet connection.
-  - title: Connected With Neurokaraoke Player
-    details: Full, powerful and smooth connection with the official twinskaraoke.com website.
-  - title: Available On Your Favorite Devices
-    details: Full landscape, background playback and system control support on iPhone, iPad and Apple Watch.
+  - title:  Coming Soon to App Store !
+    details: We are officially moving towards an App Store and TestFlight launch very soon! Stay tuned!
+  - title: Advanced Audio & Offline Play
+    details: Download songs to listen anywhere. Fine-tune your audio with a built-in 10-band EQ and real-time vocal/instrumental separation.
+  - title: Native Background Playback
+    details: Full integration with the iOS Lock Screen, Control Center, and an Apple Watch companion app.
+  - title: Live Radio & Galleries
+    details: Listen to live streaming radio episodes, and browse through thousands of fan artworks and watchalong videos.
 ---
