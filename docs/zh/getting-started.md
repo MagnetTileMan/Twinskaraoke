@@ -57,10 +57,10 @@ Sideloadly 用户：我们的 IPA 已为你预优化，**无需**在高级选项
 </div>
 <div style="display:flex;gap:2%;justify-content:center;margin-top:8px;">
   <img src="../../readmeimages/playingnext.png" style="width:48%" title="播放队列">
-  <img src="../../readmeimages/instrumentallyrics.png" style="width:48%" title="伴奏歌词">
+  <img src="../../readmeimages/new.png" style="width:48%" title="最新内容">
 </div>
 <div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;">
-  <img src="../../readmeimages/horizontal.png" style="width:80%" title="横屏模式">
+  <img src="../../readmeimages/homescreenipad.png" style="width:80%" title="横屏模式">
   <em>iPad 与 iPhone 均支持完整横屏布局</em>
 </div>
 <div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;margin-bottom:16px;">
