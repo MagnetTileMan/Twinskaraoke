@@ -12,7 +12,7 @@ All credits go to the website creator "Soul". This is a companion app for the we
 - [@NELC-Official](https://github.com/NELC-Official) (NELC-Official)
 
 
-> **Update : We are officially live on TestFlight, sea installation info below! Stay tuned for the App Store!**
+> **Update : We are officially live on TestFlight, see installation info below! Stay tuned for the App Store!**
 >
 > Note: The watchOS app is still 100% in development please be patient with us, thank you!
 
