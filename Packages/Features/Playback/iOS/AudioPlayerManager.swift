@@ -1367,16 +1367,16 @@ final class AudioPlayerManager {
     }
 
     private func schedulePreparedTransition(_ plan: TransitionCoordinator.TransitionPlan) {
-        let remaining = playbackDuration - activePlaybackTime(for: currentSong)
         let lead = anyAIEffectActive ? 0 : AVEnginePlayback.crossfadeSchedulingLead
-        transition.scheduleDeadline(after: remaining - plan.fadeDuration - lead) { [weak self] in
-            guard let self, isPlaying, transitionCoordinator.pendingPlan?.id == plan.id else { return }
-            guard crossfadeTarget?.id == plan.target.id else {
-                cancelPendingTransitionWork()
-                return
-            }
-            transitionCoordinator.beginPreparedTransition(plan)
-        }
+        let remaining = playbackDuration - activePlaybackTime(for: currentSong)
+        transition.schedulePreparedHandoff(
+            plan, coordinator: transitionCoordinator, after: remaining - plan.fadeDuration - lead,
+            decision: { [weak self] in
+                guard let self, isPlaying else { return .ignore }
+                return crossfadeTarget?.id == plan.target.id ? .begin : .invalidate
+            },
+            onInvalidated: { [weak self] in self?.cancelPendingTransitionWork() }
+        )
     }
 
     private func handleMemoryWarning() {

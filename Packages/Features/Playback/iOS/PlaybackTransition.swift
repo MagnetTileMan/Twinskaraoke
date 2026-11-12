@@ -14,6 +14,27 @@ final class PlaybackTransition {
         watchdog?.cancel()
     }
 
+    enum DeadlineDecision {
+        case ignore, begin, invalidate
+    }
+
+    func schedulePreparedHandoff(
+        _ plan: Plan,
+        coordinator: TransitionCoordinator,
+        after delay: TimeInterval,
+        decision: @escaping @MainActor () -> DeadlineDecision,
+        onInvalidated: @escaping @MainActor () -> Void
+    ) {
+        scheduleDeadline(after: delay) { [weak coordinator] in
+            guard let coordinator, coordinator.pendingPlan?.id == plan.id else { return }
+            switch decision() {
+            case .ignore: break
+            case .begin: coordinator.beginPreparedTransition(plan)
+            case .invalidate: onInvalidated()
+            }
+        }
+    }
+
     func scheduleDeadline(after delay: TimeInterval, _ fire: @escaping @MainActor () -> Void) {
         deadline?.cancel()
         deadline = schedule(after: delay, fire)
